@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atendimento - Calixto System</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #111b21; color: #e9edef; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* SIDEBAR (Lista de Contatos) */
+        .sidebar { width: 30%; border-right: 1px solid #2f3b43; display: flex; flex-direction: column; background: #111b21; }
+        .header { height: 60px; background: #202c33; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #2f3b43; }
+        .search-bar { padding: 10px; background: #111b21; }
+        .search-input { width: 100%; background: #202c33; border: none; padding: 8px 30px; border-radius: 8px; color: white; box-sizing: border-box; }
+        
+        .contact-list { flex: 1; overflow-y: auto; }
+        .contact-item { display: flex; align-items: center; padding: 12px; cursor: pointer; border-bottom: 1px solid #222d34; transition: 0.2s; }
+        .contact-item:hover { background: #202c33; }
+        .contact-item.active { background: #2a3942; }
+        
+        .avatar { width: 45px; height: 45px; background: #6a7f8a; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; color: white; margin-right: 15px; }
+        .info { flex: 1; }
+        .name { font-weight: bold; font-size: 16px; margin-bottom: 4px; }
+        .last-msg { font-size: 13px; color: #8696a0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 200px; }
+
+        /* MAIN (Área de Chat) */
+        .main-chat { flex: 1; display: flex; flex-direction: column; background: #0b141a; position: relative; }
+        /* Imagem de fundo padrão do WhatsApp */
+        .main-chat::before { content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.06; background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png'); pointer-events: none; }
+        
+        .chat-header { height: 60px; background: #202c33; padding: 0 16px; display: flex; align-items: center; z-index: 10; border-bottom: 1px solid #2f3b43; }
+        .chat-title { margin-left: 15px; font-weight: bold; }
+        
+        .messages-area { flex: 1; padding: 20px 50px; overflow-y: auto; z-index: 5; display: flex; flex-direction: column; gap: 10px; }
+        
+        .message { max-width: 60%; padding: 8px 12px; border-radius: 8px; font-size: 14.2px; position: relative; word-wrap: break-word; }
+        .msg-in { background: #202c33; align-self: flex-start; border-top-left-radius: 0; }
+        .msg-out { background: #005c4b; align-self: flex-end; border-top-right-radius: 0; }
+        
+        .msg-meta { font-size: 11px; color: #8696a0; text-align: right; margin-top: 4px; display: flex; justify-content: flex-end; align-items: center; gap: 4px; }
+        .msg-out .msg-meta { color: #83cabc; }
+
+        .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #8696a0; text-align: center; z-index: 10; }
+        .empty-state h1 { color: #e9edef; font-weight: 300; margin-bottom: 10px; }
+
+        /* Barra de envio (Visual apenas por enquanto) */
+        .input-area { min-height: 60px; background: #202c33; padding: 10px 20px; display: flex; align-items: center; z-index: 10; }
+        .input-box { flex: 1; background: #2a3942; border-radius: 8px; padding: 12px; border: none; color: white; outline: none; margin: 0 10px; }
+        .btn-icon { color: #8696a0; font-size: 20px; cursor: pointer; padding: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div class="header">
+            <div class="avatar" style="background:transparent"><i class="fas fa-robot" style="color:#00d2ff"></i></div>
+            <div style="display:flex; gap:15px">
+                <i class="fas fa-sync-alt btn-icon" onclick="location.reload()" title="Atualizar"></i>
+                <a href="/" style="color:inherit"><i class="fas fa-home btn-icon" title="Voltar ao Dashboard"></i></a>
+            </div>
+        </div>
+        <div class="search-bar">
+            <input type="text" class="search-input" placeholder="Pesquisar conversa..." onkeyup="filtrarContatos(this.value)">
+        </div>
+        <div class="contact-list" id="contactList">
+            <% contatos.forEach(contato => { %>
+                <div class="contact-item" onclick="carregarChat('<%= contato.id %>', '<%= contato.nome || contato.remoteJid %>', '<%= contato.remoteJid %>')" data-nome="<%= (contato.nome || '').toLowerCase() %> <%= contato.remoteJid %>">
+                    <div class="avatar"><i class="fas fa-user"></i></div>
+                    <div class="info">
+                        <div class="name"><%= contato.nome || contato.remoteJid %></div>
+                        <div class="last-msg">
+                            <% if(contato.mensagens.length > 0) { %>
+                                <%= contato.mensagens[0].fromMe ? 'Você: ' : '' %><%= contato.mensagens[0].texto %>
+                            <% } else { %>
+                                Nova conversa
+                            <% } %>
+                        </div>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+    </div>
+
+    <div class="main-chat">
+        <div id="welcomeScreen" class="empty-state">
+            <i class="fas fa-comments" style="font-size: 80px; margin-bottom: 20px;"></i>
+            <h1>Calixto Web</h1>
+            <p>Selecione uma conversa para visualizar o histórico.<br>As conversas são apagadas automaticamente após o fim do atendimento.</p>
+        </div>
+
+        <div id="chatInterface" style="display:none; flex:1; flex-direction:column; height:100%">
+            <div class="chat-header">
+                <div class="avatar"><i class="fas fa-user"></i></div>
+                <div class="chat-title" id="chatTitle">Nome do Cliente</div>
+            </div>
+            
+            <div class="messages-area" id="messagesArea">
+                </div>
+
+            <div class="input-area">
+                <i class="far fa-smile btn-icon"></i>
+                <i class="fas fa-paperclip btn-icon"></i>
+                <input type="text" class="input-box" placeholder="Mensagem (Visualização apenas)" disabled>
+                <i class="fas fa-microphone btn-icon"></i>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Função para formatar hora
+        function formatHora(dataISO) {
+            const date = new Date(dataISO);
+            return date.getHours().toString().padStart(2, '0') + ':' + date.getMinutes().toString().padStart(2, '0');
+        }
+
+        async function carregarChat(id, nome, numero) {
+            // UI Update
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('chatInterface').style.display = 'flex';
+            document.getElementById('chatTitle').innerText = nome + ' (' + numero + ')';
+            
+            // Highlight na sidebar
+            document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            const area = document.getElementById('messagesArea');
+            area.innerHTML = '<div style="text-align:center; color:#888; margin-top:20px"><i class="fas fa-spinner fa-spin"></i> Carregando...</div>';
+
+            // Busca mensagens
+            const res = await fetch(`/api/chat/${id}`);
+            const mensagens = await res.json();
+
+            area.innerHTML = ''; // Limpa loader
+
+            mensagens.forEach(msg => {
+                const div = document.createElement('div');
+                div.className = `message ${msg.fromMe ? 'msg-out' : 'msg-in'}`;
+                
+                // Verifica se é mídia
+                let conteudo = msg.texto;
+                if(conteudo.includes('[Mídia]')) {
+                    conteudo = `<i class="fas fa-image"></i> <i>${conteudo}</i>`;
+                }
+
+                div.innerHTML = `
+                    ${conteudo}
+                    <div class="msg-meta">
+                        ${formatHora(msg.criadoEm)}
+                        ${msg.fromMe ? '<i class="fas fa-check-double"></i>' : ''}
+                    </div>
+                `;
+                area.appendChild(div);
+            });
+
+            // Scroll para o final
+            area.scrollTop = area.scrollHeight;
+        }
+
+        function filtrarContatos(termo) {
+            termo = termo.toLowerCase();
+            document.querySelectorAll('.contact-item').forEach(item => {
+                const nome = item.getAttribute('data-nome');
+                item.style.display = nome.includes(termo) ? 'flex' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>

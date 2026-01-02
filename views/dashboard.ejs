@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calixto OmniSystem - Painel</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { box-sizing: border-box; outline: none; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; padding: 40px; background-color: #000; color: white; }
+
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; max-width: 1400px; margin: 0 auto 40px auto; }
+        .brand { font-size: 1.5rem; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .brand i { color: #00d2ff; }
+        .btn-new { background-color: #006eff; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 0.9rem; transition: 0.3s; }
+        .btn-new:hover { background-color: #0056cc; box-shadow: 0 0 15px rgba(0, 110, 255, 0.3); }
+
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 30px; max-width: 1400px; margin: 0 auto; }
+        .card { background-color: #0a0a0a; border: 1px solid #1f1f1f; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); position: relative; transition: transform 0.2s, border-color 0.2s; }
+        .card:hover { border-color: #333; transform: translateY(-5px); }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        .client-name { font-weight: 600; font-size: 1.1rem; }
+        .client-id { font-size: 0.75rem; color: #444; margin-bottom: 20px; display: block; font-family: monospace; }
+
+        /* SWITCH */
+        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #00d2ff; }
+        input:checked + .slider:before { transform: translateX(18px); }
+
+        /* STATUS */
+        .status { font-size: 0.8rem; color: #888; margin-bottom: 20px; display: flex; align-items: center; gap: 6px; }
+        .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; }
+        .dot.red { background-color: #ff4444; box-shadow: 0 0 5px #ff4444; }
+        .dot.green { background-color: #00ff88; box-shadow: 0 0 5px #00ff88; }
+        .dot.gray { background-color: #666; }
+
+        /* INPUTS */
+        .field-label { font-size: 0.75rem; color: #666; margin-bottom: 6px; display: block; }
+        .fake-input { background-color: #161616; border: 1px solid #2a2a2a; border-radius: 6px; padding: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; color: #ddd; font-size: 0.9rem; font-weight: 500; }
+        .fake-input i { color: #555; cursor: pointer; transition: 0.3s; }
+        .fake-input i:hover { color: #fff; }
+
+        .actions { display: flex; gap: 10px; margin-top: 25px; }
+        .btn { flex: 1; border: none; padding: 12px; border-radius: 6px; color: white; font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 0.9rem; text-decoration: none; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .btn-blue { background-color: #0056b3; }
+        .btn-del { background-color: #1a1a1a; border: 1px solid #333; color: #666; width: 45px; flex: none; }
+        .btn-del:hover { background-color: #ef4444; color: white; border-color: #ef4444; }
+
+        /* MODAL */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(2px); justify-content: center; align-items: center; z-index: 1000; }
+        .modal-box { background-color: #121212; width: 350px; padding: 30px; border-radius: 8px; border: 1px solid #333; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .modal-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; color: white; }
+        .modal-input { width: 100%; background-color: #1e1e1e; border: 1px solid #444; color: white; padding: 12px; border-radius: 4px; font-size: 1rem; margin-bottom: 15px; }
+        .modal-input:focus { border-color: #00d2ff; }
+        .btn-ok { background-color: #6c5ce7; color: white; border: none; padding: 10px 30px; border-radius: 4px; font-weight: bold; cursor: pointer; margin-top: 10px; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="brand"><i class="fas fa-rocket"></i> Calixto OmniSystem</div>
+        <button class="btn-new" onclick="abrirModalNovo()">+ Novo Cliente</button>
+    </div>
+
+    <div class="grid">
+        <% if (clientes.length === 0) { %>
+            <div style="color: #666; text-align: center; grid-column: 1/-1;">Nenhum cliente. Adicione um novo!</div>
+        <% } %>
+
+        <% clientes.forEach(c => { %>
+            <div class="card" id="card-<%= c.id %>">
+                <div class="card-header">
+                    <div class="client-name"><%= c.nome %></div>
+                    <label class="switch">
+                        <input type="checkbox" id="toggle-<%= c.id %>"
+                               <%= c.status === 'ONLINE' ? 'checked' : '' %>
+                               onchange="toggleBot('<%= c.id %>', this)">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <span class="client-id">ID: <%= c.id.substring(0,8) %>...</span>
+
+                <div class="status">
+                    Status: 
+                    <span id="status-<%= c.id %>">
+                        <% if(c.status === 'ONLINE') { %>
+                            <span class="dot green"></span> <b style="color: #00ff88">ONLINE</b>
+                        <% } else { %>
+                            <span class="dot red"></span> <b style="color: #ff4444">OFFLINE</b>
+                        <% } %>
+                    </span>
+                </div>
+
+                <span class="field-label">Nome do Cliente</span>
+                <div class="fake-input">
+                    <span id="view-nome-<%= c.id %>"><%= c.nome %></span>
+                    <i class="fas fa-pen" onclick="abrirModalEdicao('<%= c.id %>', '<%= c.nome %>', '<%= c.numero %>')"></i>
+                </div>
+
+                <span class="field-label">WhatsApp Conectado</span>
+                <div class="fake-input">
+                    <span id="view-numero-<%= c.id %>"><%= c.numero || 'Sem número' %></span>
+                    <i class="fas fa-pen" onclick="abrirModalEdicao('<%= c.id %>', '<%= c.nome %>', '<%= c.numero %>')"></i>
+                </div>
+
+                <div class="actions">
+                    <a href="/editor/<%= c.id %>" class="btn btn-blue">
+                        <i class="fas fa-share-nodes"></i> Editar Fluxo
+                    </a>
+                    <button class="btn btn-del" onclick="excluir('<%= c.id %>')" title="Excluir">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        <% }) %>
+    </div>
+
+    <div id="modal-form" class="modal-overlay">
+        <div class="modal-box">
+            <div class="modal-title" id="modal-title">Novo Cliente</div>
+            <input type="hidden" id="inp-id">
+            <input type="text" id="inp-nome" class="modal-input" placeholder="Nome do Cliente">
+            <input type="text" id="inp-numero" class="modal-input" placeholder="55219..." maxlength="13">
+            <button class="btn-ok" onclick="salvarDados()">Salvar</button>
+            <button style="background:transparent; border:none; color:#666; margin-top:10px; cursor:pointer" onclick="fecharModal()">Cancelar</button>
+        </div>
+    </div>
+
+    <div id="modal-pairing" class="modal-overlay" style="display: none; z-index: 2000;">
+        <div class="modal-box" style="width: 400px; text-align: center;">
+            <div style="font-size: 3rem; color: #00d2ff; margin-bottom: 10px;">
+                <i class="fab fa-whatsapp"></i>
+            </div>
+            <h2 style="color: white; margin: 0;">Conectar WhatsApp</h2>
+            <p style="color: #aaa; font-size: 0.9rem; margin-top: 5px;">
+                No celular: <b>Aparelhos Conectados > Conectar > Conectar com número</b>
+            </p>
+            
+            <div id="display-code" style="background: #1a1a1a; border: 2px dashed #00d2ff; color: #fff; font-size: 2.2rem; font-weight: bold; padding: 15px; margin: 20px 0; border-radius: 8px; letter-spacing: 4px;">
+                ...
+            </div>
+
+            <button onclick="fecharModalPairing()" style="background: #333; color: white; border: none; padding: 10px 30px; border-radius: 4px; cursor: pointer;">Fechar</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        // 1. Receber Código
+        socket.on('pairingCode', (data) => {
+            document.getElementById('display-code').innerText = data.code;
+            document.getElementById('modal-pairing').style.display = 'flex';
+        });
+
+        // 2. Receber Status (Fecha modal se conectar)
+        socket.on('status', (data) => {
+            const label = document.getElementById('status-' + data.clienteId);
+            const toggle = document.getElementById('toggle-' + data.clienteId);
+            
+            if (label) {
+                if (data.status === 'ONLINE') {
+                    label.innerHTML = '<span class="dot green"></span> <b style="color: #00ff88">ONLINE</b>';
+                    if(toggle) toggle.checked = true;
+                    fecharModalPairing();
+                } else {
+                    label.innerHTML = '<span class="dot red"></span> <b style="color: #ff4444">OFFLINE</b>';
+                    if(toggle) toggle.checked = false;
+                }
+            }
+        });
+
+        function fecharModalPairing() { document.getElementById('modal-pairing').style.display = 'none'; }
+        
+        function abrirModalNovo() {
+            document.getElementById('modal-title').innerText = "Novo Cliente";
+            document.getElementById('inp-id').value = "";
+            document.getElementById('inp-nome').value = "";
+            document.getElementById('inp-numero').value = "";
+            document.getElementById('modal-form').style.display = 'flex';
+        }
+
+        function abrirModalEdicao(id, nome, numero) {
+            document.getElementById('modal-title').innerText = "Editar";
+            document.getElementById('inp-id').value = id;
+            document.getElementById('inp-nome').value = nome;
+            document.getElementById('inp-numero').value = numero;
+            document.getElementById('modal-form').style.display = 'flex';
+        }
+
+        function fecharModal() { document.getElementById('modal-form').style.display = 'none'; }
+
+        async function salvarDados() {
+            const id = document.getElementById('inp-id').value;
+            const nome = document.getElementById('inp-nome').value;
+            const numero = document.getElementById('inp-numero').value;
+            if(!nome) return alert("O nome é obrigatório!");
+
+            const url = '/api/clientes'; 
+            
+            try {
+                // OBS: Para edição real, você pode precisar ajustar a API para PUT se tiver ID
+                // Aqui estou usando POST simplificado para o exemplo
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome, numero })
+                });
+                if(res.ok) window.location.reload();
+                else alert("Erro ao salvar.");
+            } catch (e) { console.error(e); alert("Erro de conexão."); }
+        }
+
+        async function excluir(id) {
+            if(confirm("Deseja realmente excluir este cliente e todo o histórico?")) {
+                try {
+                    await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
+                    window.location.reload();
+                } catch (e) { alert("Erro ao excluir."); }
+            }
+        }
+
+        // --- BOTÃO LIGAR/DESLIGAR ---
+        async function toggleBot(clienteId, elementoSwitch) {
+            const novoStatus = elementoSwitch.checked ? 'ONLINE' : 'OFFLINE';
+            const label = document.getElementById('status-' + clienteId);
+            
+            // Feedback visual
+            if(label) label.innerHTML = '<span class="dot gray"></span> <i>Processando...</i>';
+
+            try {
+                const response = await fetch('/api/status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ clienteId: clienteId, status: novoStatus })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.reload(); // Recarrega para garantir
+                } else {
+                    alert("Erro ao atualizar status: " + (data.error || "Desconhecido"));
+                    window.location.reload();
+                }
+            } catch (erro) {
+                console.error(erro);
+                alert("Erro de conexão com o servidor.");
+                window.location.reload();
+            }
+        }
+    </script>
+</body>
+</html>
