@@ -1,16 +1,13 @@
-Aqui está a **Bíblia Técnica Completa e Atualizada (Versão Definitiva 8.1)** do Calixto OmniSystem.
 
-Esta documentação reflete a arquitetura atual de produção, utilizando **PostgreSQL** como banco de dados relacional e confirmando o armazenamento de sessões do WhatsApp em disco local, conforme sua solicitação.
 
----
-
+markdown
 # Calixto OmniSystem - Technical Documentation
 
 > **Versão:** 8.1 (Stable Production Release)
 > **Tipo:** Monorepo / SaaS Core
 > **Autor:** CalixtoDev Engineering Team
 
----
+
 
 ## 1. Resumo Executivo (Abstract)
 
@@ -18,7 +15,7 @@ O **Calixto OmniSystem** é uma plataforma SaaS de orquestração de atendimento
 
 O sistema opera sobre a API Multi-Device (Baileys), eliminando a necessidade de emuladores Android. A arquitetura gerencia múltiplos inquilinos (tenants) em uma única instância Node.js, utilizando **Redis** para gestão de estado de alta performance e **PostgreSQL** via Prisma ORM para persistência relacional robusta dos dados de clientes e fluxos.
 
----
+
 
 ## 2. Visão Geral e Arquitetura
 
@@ -30,7 +27,7 @@ O sistema opera sobre a API Multi-Device (Baileys), eliminando a necessidade de 
 
 ### 2.2 Fluxo de Dados (Data Flow)
 
-```mermaid
+mermaid
 graph TD
     User((Usuário WhatsApp)) -->|Envia Msg| A[Baileys Socket]
     A -->|Evento: messages.upsert| B(Security Layer)
@@ -52,9 +49,8 @@ graph TD
     L --> User
     L -->|Update State| F
 
-```
 
----
+
 
 ## 3. Stack Tecnológica
 
@@ -73,6 +69,7 @@ graph TD
 ### Infraestrutura
 
 * **Process Manager:** PM2 (Clusterização, Logs e Restart Automático).
+* **Service Wrapper:** pm2-windows-startup (Inicialização automática com o Windows).
 * **Logging:** Pino (Baixo overhead).
 
 ---
@@ -111,16 +108,38 @@ DATABASE_URL="postgresql://usuario:senha@localhost:5432/calixto_db?schema=public
 
 Esta tabela contém os comandos essenciais para a manutenção diária do sistema.
 
-| Categoria | Ação | Comando | Descrição |
+| Categoria | Ação | Comando (CMD/PowerShell) | Descrição |
 | --- | --- | --- | --- |
-| **Processo** | **Iniciar** | `npx pm2 start index.js ...` | Cria o processo (Use apenas na instalação). |
-| **Processo** | **Reiniciar** | `npx pm2 restart calixto-omnisystem` | **Comando mais usado.** Aplica alterações de código e recarrega configurações. |
-| **Processo** | **Parar** | `npx pm2 stop calixto-omnisystem` | Pausa o serviço temporariamente. |
-| **Processo** | **Monitorar** | `npx pm2 monit` | Mostra uso de CPU/RAM em tempo real. |
-| **Debug** | **Ver Logs** | `npx pm2 logs` | Exibe erros e logs do sistema em tempo real. |
-| **Banco** | **Interface** | `npx prisma studio` | Abre um painel visual no navegador para editar o PostgreSQL. |
-| **Redis** | **Limpar** | `redis-cli flushall` | Limpa todas as sessões e estados de conversa da memória RAM. |
-| **Sessão** | **Hard Reset** | (Manual via rm -rf) | Apagar a pasta `/sessions/NomeCliente-ID` resolve conflitos de criptografia (Erro 440). |
+| **Monitoramento** | **Status** | `npx pm2 list` | Ver se o bot está Online ou Parado. |
+| **Monitoramento** | **Logs** | `npx pm2 logs` | Ver mensagens chegando em tempo real (Matrix). |
+| **Manutenção** | **Reiniciar** | `npx pm2 restart calixto-omnisystem` | **Essencial.** Use após editar qualquer código. |
+| **Manutenção** | **Salvar** | `npx pm2 save` | Grava o estado atual para reiniciar com o Windows. |
+| **Emergência** | **Ressuscitar** | `npx pm2 resurrect` | Traz o bot de volta se ele sumir da lista. |
+| **Emergência** | **Combo** | `start redis-server && npx pm2 restart calixto-omnisystem` | Força reinício do Banco de Memória e do Bot. |
+| **Banco** | **Interface** | `npx prisma studio` | Abre painel visual para editar o PostgreSQL. |
+| **Redis** | **Limpar** | `redis-cli flushall` | Zera a memória de conversas (Reset total). |
+
+### 4.4 Acesso Remoto Temporário (Demonstrações e Mobile)
+
+Para acessar o Dashboard pelo telemóvel/celular ou apresentar o sistema a clientes externos sem a necessidade de configurar um servidor VPS/Cloud (Deploy), recomenda-se o uso de túneis seguros via **Ngrok**.
+
+**Pré-requisitos:**
+
+* Agente [Ngrok](https://ngrok.com/download) instalado localmente.
+* Conta gratuita no Ngrok.
+
+**Procedimento de Execução:**
+
+1. Mantenha o sistema rodando.
+2. Abra um terminal na pasta do executável do Ngrok.
+3. Inicie o túnel na porta da aplicação (padrão 3000):
+```bash
+ngrok http 3000
+
+```
+
+
+4. Copie a URL (ex: `https://xxxx-xxxx.ngrok-free.app`) e envie para o cliente/celular.
 
 ---
 
@@ -132,22 +151,15 @@ Esta seção detalha os mecanismos críticos que garantem a estabilidade do sist
 
 Responsável pela conexão persistente e gerenciamento de credenciais.
 
-* **Estratégia de Persistência de Sessão (FileSystem):**
-O sistema utiliza a estratégia `useMultiFileAuthState` do Baileys. Isso significa que as chaves criptográficas e dados de autenticação do WhatsApp não são salvas no PostgreSQL, mas sim no disco local do servidor, dentro da pasta `/sessions`.
-* *Decisão Arquitetural:* Isso simplifica o backup de sessões individuais e evita sobrecarregar o banco relacional com dados binários de alta frequência de escrita, mas acopla a sessão ao servidor físico onde ela foi criada.
-
-
-* **Protocolo "Zombie Killer" (Gerenciamento de Memória):**
-Antes de iniciar qualquer conexão, o sistema verifica se já existe um listener ativo na memória (`sessoes` Map) para aquele cliente. Se existir, ele força o encerramento (`sock.end()`) antes de criar um novo, prevenindo processamento duplicado após reinicializações.
+* **Estratégia de Persistência de Sessão (FileSystem):** O sistema utiliza a estratégia `useMultiFileAuthState` do Baileys. Isso significa que as chaves criptográficas e dados de autenticação do WhatsApp não são salvas no PostgreSQL, mas sim no disco local do servidor, dentro da pasta `/sessions`.
+* **Protocolo "Zombie Killer" (Gerenciamento de Memória):** Antes de iniciar qualquer conexão, o sistema verifica se já existe um listener ativo na memória (`sessoes` Map) para aquele cliente. Se existir, ele força o encerramento (`sock.end()`) antes de criar um novo.
 
 ### 5.2 Módulo Processador (`engine.js`)
 
 O cérebro do sistema, que implementa a lógica de roteamento dinâmico baseada no JSON recuperado do PostgreSQL.
 
-* **Algoritmo de Roteamento de Erro Dinâmico:**
-Ao contrário de sistemas rígidos, a Engine calcula a porta de saída de erro (`output_X`) matematicamente em tempo de execução. Isso permite alterar o menu visualmente sem quebrar a lógica de "Opção Inválida".
-* **Estratégia de TTL (Time-To-Live) via Redis:**
-O tempo que um usuário permanece em um "estado" não é fixo. A função `getTTL(node)` lê a configuração específica do nó (ex: 2 minutos para menus rápidos, 24h para espera de humano) e aplica essa expiração no Redis, otimizando o uso de memória.
+* **Algoritmo de Roteamento de Erro Dinâmico:** A Engine calcula a porta de saída de erro (`output_X`) matematicamente em tempo de execução.
+* **Estratégia de TTL (Time-To-Live) via Redis:** A função `getTTL(node)` lê a configuração específica do nó (ex: 2 minutos para menus rápidos, 24h para espera de humano) e aplica essa expiração no Redis.
 
 ---
 
@@ -155,56 +167,49 @@ O tempo que um usuário permanece em um "estado" não é fixo. A função `getTT
 
 ### 6.1 Proteção Anti-Loop
 
-O sistema implementa barreiras lógicas para evitar banimento pelo WhatsApp:
-
 1. **Anti-Self:** Descarta mensagens onde `fromMe` é true.
 2. **Anti-Echo:** Verifica se `botId === senderId`.
 3. **Anti-Broadcast:** Ignora mensagens vindas de `status@broadcast`.
 
 ### 6.2 Recuperação de Falhas (Self-Healing)
 
-* **Erro de Criptografia (440/401):** Se detectado conflito crítico de chaves (`MessageCounterError`), a intervenção manual recomendada é o *Hard Reset* da pasta de sessão específica do cliente no disco.
-* **Validação de Mídia:** Verifica a existência física do arquivo (`fs.existsSync`) na pasta `public` antes de tentar o envio, evitando exceções não tratadas na thread principal.
+* **Erro de Criptografia (440/401):** Se detectado conflito crítico de chaves, a intervenção manual recomendada é o *Hard Reset* da pasta de sessão específica do cliente no disco (`rm -rf sessions/pasta_cliente`).
 
 ---
 
-## 7. Dívida Técnica e Roadmap
+## 7. Roadmap de Engenharia
 
-### 7.1 Limitações Atuais da Arquitetura
+1. **Redis Auth Store:** Mover o armazenamento das credenciais do WhatsApp do sistema de arquivos local para o Redis (utilizando `useRedisAuthState`) para permitir containers Docker stateless.
+2. **Microsserviços:** Separar o monolito em dois serviços: Gateway WhatsApp e Engine de Regras.
 
-* **Acoplamento de Sessão ao Disco:** Como as credenciais (`/sessions`) são arquivos locais, não é possível escalar horizontalmente (adicionar mais servidores atrás de um Load Balancer) sem um sistema de arquivos compartilhado (como NFS ou AWS EFS). Se o servidor cair, as sessões precisam ser recriadas em outro lugar.
+---
 
-### 7.2 Próximos Passos (Roadmap de Engenharia)
+## 8. GERAR FLUXOS COM IA (Prompt Engineering)
 
-1. **Redis Auth Store:** Mover o armazenamento das credenciais do WhatsApp do sistema de arquivos local para o Redis (utilizando `useRedisAuthState`). Isso desacoplará o estado da sessão do servidor físico, permitindo arquiteturas de containers (Docker/Kubernetes) stateless e escalabilidade horizontal real.
-2. **Microsserviços:** Separar o monolito em dois serviços: um "Gateway WhatsApp" (focado apenas em manter conexões) e uma "Engine de Regras" (focada em lógica), comunicando-se via fila (RabbitMQ/Kafka).
+Para criar novos fluxos rapidamente, copie o prompt abaixo e envie para uma IA (ChatGPT/Gemini/Claude).
 
-8. **GERAR FLUXOS COM IA**
-(Copie e cole isso na IA antes de pedir o fluxo)
+**Copie daqui para baixo:**
+
+---
 
 "Aja como um Arquiteto de Software especialista em Drawflow e JSON. Eu tenho um sistema de chatbot que lê um JSON específico para montar o fluxo de conversa.
 
-Sua Tarefa: Gerar um JSON válido contendo um fluxo de atendimento para [DESCREVA AQUI O OBJETIVO DO FLUXO, EX: UMA CLÍNICA DENTÁRIA].
+**Sua Tarefa:** Gerar um JSON válido contendo um fluxo de atendimento para **[DESCREVA AQUI O OBJETIVO DO FLUXO, EX: UMA CLÍNICA DENTÁRIA]**.
 
-Regras do Sistema:
+**Regras do Sistema:**
 
-O JSON deve começar com { "drawflow": { "Home": { "data": { ... } } } }.
-
-Os IDs dos nós devem ser numéricos e sequenciais (1, 2, 3...).
-
-Use as conexões (outputs -> inputs) para ligar os nós.
-
-Nó 'menu': Se tiver até 3 opções, ative "buttons-active": true. Sempre ative "timeout-active": true (tempo em minutos) e "invalid-active": true.
-
-Nó 'midia' e 'audio': As URLs devem ser relativas, ex: uploads/foto.jpg.
-
-Nó 'horario': Use formato 24h (ex: "09:00", "18:00"). Saída 1 é Aberto, Saída 2 é Fechado.
+1. O JSON deve começar com `{ "drawflow": { "Home": { "data": { ... } } } }`.
+2. Os IDs dos nós devem ser numéricos e sequenciais (1, 2, 3...).
+3. Use as conexões (`outputs` -> `inputs`) para ligar os nós.
+4. **Nó 'menu':** Se tiver até 3 opções, ative `"buttons-active": true`. Sempre ative `"timeout-active": true` (tempo em minutos) e `"invalid-active": true`.
+5. **Nó 'midia' e 'audio':** As URLs devem ser relativas, ex: `uploads/foto.jpg`.
+6. **Nó 'horario':** Use formato 24h (ex: "09:00", "18:00"). Saída 1 é Aberto, Saída 2 é Fechado.
 
 Abaixo está o ESQUELETO (Modelo) de todos os nós disponíveis. Use este modelo para montar o fluxo solicitado:"
 
-2. O Esqueleto JSON (Modelo de Referência)
-JSON
+### O Esqueleto JSON (Modelo de Referência)
 
+```json
 {
   "drawflow": {
     "Home": {
@@ -323,5 +328,4 @@ JSON
     }
   }
 }
----
 
