@@ -1,7 +1,3 @@
-Com certeza. Aqui está a documentação técnica definitiva para a **Versão 9.0**, incorporando todos os componentes de infraestrutura (Redis, PM2, Postgres), os comandos de "Combo" para iniciar tudo e o modelo JSON atualizado para você entregar a qualquer IA.
-
-Esta documentação serve tanto para seu uso interno quanto para entregar a investidores ou novos desenvolvedores.
-
 ```markdown
 # Calixto OmniSystem - Technical Documentation
 
