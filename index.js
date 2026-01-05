@@ -1,5 +1,5 @@
 // ============================================================
-// ARQUIVO: index.js (ORQUESTRADOR V7.0 - FINAL)
+// ARQUIVO: index.js (ORQUESTRADOR V8.0 - COM TIMEOUT ATIVO)
 // ============================================================
 require('dotenv').config();
 const express = require('express');
@@ -13,6 +13,7 @@ const { PrismaClient } = require('@prisma/client');
 // Módulos Internos
 const whatsapp = require('./modulos/whatsapp');
 const redis = require('./modulos/redis');
+const timeoutMonitor = require('./modulos/timeout'); // <--- NOVO: MONITOR DE TIMEOUT
 
 // Configuração
 const app = express();
@@ -39,7 +40,7 @@ const upload = multer({ storage });
 // 1. ROTAS DE FRONTEND (PÁGINAS)
 // ============================================================
 
-// Rota Raiz -> Redireciona para o Painel (Fim do Loop Infinito)
+// Rota Raiz -> Redireciona para o Painel
 app.get('/', (req, res) => {
     res.redirect('/dashboard');
 });
@@ -50,11 +51,13 @@ app.get('/dashboard', async (req, res) => {
         // Busca clientes ordenados
         const clientes = await prisma.cliente.findMany({ orderBy: { criadoEm: 'desc' } });
         
-        // Verifica quem está realmente conectado na memória
+        // Verifica quem está realmente conectado na memória (Sync Visual)
         const clientesComStatus = clientes.map(c => {
-            // Verifica se existe sessão ativa no Map do whatsapp.js
             const session = whatsapp.sessoes.get(c.id);
             const isOnline = !!session; 
+            if (c.ativo !== isOnline) {
+                // Status visual apenas
+            }
             return { ...c, status: isOnline ? 'ONLINE' : 'OFFLINE' };
         });
 
@@ -80,6 +83,12 @@ app.get('/editor/:id', async (req, res) => {
 // 2. ROTAS DE API (GERENCIAMENTO DE CLIENTES)
 // ============================================================
 
+// Rota de Diagnóstico (Para o Frontend checar status real via AJAX)
+app.get('/api/status-real', (req, res) => {
+    const idsOnline = Array.from(whatsapp.sessoes.keys());
+    res.json({ onlineIds: idsOnline });
+});
+
 // Criar Novo Cliente
 app.post('/api/clientes', async (req, res) => {
     try {
@@ -102,7 +111,10 @@ app.delete('/api/clientes/:id', async (req, res) => {
         // 1. Desconectar WhatsApp se existir
         const session = whatsapp.sessoes.get(id);
         if(session) {
-            try { session.end(undefined); } catch(e){}
+            try { 
+                session.end(undefined);
+                if(session.ws) session.ws.close();
+            } catch(e){}
             whatsapp.sessoes.delete(id);
         }
 
@@ -132,10 +144,14 @@ app.post('/api/status', async (req, res) => {
             // LIGA: Inicia conexão passando o IO para enviar Código de Pareamento
             whatsapp.iniciarWhatsApp(cliente, io);
         } else {
-            // DESLIGA: Derruba conexão
+            // DESLIGA: Derruba conexão IMEDIATAMENTE (Kill Switch)
             const sock = whatsapp.sessoes.get(clienteId);
             if(sock) {
-                try { sock.end(undefined); } catch(e){}
+                console.log(`[API] 🛑 Forçando desconexão de: ${cliente.nome}`);
+                try { 
+                    sock.end(undefined); 
+                    if(sock.ws) sock.ws.close(); // Garante o fim do socket
+                } catch(e){}
                 whatsapp.sessoes.delete(clienteId);
             }
         }
@@ -163,7 +179,6 @@ app.post('/api/clientes/:id/fluxo', async (req, res) => {
 // Upload de Arquivos
 app.post('/api/upload', upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Sem arquivo' });
-    // Garante a barra correta
     res.json({ url: `/uploads/${req.file.filename}` });
 });
 
@@ -171,31 +186,37 @@ app.post('/api/upload', upload.single('file'), (req, res) => {
 // INICIALIZAÇÃO DO SISTEMA
 // ============================================================
 server.listen(PORT, async () => {
-    // MENSAGEM NO TERMINAL ADICIONADA AQUI:
     console.log(`\n===================================================`);
-    console.log(`🚀 CALIXTO OMNISYSTEM - TUDO FUNCIONANDO!`);
-    console.log(`👉 ACESSE O PAINEL: http://localhost:${PORT}/dashboard`);
+    console.log(`🚀 CALIXTO OMNISYSTEM - ORQUESTRADOR V8.0 RODANDO!`);
+    console.log(`👉 DASHBOARD: http://localhost:${PORT}/dashboard`);
     console.log(`===================================================\n`);
     
     // 1. Verifica Redis
     try {
-        await redis.ping();
-        console.log('✅ [REDIS] Conectado com sucesso!');
+        await redis.ping(); 
+        console.log('✅ [REDIS] Banco de memória conectado!');
+        
+        // --- INICIA O VIGIA DE TIMEOUT ---
+        timeoutMonitor.iniciar(); 
+
     } catch (e) {
-        console.error('❌ [REDIS] Falha fatal na conexão:', e);
+        console.error('❌ [REDIS] ERRO CRÍTICO: Redis não encontrado. O Timeout não funcionará.');
+        console.error('   -> Certifique-se que o serviço do Redis está rodando no Windows.');
     }
 
-    // 2. Inicia Bots Ativos
+    // 2. AUTO-START: Inicia Bots Ativos do Banco
     try {
         const clientesAtivos = await prisma.cliente.findMany({ where: { ativo: true } });
-        console.log(`[SISTEMA] Encontrados ${clientesAtivos.length} clientes ONLINE para iniciar.\n`);
+        console.log(`[SISTEMA] 🔄 Auto-Start: Encontrados ${clientesAtivos.length} clientes para iniciar.\n`);
 
-        clientesAtivos.forEach(cliente => {
-            whatsapp.iniciarWhatsApp(cliente, io); 
-        });
+        for (const cliente of clientesAtivos) {
+            console.log(`[SISTEMA] Iniciando ${cliente.nome}...`);
+            whatsapp.iniciarWhatsApp(cliente, io);
+            await new Promise(r => setTimeout(r, 2000));
+        }
 
     } catch (e) {
-        console.error('[CRITICO] Erro ao carregar clientes:', e);
+        console.error('[CRITICO] Erro no Auto-Start:', e);
     }
 });
 

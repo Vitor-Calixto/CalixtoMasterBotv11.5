@@ -1,13 +1,12 @@
 // ============================================================
-// ARQUIVO: modulos/whatsapp.js (V5.3 - LEITURA DE BOTÕES)
+// ARQUIVO: modulos/whatsapp.js (V5.5 - BARREIRA DE BOOT)
 // ============================================================
 const { 
     default: makeWASocket, 
     useMultiFileAuthState, 
     DisconnectReason, 
     fetchLatestBaileysVersion,
-    makeCacheableSignalKeyStore,
-    proto
+    makeCacheableSignalKeyStore
 } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const fs = require('fs');
@@ -15,7 +14,19 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const engine = require('./engine'); 
 
+// --- NOVO: MARCA A HORA QUE O SISTEMA LIGOU ---
+const STARTUP_TIME = Math.floor(Date.now() / 1000); 
+
 const sessoes = new Map();
+
+// Função auxiliar para "desembrulhar" mensagens
+function unwrapMessage(msg) {
+    if (!msg) return null;
+    if (msg.ephemeralMessage) return unwrapMessage(msg.ephemeralMessage.message);
+    if (msg.viewOnceMessage) return unwrapMessage(msg.viewOnceMessage.message);
+    if (msg.viewOnceMessageV2) return unwrapMessage(msg.viewOnceMessageV2.message);
+    return msg;
+}
 
 async function iniciarWhatsApp(cliente, io) {
     if (sessoes.has(cliente.id)) {
@@ -79,6 +90,7 @@ async function iniciarWhatsApp(cliente, io) {
         if (connection === 'close') {
             const statusCode = lastDisconnect?.error?.output?.statusCode;
             sessoes.delete(cliente.id);
+            
             if (statusCode === DisconnectReason.loggedOut) {
                 console.log(`[${cliente.nome}] ❌ LOGOUT.`);
                 try {
@@ -89,7 +101,7 @@ async function iniciarWhatsApp(cliente, io) {
             } else {
                 const dbCheck = await prisma.cliente.findUnique({ where: { id: cliente.id } });
                 if (dbCheck && dbCheck.ativo) {
-                    console.log(`[${cliente.nome}] ⚠️ Queda. Reconectando...`);
+                    console.log(`[${cliente.nome}] ⚠️ Queda (${statusCode}). Reconectando...`);
                     setTimeout(() => iniciarWhatsApp(cliente, io), 3000);
                 }
             }
@@ -101,7 +113,7 @@ async function iniciarWhatsApp(cliente, io) {
         }
     });
 
-    // --- LEITURA DE MENSAGENS E BOTÕES ---
+    // --- LEITURA DE MENSAGENS ---
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
         try {
             if (type !== 'notify') return;
@@ -109,50 +121,61 @@ async function iniciarWhatsApp(cliente, io) {
             if (!msg.message) return;
             if (msg.key.fromMe) return;
             if (msg.key.remoteJid === 'status@broadcast') return;
-            if (msg.key.remoteJid.includes('@g.us')) return;
+            if (msg.key.remoteJid.includes('@g.us')) return; 
+
+            // ============================================================
+            // CORREÇÃO CRÍTICA: BARREIRA DE BOOT
+            // ============================================================
+            const messageTimestamp = typeof msg.messageTimestamp === "number" 
+                ? msg.messageTimestamp 
+                : msg.messageTimestamp.low; 
+            
+            // Se a mensagem foi enviada ANTES do sistema iniciar, IGNORE.
+            // Isso mata qualquer histórico pendente, não importa se foi há 1 minuto ou 1 hora.
+            if (messageTimestamp <= STARTUP_TIME) {
+                // console.log(`[IGNORE] Mensagem pré-boot ignorada: ${msg.key.remoteJid}`);
+                return;
+            }
+            // ============================================================
 
             const botId = sock.user?.id?.split(':')[0];
             const senderId = msg.key.remoteJid.split('@')[0];
             if (botId && botId === senderId) return;
 
             const remoteJid = msg.key.remoteJid;
-            
-            // --- LÓGICA DE EXTRAÇÃO DO TEXTO ---
+            const realMessage = unwrapMessage(msg.message);
+
             let texto = "";
 
-            // 1. Texto Simples
-            if (msg.message.conversation) texto = msg.message.conversation;
-            else if (msg.message.extendedTextMessage?.text) texto = msg.message.extendedTextMessage.text;
+            if (realMessage.conversation) texto = realMessage.conversation;
+            else if (realMessage.extendedTextMessage?.text) texto = realMessage.extendedTextMessage.text;
             
-            // 2. Resposta de Botão Antigo
-            else if (msg.message.buttonsResponseMessage?.selectedButtonId) {
-                texto = msg.message.buttonsResponseMessage.selectedButtonId;
+            else if (realMessage.buttonsResponseMessage?.selectedButtonId) {
+                texto = realMessage.buttonsResponseMessage.selectedButtonId;
             }
-            else if (msg.message.listResponseMessage?.singleSelectReply?.selectedRowId) {
-                texto = msg.message.listResponseMessage.singleSelectReply.selectedRowId;
+            else if (realMessage.listResponseMessage?.singleSelectReply?.selectedRowId) {
+                texto = realMessage.listResponseMessage.singleSelectReply.selectedRowId;
             }
             
-            // 3. Resposta de Botão Novo (Interactive)
-            else if (msg.message.interactiveResponseMessage) {
-                const native = msg.message.interactiveResponseMessage.nativeFlowResponseMessage;
-                const body = msg.message.interactiveResponseMessage.body;
+            else if (realMessage.interactiveResponseMessage) {
+                const native = realMessage.interactiveResponseMessage.nativeFlowResponseMessage;
+                const body = realMessage.interactiveResponseMessage.body;
                 
                 if (native) {
-                    // Tenta ler o JSON do botão
                     try {
                         const params = JSON.parse(native.paramsJson);
                         texto = params.id || "";
                     } catch (e) { texto = "" }
                 } 
                 else if (body) {
-                    texto = body.text; // Fallback
+                    texto = body.text; 
                 }
             }
 
-            // 4. Mídias
-            if (!texto && msg.message.audioMessage) texto = "#AUDIO";
-            if (!texto && msg.message.imageMessage) texto = "#IMAGEM";
-            if (!texto && msg.message.documentMessage) texto = "#ARQUIVO";
+            if (!texto && realMessage.audioMessage) texto = "#AUDIO";
+            if (!texto && realMessage.imageMessage) texto = "#IMAGEM";
+            if (!texto && realMessage.documentMessage) texto = "#ARQUIVO";
+            if (!texto && realMessage.videoMessage) texto = "#VIDEO";
 
             if (texto) {
                 await engine.processarMensagem(cliente.id, remoteJid, texto, sock, prisma);

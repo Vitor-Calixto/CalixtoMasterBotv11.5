@@ -1,5 +1,5 @@
 // ============================================================
-// ARQUIVO: modulos/engine.js (V8.0 - BOTÕES ATIVOS)
+// ARQUIVO: modulos/engine.js (V9.0 - TIMEOUT + FUZZY)
 // ============================================================
 const sessions = require('./sessions');
 const path = require('path');
@@ -7,10 +7,15 @@ const fs = require('fs');
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Normalização de texto (Fuzzy Match)
+function normalizar(texto) {
+    if (!texto) return "";
+    return texto.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+}
+
 function calcularTempo(texto) {
     if (!texto) return 1000;
-    const tempo = 1000 + (texto.length * 50); 
-    return Math.min(tempo, 5000); 
+    return Math.min(1000 + (texto.length * 50), 5000);
 }
 
 function getNextNodeId(node, outputName = 'output_1') {
@@ -34,16 +39,16 @@ function getMimeType(ext) {
 }
 
 function getTTL(node) {
-    let ttl = 3600; 
+    // Retorna o tempo em segundos ou NULL se não tiver timeout
     if (node.data && node.data['timeout-active'] && node.data.timeout) {
         const parsed = parseInt(node.data.timeout);
-        if (!isNaN(parsed) && parsed > 0) ttl = parsed * 60; 
+        if (!isNaN(parsed) && parsed > 0) return parsed * 60; 
     }
-    return ttl;
+    return null; 
 }
 
 // ============================================================
-// FUNÇÃO PRINCIPAL
+// PROCESSADOR DE MENSAGENS
 // ============================================================
 async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma) {
     const userNum = remoteJid.replace(/\D/g, ''); 
@@ -73,64 +78,72 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma) {
     // --- EM ANDAMENTO ---
     else {
         const noAtual = fluxoData[estadoAtualId];
-        
         if (!noAtual) {
             await sessions.limparSessao(userNum);
             return processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma);
         }
 
         if (noAtual.name === 'menu') {
-            const entrada = textoMsg.trim();
-            
-            // Verifica se é número (1, 2) OU se veio do ID do botão ("1", "2")
-            // O whatsapp.js já me entrega o ID limpo se for botão
+            const entradaRaw = textoMsg.trim(); 
+            const entradaNorm = normalizar(entradaRaw);
             let connectionKey = null;
-            if (!isNaN(entrada) && parseInt(entrada) > 0) connectionKey = `output_${entrada}`;
+            
+            if (!isNaN(entradaRaw) && parseInt(entradaRaw) > 0) {
+                connectionKey = `output_${entradaRaw}`;
+            } else {
+                Object.keys(noAtual.data).forEach(key => {
+                    if (key.startsWith('opcao')) {
+                        const textoOpcaoNorm = normalizar(noAtual.data[key]);
+                        if (textoOpcaoNorm.includes(entradaNorm) || (entradaNorm.length > 2 && entradaNorm.includes(textoOpcaoNorm))) {
+                            connectionKey = `output_${key.replace('opcao', '')}`;
+                        }
+                    }
+                });
+            }
 
             const target = getNextNodeId(noAtual, connectionKey);
 
             if (target) {
                 proximoId = target;
-            } else {
-                if (noAtual.data['invalid-active']) {
-                    let totalOpcoes = 0;
-                    Object.keys(noAtual.data).forEach(k => { if (k.startsWith('opcao')) totalOpcoes++; });
-                    let errorOutputIndex = totalOpcoes;
-                    if (noAtual.data['timeout-active']) errorOutputIndex++;
-                    errorOutputIndex++; 
-                    const errorOutputName = `output_${errorOutputIndex}`;
-                    proximoId = getNextNodeId(noAtual, errorOutputName);
-                } 
+            } else if (noAtual.data['invalid-active']) {
+                // Rota de Inválido
+                let totalOpcoes = 0;
+                Object.keys(noAtual.data).forEach(k => { if (k.startsWith('opcao')) totalOpcoes++; });
                 
-                if (!proximoId) {
-                    await sock.sendMessage(remoteJid, { text: "⚠️ Opção inválida. Escolha uma das opções abaixo." });
+                let errorOutputIndex = totalOpcoes + 1; 
+                if (noAtual.data['timeout-active']) errorOutputIndex++; 
+                
+                const rotaErro = getNextNodeId(noAtual, `output_${errorOutputIndex}`);
+                if (rotaErro) proximoId = rotaErro;
+                else {
+                    // Mantém na mesma etapa se errar, mas renova o TTL
                     const ttl = getTTL(noAtual);
-                    await sessions.setEtapaUsuario(userNum, estadoAtualId, ttl);
+                    await sessions.setEtapaUsuario(userNum, estadoAtualId, ttl, clienteId, remoteJid);
                     return;
                 }
-            }
+            } else { return; }
         } else {
             proximoId = getNextNodeId(noAtual);
         }
     }
 
     if (proximoId) {
-        await executarNo(proximoId, fluxoData, sock, remoteJid, userNum);
-    } else if (estadoAtualId) {
-        // ... (lógica de fim)
+        await executarNo(proximoId, fluxoData, sock, remoteJid, userNum, clienteId);
     }
 }
 
 // ============================================================
 // EXECUTOR
 // ============================================================
-async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum) {
+async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum, clienteId) {
     const node = fluxoData[nodeId];
     if (!node) return;
 
     console.log(`[ENGINE] 🚀 Executando: ${node.name} (${nodeId})`);
+    
+    // Salva sessão completa
     const ttl = getTTL(node);
-    await sessions.setEtapaUsuario(userNum, nodeId, ttl);
+    await sessions.setEtapaUsuario(userNum, nodeId, ttl, clienteId, remoteJid);
 
     // 1. MENSAGEM
     if (node.name === 'mensagem') {
@@ -143,7 +156,7 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum) {
             await sock.sendPresenceUpdate('paused', remoteJid);
         }
         const next = getNextNodeId(node);
-        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum);
+        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId);
     }
 
     // 2. MÍDIA
@@ -183,10 +196,10 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum) {
             }
         }
         const next = getNextNodeId(node);
-        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum);
+        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId);
     }
 
-    // 3. MENU (COM BOTÕES 🔘)
+    // 3. MENU
     else if (node.name === 'menu') {
         const titulo = node.data.question || "Opções:";
         let opcoes = [];
@@ -199,22 +212,15 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum) {
         await sock.sendPresenceUpdate('composing', remoteJid);
         await delay(1000);
 
-        // --- VERIFICA SE DEVE ENVIAR COMO BOTÃO ---
-        // A chavinha no seu painel geralmente salva como 'buttons' ou 'buttons-active'
-        const usaBotao = node.data.buttons || node.data['buttons-active'];
+        const rawButton = node.data.buttons || node.data['buttons-active'];
+        const usaBotao = (rawButton === true || rawButton === "true");
 
         if (usaBotao && opcoes.length <= 3) {
-            // MODO BOTÃO (Interactive Buttons - Máximo 3 opções por limitação do WhatsApp)
             console.log(`[ENGINE] 🔘 Enviando como BOTÕES.`);
-            
             const buttons = opcoes.map(op => ({
                 name: "quick_reply",
-                buttonParamsJson: JSON.stringify({
-                    display_text: op.text,
-                    id: String(op.id) // O ID aqui vira o texto que o bot lê depois
-                })
+                buttonParamsJson: JSON.stringify({ display_text: op.text, id: String(op.id) })
             }));
-
             const msgInteractive = {
                 viewOnceMessage: {
                     message: {
@@ -222,23 +228,16 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum) {
                             body: { text: titulo },
                             footer: { text: "Escolha uma opção:" },
                             header: { title: "", subtitle: "", hasMediaAttachment: false },
-                            nativeFlowMessage: {
-                                buttons: buttons
-                            }
+                            nativeFlowMessage: { buttons: buttons }
                         }
                     }
                 }
             };
-
             await sock.sendMessage(remoteJid, msgInteractive);
-
         } else {
-            // MODO TEXTO (Se não tiver marcado botão, ou se tiver mais de 3 opções)
             console.log(`[ENGINE] 📝 Enviando como TEXTO.`);
-            
             let textoMenu = `*${titulo}*\n\n`;
             opcoes.forEach(op => textoMenu += `*${op.id}.* ${op.text}\n`);
-            
             await sock.sendMessage(remoteJid, { text: textoMenu });
         }
     }
@@ -257,14 +256,48 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum) {
         const saida = aberto ? 'output_1' : 'output_2';
         const next = getNextNodeId(node, saida);
         
-        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum);
-        else console.log(`[ENGINE] ⚠️ ERRO: Sem conexão na saída ${saida} do Horário.`);
+        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId);
     }
 
+    // 5. FINALIZAR
     else if (node.name === 'finalizar') {
         console.log(`[ENGINE] 🛑 Fim.`);
         await sessions.limparSessao(userNum);
     }
 }
 
-module.exports = { processarMensagem };
+// --- FUNÇÃO NOVA: CHAMADA PELO MONITOR DE TIMEOUT ---
+async function executarTimeout(userNum, clienteId, remoteJid, nodeId, prisma, sock) {
+    console.log(`[TIMEOUT] ⏰ Estourou tempo para ${userNum} no nó ${nodeId}`);
+    
+    const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
+    if (!cliente || !cliente.fluxoJson) return;
+    const fluxoData = cliente.fluxoJson.drawflow?.Home?.data;
+    const node = fluxoData[nodeId];
+    
+    if (!node || !node.data['timeout-active']) {
+        await sessions.limparSessao(userNum);
+        return;
+    }
+
+    // Cálculo da Saída de Timeout (Sempre depois das opções)
+    let totalOpcoes = 0;
+    if (node.name === 'menu') {
+        Object.keys(node.data).forEach(k => { if (k.startsWith('opcao')) totalOpcoes++; });
+    }
+    
+    const timeoutOutputIndex = totalOpcoes + 1;
+    const timeoutOutputName = `output_${timeoutOutputIndex}`;
+    
+    const nextId = getNextNodeId(node, timeoutOutputName);
+    
+    if (nextId) {
+        console.log(`[TIMEOUT] 👉 Redirecionando para nó ${nextId}`);
+        await executarNo(nextId, fluxoData, sock, remoteJid, userNum, clienteId);
+    } else {
+        console.log(`[TIMEOUT] ❌ Sem rota de timeout. Limpando sessão.`);
+        await sessions.limparSessao(userNum);
+    }
+}
+
+module.exports = { processarMensagem, executarNo, executarTimeout };
