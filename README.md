@@ -1,213 +1,115 @@
+Com certeza. Aqui está a documentação técnica definitiva para a **Versão 9.0**, incorporando todos os componentes de infraestrutura (Redis, PM2, Postgres), os comandos de "Combo" para iniciar tudo e o modelo JSON atualizado para você entregar a qualquer IA.
 
+Esta documentação serve tanto para seu uso interno quanto para entregar a investidores ou novos desenvolvedores.
 
-markdown
+```markdown
 # Calixto OmniSystem - Technical Documentation
 
-> **Versão:** 8.1 (Stable Production Release)
-> **Tipo:** Monorepo / SaaS Core
+> **Versão:** 9.0 (Stable Production Release)
+> **Codinome:** "The Sentinel"
+> **Arquitetura:** Event-Driven Monorepo
 > **Autor:** CalixtoDev Engineering Team
 
-
+---
 
 ## 1. Resumo Executivo (Abstract)
 
-O **Calixto OmniSystem** é uma plataforma SaaS de orquestração de atendimento via WhatsApp, projetada para alta escala e robustez. Diferente de bots lineares tradicionais, este sistema utiliza uma **Engine de Processamento de Grafos** proprietária, capaz de interpretar fluxos visuais complexos (JSON), gerenciar estados de conversação e executar ações multimídia em tempo real.
+O **Calixto OmniSystem V9.0** é uma plataforma de orquestração de atendimento via WhatsApp de alta disponibilidade. Diferente de bots lineares, ele utiliza uma **Engine Híbrida** que combina processamento de grafos visuais (Drawflow) com monitoramento ativo de estado em tempo real.
 
-O sistema opera sobre a API Multi-Device (Baileys), eliminando a necessidade de emuladores Android. A arquitetura gerencia múltiplos inquilinos (tenants) em uma única instância Node.js, utilizando **Redis** para gestão de estado de alta performance e **PostgreSQL** via Prisma ORM para persistência relacional robusta dos dados de clientes e fluxos.
-
-
-
-## 2. Visão Geral e Arquitetura
-
-### 2.1 Paradigmas Adotados
-
-* **Event-Driven Architecture (EDA):** O núcleo é reativo. O sistema permanece em repouso até receber um evento via WebSocket (`messages.upsert`), disparando a cadeia de processamento.
-* **Interpreter Pattern:** O módulo `engine.js` atua como um interpretador. Ele não contém regras de negócio hardcoded; lê e executa instruções definidas dinamicamente no JSON armazenado no PostgreSQL.
-* **Finite State Machine (FSM):** Cada conversa é tratada como uma máquina de estados, onde o Redis persiste o "Estado Atual" e o input do usuário dita a transição para o "Próximo Estado".
-
-### 2.2 Fluxo de Dados (Data Flow)
-
-mermaid
-graph TD
-    User((Usuário WhatsApp)) -->|Envia Msg| A[Baileys Socket]
-    A -->|Evento: messages.upsert| B(Security Layer)
-    B -->|Anti-Loop / Anti-Spam| C{Aprovado?}
-    C -- Não --> D[Descarte Silencioso]
-    C -- Sim --> E[Engine Core]
-    
-    subgraph "Processing Unit"
-    E -->|1. Get State| F[(Redis TTL)]
-    E -->|2. Get Flow JSON| G[(PostgreSQL/Prisma)]
-    E -->|3. Calculate Route| H{Decision Logic}
-    end
-    
-    H -->|Nó Texto| I[Simula Digitação]
-    H -->|Nó Mídia| J[Resolve Path + Stream]
-    H -->|Nó Menu| K[Parser de Botões Nativos]
-    
-    I & J & K --> L[Send Response]
-    L --> User
-    L -->|Update State| F
-
-
-
-
-## 3. Stack Tecnológica
-
-### Core
-
-* **Runtime:** Node.js (v18+ LTS Recomendado).
-* **WhatsApp API:** `@whiskeysockets/baileys` (Protocolo WebSocket reverso).
-* **Server:** Express & Socket.io (Dashboard e Real-time Pairing).
-
-### Persistência
-
-* **Relacional (Produção):** **PostgreSQL** gerenciado via Prisma ORM. Utilizado para armazenar cadastros de clientes, configurações e os grandes objetos JSON dos fluxos.
-* **In-Memory (Cache/Estado):** **Redis**. Utilizado para gestão de sessão do usuário final (TTL) e controle de fluxo rápido.
-* **FileSystem (Sessões WA):** Disco local. As credenciais criptografadas do WhatsApp (`auth_info`) são salvas como arquivos JSON na pasta `/sessions`.
-
-### Infraestrutura
-
-* **Process Manager:** PM2 (Clusterização, Logs e Restart Automático).
-* **Service Wrapper:** pm2-windows-startup (Inicialização automática com o Windows).
-* **Logging:** Pino (Baixo overhead).
+A versão 9.0 introduz o conceito de **"Active State Monitoring"**: um microsserviço sentinela que vigia sessões ociosas no Redis e executa transições de fluxo (timeouts) automaticamente, garantindo que nenhum atendimento fique "pendurado", mesmo se o usuário parar de responder.
 
 ---
 
-## 4. Manual de Operação (Getting Started)
+## 2. Arquitetura de Dados e Infraestrutura
 
-### 4.1 Instalação Inicial e Configuração
+A robustez do sistema baseia-se na separação estrita de responsabilidades entre três camadas de persistência:
 
-```bash
-# 1. Instalar dependências
-npm install
+### 2.1 Camada de Aplicação (Node.js + PM2)
+O **PM2 (Process Manager 2)** atua como o orquestrador do sistema operacional.
+* **Função:** Mantém o processo `index.js` rodando em *Cluster Mode* ou *Fork Mode*.
+* **Self-Healing:** Se o bot travar ou o servidor reiniciar, o PM2 ressuscita o processo automaticamente.
+* **Logs Unificados:** Agrega saídas (`stdout`) e erros (`stderr`) em tempo real.
 
-# 2. Configurar Banco de Dados (PostgreSQL)
-# Certifique-se que o arquivo .env está apontando para seu servidor Postgres.
-npx prisma migrate deploy
+### 2.2 Camada de Persistência Relacional (PostgreSQL + Prisma)
+O "Cérebro de Longo Prazo".
+* **Schema:** Gerenciado via Prisma ORM (`schema.prisma`).
+* **Tabela `Cliente`:** Armazena configurações vitais (`ativo: boolean`, `webhookUrl`) e o **JSON Gigante** que desenha o fluxo de conversa.
+* **Segurança:** Dados sensíveis de negócio ficam aqui, isolados da memória volátil.
 
-# 3. Iniciar Processo (Primeira vez apenas)
-npx pm2 start index.js --name "calixto-omnisystem"
+### 2.3 Camada de Estado Transiente (Redis v4+)
+O "Cérebro de Curto Prazo" e "Memória RAM Compartilhada".
+* **Rich Session Storage:** Na V9, não armazenamos apenas strings. Salvamos objetos JSON complexos:
+  ```json
+  "sessao:552199999999": {
+    "nodeId": 3,
+    "timestamp": 1704400000,
+    "timeoutAt": 1704400120,
+    "clienteId": 1,
+    "remoteJid": "5521...@s.whatsapp.net"
+  }
 
 ```
 
-### 4.2 Configuração de Ambiente (.env)
+* **Função Crítica:** Permite que o **Monitor de Timeout** leia o estado de milhares de usuários em milissegundos sem tocar no banco de dados principal (PostgreSQL).
 
-Exemplo de configuração para produção com PostgreSQL:
+---
 
-```env
-PORT=3000
-# Conexão PostgreSQL (Exemplo):
-DATABASE_URL="postgresql://usuario:senha@localhost:5432/calixto_db?schema=public"
-# Conexão Redis (Opcional se local):
-# REDIS_URL=redis://localhost:6379
+## 3. Manual de Operação (Ops Manual)
+
+### 3.1 O "Comando Mestre" (Start All)
+
+Para iniciar toda a infraestrutura (Banco de Memória + Aplicação) de uma única vez em ambiente de desenvolvimento ou após uma queda total:
+
+```powershell
+# Inicia o servidor Redis (se não for serviço) E reinicia o cluster do bot
+start redis-server && npx pm2 restart calixto-omnisystem
 
 ```
 
-### 4.3 Tabela de Comandos Úteis (Cheat Sheet)
+### 3.2 Tabela de Comandos de Elite (Cheat Sheet)
 
-Esta tabela contém os comandos essenciais para a manutenção diária do sistema.
-
-| Categoria | Ação | Comando (CMD/PowerShell) | Descrição |
-| --- | --- | --- | --- |
-| **Monitoramento** | **Status** | `npx pm2 list` | Ver se o bot está Online ou Parado. |
-| **Monitoramento** | **Logs** | `npx pm2 logs` | Ver mensagens chegando em tempo real (Matrix). |
-| **Manutenção** | **Reiniciar** | `npx pm2 restart calixto-omnisystem` | **Essencial.** Use após editar qualquer código. |
-| **Manutenção** | **Salvar** | `npx pm2 save` | Grava o estado atual para reiniciar com o Windows. |
-| **Emergência** | **Ressuscitar** | `npx pm2 resurrect` | Traz o bot de volta se ele sumir da lista. |
-| **Emergência** | **Combo** | `start redis-server && npx pm2 restart calixto-omnisystem` | Força reinício do Banco de Memória e do Bot. |
-| **Banco** | **Interface** | `npx prisma studio` | Abre painel visual para editar o PostgreSQL. |
-| **Redis** | **Limpar** | `redis-cli flushall` | Zera a memória de conversas (Reset total). |
-
-### 4.4 Acesso Remoto Temporário (Demonstrações e Mobile)
-
-Para acessar o Dashboard pelo telemóvel/celular ou apresentar o sistema a clientes externos sem a necessidade de configurar um servidor VPS/Cloud (Deploy), recomenda-se o uso de túneis seguros via **Ngrok**.
-
-**Pré-requisitos:**
-
-* Agente [Ngrok](https://ngrok.com/download) instalado localmente.
-* Conta gratuita no Ngrok.
-
-**Procedimento de Execução:**
-
-1. Mantenha o sistema rodando.
-2. Abra um terminal na pasta do executável do Ngrok.
-3. Inicie o túnel na porta da aplicação (padrão 3000):
-```bash
-ngrok http 3000
-
-```
-
-
-4. Copie a URL (ex: `https://xxxx-xxxx.ngrok-free.app`) e envie para o cliente/celular.
+| Categoria | Comando | Descrição Técnica |
+| --- | --- | --- |
+| **Start Geral** | `npx pm2 start index.js --name "calixto-omnisystem"` | Inicia o sistema pela primeira vez e registra no PM2. |
+| **Reinício Rápido** | `npx pm2 restart calixto-omnisystem` | Aplica alterações de código (Hot Reload). O Auto-Start reconecta os bots. |
+| **Logs em Real-Time** | `npx pm2 logs` | O "Matrix". Mostra mensagens, erros do Redis e disparos do Monitor. |
+| **Monitorar Processo** | `npx pm2 monit` | Painel gráfico de CPU/Memória do servidor. |
+| **Salvar Estado** | `npx pm2 save` | **Obrigatório** após criar o processo para garantir boot com o Windows. |
+| **Limpar Redis** | `redis-cli flushall` | **CUIDADO.** Reseta todas as conversas de todos os clientes imediatamente. |
+| **Verificar Sessão** | `redis-cli get sessao:5521999...` | Debug. Vê exatamente onde um usuário está travado. |
 
 ---
 
-## 5. Engenharia Interna (Deep Dive)
+## 4. Engenharia de Fluxo (JSON Structure)
 
-Esta seção detalha os mecanismos críticos que garantem a estabilidade do sistema.
+O sistema utiliza um formato JSON proprietário baseado na biblioteca Drawflow.
 
-### 5.1 Módulo Conector (`whatsapp.js`) e Armazenamento de Sessão
+### 4.1 Lógica de Roteamento (Routing Logic)
 
-Responsável pela conexão persistente e gerenciamento de credenciais.
+* **Saídas do Menu:** São dinâmicas.
+* Saídas 1 a N: Opções do Menu.
+* Saída N+1: **Timeout** (Estouro de Tempo).
+* Saída N+2: **Inválido** (Erro de Digitação).
 
-* **Estratégia de Persistência de Sessão (FileSystem):** O sistema utiliza a estratégia `useMultiFileAuthState` do Baileys. Isso significa que as chaves criptográficas e dados de autenticação do WhatsApp não são salvas no PostgreSQL, mas sim no disco local do servidor, dentro da pasta `/sessions`.
-* **Protocolo "Zombie Killer" (Gerenciamento de Memória):** Antes de iniciar qualquer conexão, o sistema verifica se já existe um listener ativo na memória (`sessoes` Map) para aquele cliente. Se existir, ele força o encerramento (`sock.end()`) antes de criar um novo.
 
-### 5.2 Módulo Processador (`engine.js`)
 
-O cérebro do sistema, que implementa a lógica de roteamento dinâmico baseada no JSON recuperado do PostgreSQL.
+### 4.2 Exemplo de JSON para Geração com IA
 
-* **Algoritmo de Roteamento de Erro Dinâmico:** A Engine calcula a porta de saída de erro (`output_X`) matematicamente em tempo de execução.
-* **Estratégia de TTL (Time-To-Live) via Redis:** A função `getTTL(node)` lê a configuração específica do nó (ex: 2 minutos para menus rápidos, 24h para espera de humano) e aplica essa expiração no Redis.
-
----
-
-## 6. Tratamento de Erros e Segurança
-
-### 6.1 Proteção Anti-Loop
-
-1. **Anti-Self:** Descarta mensagens onde `fromMe` é true.
-2. **Anti-Echo:** Verifica se `botId === senderId`.
-3. **Anti-Broadcast:** Ignora mensagens vindas de `status@broadcast`.
-
-### 6.2 Recuperação de Falhas (Self-Healing)
-
-* **Erro de Criptografia (440/401):** Se detectado conflito crítico de chaves, a intervenção manual recomendada é o *Hard Reset* da pasta de sessão específica do cliente no disco (`rm -rf sessions/pasta_cliente`).
+Entregue o bloco abaixo para o ChatGPT/Claude/Gemini para gerar novos fluxos compatíveis com a V9.0:
 
 ---
 
-## 7. Roadmap de Engenharia
+**PROMPT PARA IA:**
 
-1. **Redis Auth Store:** Mover o armazenamento das credenciais do WhatsApp do sistema de arquivos local para o Redis (utilizando `useRedisAuthState`) para permitir containers Docker stateless.
-2. **Microsserviços:** Separar o monolito em dois serviços: Gateway WhatsApp e Engine de Regras.
-
----
-
-## 8. GERAR FLUXOS COM IA (Prompt Engineering)
-
-Para criar novos fluxos rapidamente, copie o prompt abaixo e envie para uma IA (ChatGPT/Gemini/Claude).
-
-**Copie daqui para baixo:**
-
----
-
-"Aja como um Arquiteto de Software especialista em Drawflow e JSON. Eu tenho um sistema de chatbot que lê um JSON específico para montar o fluxo de conversa.
-
-**Sua Tarefa:** Gerar um JSON válido contendo um fluxo de atendimento para **[DESCREVA AQUI O OBJETIVO DO FLUXO, EX: UMA CLÍNICA DENTÁRIA]**.
-
-**Regras do Sistema:**
-
-1. O JSON deve começar com `{ "drawflow": { "Home": { "data": { ... } } } }`.
-2. Os IDs dos nós devem ser numéricos e sequenciais (1, 2, 3...).
-3. Use as conexões (`outputs` -> `inputs`) para ligar os nós.
-4. **Nó 'menu':** Se tiver até 3 opções, ative `"buttons-active": true`. Sempre ative `"timeout-active": true` (tempo em minutos) e `"invalid-active": true`.
-5. **Nó 'midia' e 'audio':** As URLs devem ser relativas, ex: `uploads/foto.jpg`.
-6. **Nó 'horario':** Use formato 24h (ex: "09:00", "18:00"). Saída 1 é Aberto, Saída 2 é Fechado.
-
-Abaixo está o ESQUELETO (Modelo) de todos os nós disponíveis. Use este modelo para montar o fluxo solicitado:"
-
-### O Esqueleto JSON (Modelo de Referência)
+> "Aja como um Arquiteto de Software do Calixto OmniSystem. Gere um JSON de fluxo para um **Consultório de Dentista**.
+> **Regras V9 (Rígidas):**
+> 1. Use o formato Drawflow abaixo.
+> 2. **Menus:** Devem ter a propriedade `"timeout-active": true` e `"invalid-active": true`.
+> 3. **Conexões de Menu:** Se o menu tem 2 opções, a saída `output_3` deve ligar ao nó de timeout (ex: mensagem de encerramento) e `output_4` ao nó de erro (ex: mensagem 'não entendi').
+> 4. **Nó Finalizar:** Obrigatório no fim de cada ramo.
+> 
+> 
+> **Modelo JSON Base:**"
 
 ```json
 {
@@ -229,89 +131,49 @@ Abaixo está o ESQUELETO (Modelo) de todos os nós disponíveis. Use este modelo
         },
         "2": {
           "id": 2,
-          "name": "mensagem",
+          "name": "menu",
           "data": {
-            "message": "Escreva aqui o texto da mensagem."
+            "question": "Olá! Bem-vindo à SorrisoDent. Como posso ajudar?",
+            "opcao1": "Agendar Consulta",
+            "opcao2": "Falar com Atendente",
+            "buttons-active": true,
+            "timeout-active": true,
+            "timeout": "2",
+            "invalid-active": true
           },
-          "class": "mensagem",
-          "html": "Mensagem Texto",
+          "class": "menu",
+          "html": "Menu Principal",
           "typenode": "vue",
-          "inputs": {
-            "input_1": { "connections": [{ "node": "1", "input": "output_1" }] }
-          },
+          "inputs": { "input_1": { "connections": [{ "node": "1", "input": "output_1" }] } },
           "outputs": {
-            "output_1": { "connections": [{ "node": "3", "output": "input_1" }] }
+            "output_1": { "connections": [{ "node": "5", "output": "input_1" }] }, 
+            "output_2": { "connections": [{ "node": "6", "output": "input_1" }] },
+            "output_3": { "connections": [{ "node": "98", "output": "input_1" }] }, 
+            "output_4": { "connections": [{ "node": "2", "output": "input_1" }] }  
           },
           "pos_x": 400, "pos_y": 50
         },
-        "3": {
-          "id": 3,
-          "name": "midia",
-          "data": {
-            "url": "uploads/imagem.jpg",
-            "caption": "Legenda da foto ou vídeo (Opcional)"
-          },
-          "class": "midia",
-          "html": "Foto/Vídeo",
-          "typenode": "vue",
-          "inputs": { "input_1": { "connections": [] } },
-          "outputs": { "output_1": { "connections": [] } },
-          "pos_x": 0, "pos_y": 0
-        },
-        "4": {
-          "id": 4,
-          "name": "audio",
-          "data": {
-            "url": "uploads/audio.ogg",
-            "ptt": true 
-          },
-          "class": "audio",
-          "html": "Áudio Gravado",
-          "typenode": "vue",
-          "inputs": { "input_1": { "connections": [] } },
-          "outputs": { "output_1": { "connections": [] } },
-          "pos_x": 0, "pos_y": 0
-        },
         "5": {
           "id": 5,
-          "name": "menu",
-          "data": {
-            "question": "Título do Menu",
-            "opcao1": "Texto Botão 1",
-            "opcao2": "Texto Botão 2",
-            "timeout": "2", 
-            "timeout-active": true,
-            "invalid-active": true,
-            "buttons-active": true
-          },
-          "class": "menu",
-          "html": "Menu Opções",
+          "name": "mensagem",
+          "data": { "message": "Para agendar, acesse: agendar.sorrisodent.com" },
+          "class": "mensagem",
+          "html": "Link Agenda",
           "typenode": "vue",
           "inputs": { "input_1": { "connections": [] } },
-          "outputs": {
-            "output_1": { "connections": [] }, 
-            "output_2": { "connections": [] },
-            "output_3": { "connections": [] }, 
-            "output_4": { "connections": [] }  
-          },
-          "pos_x": 0, "pos_y": 0
+          "outputs": { "output_1": { "connections": [{ "node": "99", "output": "input_1" }] } },
+          "pos_x": 800, "pos_y": -100
         },
-        "6": {
-          "id": 6,
-          "name": "horario",
-          "data": {
-            "inicio": "09:00",
-            "fim": "18:00"
-          },
-          "class": "horario",
-          "html": "Verificar Horário",
+        "98": {
+          "id": 98,
+          "name": "mensagem",
+          "data": { "message": "Poxa, você não respondeu. Vou encerrar por aqui." },
+          "class": "mensagem",
+          "html": "Msg Timeout",
           "typenode": "vue",
           "inputs": { "input_1": { "connections": [] } },
-          "outputs": {
-            "output_1": { "connections": [] }, 
-            "output_2": { "connections": [] } 
-          },
-          "pos_x": 0, "pos_y": 0
+          "outputs": { "output_1": { "connections": [{ "node": "99", "output": "input_1" }] } },
+          "pos_x": 800, "pos_y": 300
         },
         "99": {
           "id": 99,
@@ -322,10 +184,44 @@ Abaixo está o ESQUELETO (Modelo) de todos os nós disponíveis. Use este modelo
           "typenode": "vue",
           "inputs": { "input_1": { "connections": [] } },
           "outputs": {},
-          "pos_x": 0, "pos_y": 0
+          "pos_x": 1200, "pos_y": 100
         }
       }
     }
   }
 }
 
+```
+
+---
+
+## 5. Protocolos de Segurança (Security)
+
+### 5.1 Barreira de Boot (Boot Barrier)
+
+O sistema registra o `timestamp` de inicialização. Qualquer mensagem recebida do WhatsApp com horário anterior a este registro é descartada. Isso previne o efeito "Flood", onde o bot tenta responder milhares de mensagens antigas após uma queda de energia.
+
+### 5.2 Kill Switch Real
+
+A rota de API `/api/status` (POST) com payload `status: "OFFLINE"` executa um encerramento forçado do WebSocket e remove as credenciais da memória RAM, garantindo que o bot pare de responder instantaneamente, independente do estado do banco de dados.
+
+---
+
+## 6. Solução de Problemas (Troubleshooting)
+
+**Sintoma:** O painel mostra "Online", mas o bot não responde.
+**Diagnóstico:** Dessincronia entre PostgreSQL e Memória RAM.
+**Solução:**
+
+1. Acesse `http://localhost:3000/api/status-real` para ver quem está realmente na memória.
+2. Force um reinício: `npx pm2 restart calixto-omnisystem`.
+
+**Sintoma:** Mensagem "Error: Cannot find module 'redis'".
+**Diagnóstico:** Dependência não instalada no `node_modules`.
+**Solução:** Rodar `npm install redis` na raiz do projeto.
+
+---
+
+```
+
+```
