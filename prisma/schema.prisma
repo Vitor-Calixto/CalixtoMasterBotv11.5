@@ -1,67 +1,59 @@
-// prisma/schema.prisma
+// ARQUIVO: prisma/schema.prisma
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql" // ou "sqlite" se estiver usando arquivo local
+  provider = "postgresql" // Use "sqlite" se preferir, mas mantenha consistente
   url      = env("DATABASE_URL")
 }
 
 model Cliente {
-  id        String    @id @default(uuid())
+  id        String   @id @default(uuid())
   nome      String
-  numero    String    @unique
-  ativo     Boolean   @default(true)
-  fluxoJson Json?     // Aqui fica aquele JSON colorido do editor
-  status    String    @default("OFFLINE")
-  criadoEm  DateTime  @default(now())
-  
-  // Relação: Um cliente (dono do bot) tem vários contatos falando com ele
-  contatos  Contato[] 
-  
-  // (Opcional) Se você quiser manter o controle de atendimentos humanos no banco também:
-  atendimentoHumano Boolean @default(false)
+  numero    String?  @unique // Isso impede números repetidos!
+  ativo     Boolean  @default(true)
+  fluxoJson Json?
+  status    String   @default("OFFLINE")
+  criadoEm  DateTime @default(now())
+
+  // O SEGREDO ESTÁ AQUI: onDelete: Cascade
+  contatos      Contato[]
+  sessoesAtivas SessaoAtiva[]
 }
 
 model SessaoAtiva {
   id        String   @id @default(uuid())
   clienteId String
-  chatId    String   // O ID do zap da pessoa (552199...)
-  noAtual   String   // Onde ela parou no fluxo
-  dados     Json?    // Variáveis capturadas
+  chatId    String
+  noAtual   String
+  dados     Json?
   updatedAt DateTime @updatedAt
 
-  @@unique([clienteId, chatId]) // Garante 1 sessão por pessoa
+  cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+
+  @@unique([clienteId, chatId])
 }
 
-// Quem está falando com o bot (Leads/Usuários)
 model Contato {
   id        String   @id @default(uuid())
-  remoteJid String   @unique // O número (ex: 55219999@s.whatsapp.net)
+  remoteJid String
   nome      String?
-  fotoUrl   String?  // Para mostrar a bolinha com a foto
-  
-  // Se deletar o contato, as mensagens somem (Cascade acontece aqui na relação inversa ou na definição do filho)
-  mensagens Mensagem[]
-  
   clienteId String
-  cliente   Cliente @relation(fields: [clienteId], references: [id])
-  
   criadoEm  DateTime @default(now())
+
+  cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  mensagens Mensagem[]
 }
 
-// O histórico da conversa (Temporário/Efêmero)
 model Mensagem {
   id        String   @id @default(uuid())
   texto     String
-  tipo      String   @default("texto") // texto, imagem, audio
-  fromMe    Boolean  // true = Bot falou, false = Cliente falou
-  
+  tipo      String   @default("texto")
+  fromMe    Boolean
   contatoId String
-  // onDelete: Cascade -> Apaga a mensagem automaticamente se o contato for apagado
-  contato   Contato @relation(fields: [contatoId], references: [id], onDelete: Cascade)
-  
   criadoEm  DateTime @default(now())
+
+  contato   Contato  @relation(fields: [contatoId], references: [id], onDelete: Cascade)
 }

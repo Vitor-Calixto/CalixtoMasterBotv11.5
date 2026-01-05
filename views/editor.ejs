@@ -4,46 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Editor de Fluxo - Calixto OmniSystem</title>
-    
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    
     <style>
-        :root { --bg-canvas: #121212; --bg-node: #1e1e1e; --border-node: #333; --accent: #00d2ff; --text-main: #e0e0e0; }
+        :root { --bg-canvas: #121212; --bg-node: #1e1e1e; --border-node: #333; --accent: #00d2ff; --text-main: #e0e0e0; --danger: #ff4444; --success: #00c851; }
         body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg-canvas); color: var(--text-main); overflow: hidden; }
-        
         .sidebar { position: fixed; top: 0; left: 0; width: 260px; height: 100vh; background: #18181b; border-right: 1px solid #27272a; z-index: 5000; padding: 20px; overflow-y: auto; }
         .node-item { display: flex; align-items: center; background: #27272a; padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: grab; border: 1px solid transparent; transition: all 0.2s; font-size: 13px; font-weight: 500; user-select: none; }
         .node-item:hover { border-color: var(--accent); background: #3f3f46; transform: translateX(4px); }
         .node-item i { margin-right: 12px; width: 20px; text-align: center; color: #aaa; }
-
         #drawflow { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg-canvas); background-image: radial-gradient(#333 1px, transparent 1px); background-size: 20px 20px; z-index: 0; }
-
         .top-bar { position: fixed; top: 20px; right: 20px; z-index: 5000; display: flex; gap: 10px; }
         .btn-base { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; border: none; font-size: 13px; transition: 0.2s; }
         .btn-back { background: #333; color: #fff; border: 1px solid #444; text-decoration: none;} 
         .btn-import { background: #2a2a2a; color: #fff; border: 1px solid #404040; }
         .btn-save { background: var(--accent); color: #000; box-shadow: 0 4px 12px rgba(0, 210, 255, 0.2); }
         .btn-save:hover { filter: brightness(1.1); transform: translateY(-1px); }
-
         .drawflow .drawflow-node { background: var(--bg-node); border: 1px solid var(--border-node); width: 320px; border-radius: 12px; padding: 0; box-shadow: 0 10px 20px rgba(0,0,0,0.4); display: flex; flex-direction: column; z-index: 2; }
-        .drawflow-node.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.3); }
-        .drawflow-node .title { padding: 12px 16px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 14px; border-radius: 12px 12px 0 0; display: flex; align-items: center; gap: 10px; background: #27272a; height: 46px; box-sizing: border-box; }
+        .drawflow-node.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0, 210, 255, 0.3); }
+        .drawflow-node .title { padding: 12px 16px; border-bottom: 1px solid #333; font-weight: 600; font-size: 14px; border-radius: 12px 12px 0 0; display: flex; align-items: center; gap: 10px; background: #27272a; height: 46px; box-sizing: border-box; }
         .drawflow-node .drawflow_content_node { padding: 16px; flex-grow: 1; position: relative; }
-
         label { display: block; font-size: 11px; font-weight: 600; color: #888; margin-bottom: 6px; text-transform: uppercase; }
-        input[type="text"], textarea, input[type="number"] { width: 100%; background: #2d2d2d; border: 1px solid #404040; color: white; padding: 10px; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 13px; outline: none; }
+        input[type="text"], input[type="number"], input[type="time"], textarea { width: 100%; background: #2d2d2d; border: 1px solid #404040; color: white; padding: 10px; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 13px; outline: none; }
         input:focus, textarea:focus { border-color: var(--accent); background: #333; }
         textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
-
         .menu-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
         .menu-item { display: flex; align-items: center; gap: 8px; position: relative; background: #27272a; border-radius: 6px; padding: 4px; border: 1px solid #3f3f46; }
         .menu-handle { color: #555; cursor: grab; padding: 0 4px; }
         .menu-item input { border: none; background: transparent; padding: 6px; margin: 0; }
-        .btn-del-opt { color: #ff4444; cursor: pointer; padding: 6px; opacity: 0.6; font-size: 12px; }
+        .btn-del-opt { color: var(--danger); cursor: pointer; padding: 6px; opacity: 0.6; font-size: 12px; }
         .btn-add-option { font-size: 13px; color: var(--accent); cursor: pointer; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; margin: 10px 0; width: fit-content; }
-
         .settings-group { border-top: 1px solid #333; padding-top: 15px; margin-top: 10px; display: flex; flex-direction: column; gap: 12px; }
         .toggle-row { display: flex; align-items: center; gap: 12px; font-size: 13px; cursor: pointer; }
         .switch { position: relative; width: 36px; height: 20px; }
@@ -52,424 +43,226 @@
         .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: .4s; border-radius: 50%; }
         input:checked + .slider { background-color: var(--accent); }
         input:checked + .slider:before { transform: translateX(16px); }
-
         .drawflow-node .inputs { position: absolute !important; left: -14px !important; top: 18px !important; z-index: 100; }
-        .drawflow-node .outputs { position: absolute !important; right: -14px !important; top: 0 !important; width: 0; height: 0; display: block !important; z-index: 100; }
-        .drawflow-node .input, .drawflow-node .output { width: 14px; height: 14px; background: #fff; border: 2px solid #000; border-radius: 50%; cursor: crosshair; margin-bottom: 5px; }
-        .drawflow-node .input:hover, .drawflow-node .output:hover { transform: scale(1.3); border-color: var(--accent); }
-        .drawflow-node.menu .outputs .output { position: absolute; right: 0; margin: 0; }
-
+        .drawflow-node .outputs { position: absolute !important; top: 0 !important; right: -14px !important; bottom: 0 !important; height: 100% !important; width: 0px !important; display: block !important; z-index: 100; }
+        .drawflow-node .output { position: absolute !important; right: 0 !important; width: 14px; height: 14px; background: #fff; border: 2px solid #000; border-radius: 50%; cursor: crosshair; margin: 0 !important; transform: translateY(-50%); }
+        .drawflow-node .input:hover, .drawflow-node .output:hover { transform: translateY(-50%) scale(1.3); border-color: var(--accent); }
+        .drawflow-node .input:hover { transform: scale(1.3); }
         .upload-area { border: 2px dashed #444; background: #222; padding: 20px; text-align: center; border-radius: 8px; cursor: pointer; }
         .upload-area img { max-width: 100%; border-radius: 4px; display: block; margin: 10px auto 0; }
     </style>
 </head>
 <body>
     <input type="hidden" id="server-client-id" value="<%= cliente.id %>">
-    
-    <% 
-      let fluxoBase64 = "";
-      try {
-         const fluxoStr = JSON.stringify(fluxo || {});
-         fluxoBase64 = Buffer.from(fluxoStr).toString('base64');
-      } catch(e) { fluxoBase64 = ""; }
-    %>
+    <% let fluxoBase64 = ""; try { const fluxoStr = JSON.stringify(fluxo || {}); fluxoBase64 = Buffer.from(fluxoStr).toString('base64'); } catch(e) { fluxoBase64 = ""; } %>
     <input type="hidden" id="fluxo-base64" value="<%= fluxoBase64 %>">
-
     <div class="sidebar">
         <h2>Ferramentas</h2>
         <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="inicio"><i class="fas fa-play"></i> Início</div>
+        <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="horario"><i class="fas fa-clock"></i> Horário</div>
         <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="mensagem"><i class="fas fa-comment-alt"></i> Mensagem</div>
         <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="menu"><i class="fas fa-list-ul"></i> Menu Opções</div>
         <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="midia"><i class="fas fa-image"></i> Foto/Vídeo</div>
         <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="audio"><i class="fas fa-microphone"></i> Áudio</div>
+        <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="transferir"><i class="fas fa-headset"></i> Transferir</div>
         <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="finalizar"><i class="fas fa-stop-circle"></i> Finalizar</div>
     </div>
-
     <div class="top-bar">
-        <a href="/" class="btn-base btn-back"><i class="fas fa-arrow-left"></i> Voltar</a>
+        <a href="/dashboard" class="btn-base btn-back"><i class="fas fa-arrow-left"></i> Voltar</a>
         <input type="file" id="fileImport" accept=".json" style="display: none;" onchange="lerArquivo(this)">
         <button class="btn-base btn-import" onclick="escolherModoImportacao()"><i class="fas fa-file-import"></i> Importar</button>
         <button class="btn-base btn-save" onclick="salvarFluxo()"><i class="fas fa-save"></i> Salvar Fluxo</button>
     </div>
-
     <div id="drawflow" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
-
     <script src="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
     <script>
         const idCliente = document.getElementById('server-client-id').value;
         const editor = new Drawflow(document.getElementById("drawflow"));
         editor.reroute = true;
         editor.editor_mode = 'edit';
         editor.start();
-
         const getNodeId = (elem) => elem.closest('.drawflow-node').id.replace('node-', '');
-
-        // --- TEMPLATES HTML ---
         const templates = {
             inicio: `<div class="title"><i class="fas fa-play"></i> Início</div><div style="padding:16px; font-size:13px; color:#aaa">Gatilho inicial da conversa.</div>`,
             finalizar: `<div class="title"><i class="fas fa-stop-circle"></i> Finalizar</div><div style="padding:16px; font-size:13px; color:#aaa">Encerra o protocolo.</div>`,
-            mensagem: `<div class="title"><i class="fas fa-comment-alt"></i> Mensagem</div><div style="padding:16px"><label>Texto:</label><textarea df-message placeholder="Digite..."></textarea></div>`,
-            midia: `<div class="title"><i class="fas fa-image"></i> Mídia</div><div style="padding:16px"><div class="upload-area" onclick="this.nextElementSibling.click()"><span>Upload</span><img src="" style="display:none"></div><input type="file" style="display:none" onchange="uploadFile(this)"><input type="text" df-url style="display:none"><label style="margin-top:10px">Legenda:</label><input type="text" df-caption></div>`,
+            mensagem: `<div class="title"><i class="fas fa-comment-alt"></i> Mensagem</div><div style="padding:16px"><label>Texto:</label><textarea df-message placeholder="Digite a mensagem..."></textarea></div>`,
+            midia: `<div class="title"><i class="fas fa-image"></i> Mídia</div><div style="padding:16px"><div class="upload-area" onclick="this.nextElementSibling.click()"><span>Clique para Upload</span><img src="" style="display:none"></div><input type="file" style="display:none" onchange="uploadFile(this)"><input type="text" df-url style="display:none"><label style="margin-top:10px">Legenda:</label><input type="text" df-caption></div>`,
             audio: `<div class="title"><i class="fas fa-microphone"></i> Áudio</div><div style="padding:16px"><div class="upload-area" onclick="this.nextElementSibling.click()"><span>Upload MP3</span></div><input type="file" accept="audio/*" style="display:none" onchange="uploadFile(this, 'audio')"><input type="text" df-url style="display:none"><label class="toggle-row" style="margin-top:10px"><div class="switch"><input type="checkbox" df-ptt checked><span class="slider"></span></div><span>Como gravado</span></label></div>`,
-            menu: `<div class="title"><i class="fas fa-list-ul"></i> Menu</div><div style="padding:16px"><label>Pergunta:</label><textarea df-question placeholder="Ex: Escolha..."></textarea><label style="margin-top:15px">Opções:</label><div class="menu-list"><div class="menu-item" id="opt-1"><i class="fas fa-grip-vertical menu-handle"></i><input type="text" df-opcao1 placeholder="Opção 1"><div class="btn-del-opt" onclick="removeOption(this)"><i class="fas fa-trash"></i></div></div><div class="menu-item" id="opt-2"><i class="fas fa-grip-vertical menu-handle"></i><input type="text" df-opcao2 placeholder="Opção 2"><div class="btn-del-opt" onclick="removeOption(this)"><i class="fas fa-trash"></i></div></div></div><div class="btn-add-option" onclick="addMenuOption(this)"><i class="fas fa-plus-circle"></i> Add Opção</div><div class="settings-group"><label class="toggle-row error-row"><div class="switch"><input type="checkbox" onchange="toggleSpecialFlow('invalid', this)"><span class="slider"></span></div><span>Se inválido</span></label><label class="toggle-row timeout-row"><div class="switch"><input type="checkbox" onchange="toggleSpecialFlow('timeout', this)"><span class="slider"></span></div><span>Timeout</span></label></div></div>`
+            transferir: `<div class="title"><i class="fas fa-headset"></i> Transferir</div><div style="padding:16px"><label>Nome da Fila/Setor:</label><input type="text" df-fila placeholder="Ex: Financeiro"></div>`,
+            horario: `<div class="title"><i class="fas fa-clock"></i> Horário</div><div style="padding:16px"><p style="font-size:12px; color:#aaa; margin-bottom:10px">Defina o expediente:</p><div style="display:flex; gap:10px;"><div style="flex:1"><label>Abertura:</label><input type="time" df-inicio value="09:00"></div><div style="flex:1"><label>Fechamento:</label><input type="time" df-fim value="18:00"></div></div><div style="margin-top:15px; display:flex; justify-content:space-between; font-size:11px; font-weight:bold;"><span style="color:var(--success)">● Aberto</span><span style="color:var(--danger)">Fechado ●</span></div></div>`,
+            menu: `<div class="title"><i class="fas fa-list-ul"></i> Menu</div><div style="padding:16px"><label>Pergunta:</label><textarea df-question placeholder="Ex: Como posso ajudar?"></textarea><div class="settings-group"><label class="toggle-row"><div class="switch"><input type="checkbox" df-asButtons><span class="slider"></span></div><span>Enviar como Botões</span></label><small style="color:#666; font-size:10px; margin-bottom:10px; display:block;">(Até 3 opções curtas)</small><label>Opções:</label><div class="menu-list"><div class="menu-item" id="opt-1"><i class="fas fa-grip-vertical menu-handle"></i><input type="text" df-opcao1 placeholder="Opção 1"><div class="btn-del-opt" onclick="removeOption(this)"><i class="fas fa-trash"></i></div></div><div class="menu-item" id="opt-2"><i class="fas fa-grip-vertical menu-handle"></i><input type="text" df-opcao2 placeholder="Opção 2"><div class="btn-del-opt" onclick="removeOption(this)"><i class="fas fa-trash"></i></div></div></div><div class="btn-add-option" onclick="addMenuOption(this)"><i class="fas fa-plus-circle"></i> Add Opção</div><div style="border-top:1px solid #333; margin-top:10px; padding-top:10px;"><label class="toggle-row timeout-row" style="margin-bottom: 5px;"><div class="switch"><input type="checkbox" onchange="toggleSpecialFlow('timeout', this)"><span class="slider"></span></div><span>Timeout (Minutos)</span></label><div style="display:flex; align-items:center; gap:8px;"><input type="number" df-timeout placeholder="60" style="width:70px; padding:4px;" min="1"></div><label class="toggle-row error-row" style="margin-top:10px;"><div class="switch"><input type="checkbox" onchange="toggleSpecialFlow('invalid', this)"><span class="slider"></span></div><span>Fluxo se Inválido</span></label></div></div></div>`
         };
-
-        // --- FUNÇÃO DE AUTO-REPARO DO JSON ---
         function sanitizarJson(json) {
             if (!json || !json.drawflow || !json.drawflow.Home || !json.drawflow.Home.data) return json;
-            
             const nodes = json.drawflow.Home.data;
             for (const key in nodes) {
                 const node = nodes[key];
-                
-                // FORÇA O TIPO PARA false (Remove "vue")
-                node.typenode = false;
-                
-                // INJETA O HTML CORRETO SE ESTIVER FALTANDO OU ERRADO
-                if (templates[node.name]) {
-                    node.html = templates[node.name];
-                }
+                node.typenode = false; 
+                if (templates[node.name]) node.html = templates[node.name];
             }
             return json;
         }
-
-        // --- CARREGAMENTO INICIAL ---
         window.addEventListener('load', () => {
             try {
                 const base64Input = document.getElementById('fluxo-base64');
                 const base64Data = base64Input ? base64Input.value : "";
-                
                 if (base64Data && base64Data.trim() !== "") {
-                    // Decodifica e LIMPA o JSON antes de carregar
                     const jsonString = decodeURIComponent(escape(window.atob(base64Data)));
                     let json = JSON.parse(jsonString || '{}');
-                    
-                    json = sanitizarJson(json); // <--- A MÁGICA ACONTECE AQUI
-
-                    if (json && json.drawflow) {
-                        editor.import(json);
-                        setTimeout(restoreData, 100);
-                    } else {
-                        editor.addNode('inicio', 0, 1, 50, 200, 'inicio', {}, templates.inicio);
-                    }
-                } else {
-                    editor.addNode('inicio', 0, 1, 50, 200, 'inicio', {}, templates.inicio);
-                }
-            } catch (e) {
-                console.error("ERRO LOAD:", e);
-                editor.addNode('inicio', 0, 1, 50, 200, 'inicio', {}, templates.inicio);
-            }
+                    json = sanitizarJson(json);
+                    if (json && json.drawflow) { editor.import(json); setTimeout(restoreData, 100); } 
+                    else { editor.addNode('inicio', 0, 1, 50, 200, 'inicio', {}, templates.inicio); }
+                } else { editor.addNode('inicio', 0, 1, 50, 200, 'inicio', {}, templates.inicio); }
+            } catch (e) { console.error("ERRO LOAD:", e); editor.addNode('inicio', 0, 1, 50, 200, 'inicio', {}, templates.inicio); }
         });
-
-        // --- IMPORTAÇÃO ---
-        async function escolherModoImportacao() {
-            const { isConfirmed, isDenied } = await Swal.fire({
-                title: 'Importar Fluxo',
-                text: 'Isso substituirá o desenho atual.',
-                showCancelButton: true,
-                showDenyButton: true,
-                confirmButtonText: '📂 Arquivo JSON',
-                denyButtonText: '📝 Colar Texto (JSON)',
-                confirmButtonColor: '#8b5cf6',
-                denyButtonColor: '#2d2d2d'
-            });
-
-            if (isConfirmed) {
-                document.getElementById('fileImport').click();
-            } else if (isDenied) {
-                const { value: text } = await Swal.fire({
-                    input: 'textarea',
-                    inputLabel: 'Cole o código JSON:',
-                    showCancelButton: true
-                });
-
-                if (text) {
-                    try {
-                        processarImportacao(JSON.parse(text));
-                    } catch (e) {
-                        Swal.fire('Erro', 'JSON Inválido!', 'error');
-                    }
-                }
-            }
-        }
-
-        function lerArquivo(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                try {
-                    processarImportacao(JSON.parse(e.target.result));
-                } catch (err) {
-                    Swal.fire('Erro', 'Arquivo inválido.', 'error');
-                }
-            };
-            reader.readAsText(file);
-            input.value = ''; 
-        }
-
-        function processarImportacao(json) {
-            if (!json || !json.drawflow) {
-                Swal.fire('Erro', 'Formato inválido.', 'error');
-                return;
-            }
-
-            editor.clear();
-            
-            // LIMPA O JSON ANTES DE IMPORTAR
-            json = sanitizarJson(json);
-
-            setTimeout(() => {
-                try {
-                    editor.import(json);
-                    setTimeout(restoreData, 50); 
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Fluxo Importado!',
-                        timer: 1500,
-                        showConfirmButton: false
-                    });
-                } catch (e) {
-                    console.error(e);
-                    Swal.fire('Erro', 'Falha ao desenhar.', 'error');
-                }
-            }, 10);
-        }
-
-        // --- SALVAR ---
-        async function salvarFluxo() {
-            const exportData = editor.export();
-            const btn = document.querySelector('.btn-save');
-            const originalTxt = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
-            
-            try {
-                const res = await fetch(`/api/clientes/${idCliente}/fluxo`, { 
-                    method: 'POST', 
-                    headers: {'Content-Type':'application/json'}, 
-                    body: JSON.stringify({fluxo: exportData}) 
-                });
-
-                if(res.ok) {
-                    Swal.fire({ title: 'Salvo!', icon: 'success', timer: 1000, showConfirmButton: false });
-                } else {
-                    throw new Error('Erro API');
-                }
-            } catch(e) { 
-                Swal.fire('Erro', 'Não foi possível salvar.', 'error');
-            } finally {
-                btn.innerHTML = originalTxt;
-            }
-        }
-
-        // --- DRAG & DROP ---
         function drag(ev) { ev.dataTransfer.setData("node", ev.target.getAttribute('data-node')); }
         function allowDrop(ev) { ev.preventDefault(); }
-        function drop(ev) {
-            ev.preventDefault();
-            const nodeName = ev.dataTransfer.getData("node");
-            addNodeToDrawFlow(nodeName, ev.clientX, ev.clientY);
-        }
-
+        function drop(ev) { ev.preventDefault(); const nodeName = ev.dataTransfer.getData("node"); addNodeToDrawFlow(nodeName, ev.clientX, ev.clientY); }
         function addNodeToDrawFlow(name, pos_x, pos_y) {
             if(editor.editor_mode === 'fixed') return;
             pos_x = pos_x * (editor.precanvas.clientWidth / (editor.precanvas.clientWidth * editor.zoom)) - (editor.precanvas.getBoundingClientRect().x * (editor.precanvas.clientWidth / (editor.precanvas.clientWidth * editor.zoom)));
             pos_y = pos_y * (editor.precanvas.clientHeight / (editor.precanvas.clientHeight * editor.zoom)) - (editor.precanvas.getBoundingClientRect().y * (editor.precanvas.clientHeight / (editor.precanvas.clientHeight * editor.zoom)));
-            
             let inputs=1, outputs=1;
-            if(name==='inicio'){inputs=0;outputs=1;}
-            if(name==='finalizar'){inputs=1;outputs=0;}
-            if(name==='menu'){inputs=1;outputs=2;}
-
+            if(name==='inicio'){inputs=0;outputs=1;} if(name==='finalizar'){inputs=1;outputs=0;} if(name==='menu'){inputs=1;outputs=2;} if(name==='horario'){inputs=1;outputs=2;} if(name==='transferir'){inputs=1;outputs=0;} 
             editor.addNode(name, inputs, outputs, pos_x, pos_y, name, {}, templates[name]);
-            // O Menu é tratado depois via resize observer ou input
         }
-
-        // --- RESTORE DATA ---
         function restoreData() {
             const data = editor.drawflow.drawflow.Home.data;
             for (const [id, node] of Object.entries(data)) {
                 const el = document.getElementById('node-' + id);
                 if (!el) continue;
-
                 if (node.name === 'menu') {
                     const list = el.querySelector('.menu-list');
                     if(list) {
-                        list.innerHTML = '';
-                        let maxOpt = 0;
-                        Object.keys(node.data).forEach(k => { 
-                            if(k.startsWith('opcao')) maxOpt = Math.max(maxOpt, parseInt(k.replace('opcao',''))); 
-                        });
+                        list.innerHTML = ''; let maxOpt = 0;
+                        Object.keys(node.data).forEach(k => { if(k.startsWith('opcao')) maxOpt = Math.max(maxOpt, parseInt(k.replace('opcao',''))); });
                         if(maxOpt < 2) maxOpt = 2;
-
                         for(let i=1; i<=maxOpt; i++) {
-                            const div = document.createElement('div');
-                            div.className = 'menu-item';
-                            div.id = 'opt-'+i;
+                            const div = document.createElement('div'); div.className = 'menu-item'; div.id = 'opt-'+i;
                             div.innerHTML = `<i class="fas fa-grip-vertical menu-handle"></i><input type="text" df-opcao${i} placeholder="Opção ${i}" value="${node.data['opcao'+i]||''}"><div class="btn-del-opt" onclick="removeOption(this)"><i class="fas fa-trash"></i></div>`;
                             list.appendChild(div);
                         }
-                        
                         if(node.data['invalid-active']) el.querySelector('.error-row input').checked = true;
                         if(node.data['timeout-active']) el.querySelector('.timeout-row input').checked = true;
-                        
-                        watchNode(id);
-                        setTimeout(() => updateMenuOutputs(id), 100);
+                        watchNode(id); setTimeout(() => updateMenuOutputs(id), 100);
                     }
-                } 
-                else if (['midia', 'audio'].includes(node.name)) {
+                } else if (['midia', 'audio'].includes(node.name)) {
                     const url = node.data.url;
                     if (url) {
-                        const inputUrl = el.querySelector('[df-url]');
-                        if(inputUrl) inputUrl.value = url;
-                        if (node.name === 'midia') {
-                            const img = el.querySelector('img');
-                            if(img) { img.src = url; img.style.display = 'block'; el.querySelector('.upload-area span').style.display='none'; }
-                        } else if (node.name === 'audio') {
-                            const span = el.querySelector('.upload-area span');
-                            if(span) span.innerHTML = '<i class="fas fa-check"></i> Áudio Salvo!';
-                        }
+                        const inputUrl = el.querySelector('[df-url]'); if(inputUrl) inputUrl.value = url;
+                        if (node.name === 'midia') { const img = el.querySelector('img'); if(img) { img.src = url; img.style.display = 'block'; el.querySelector('.upload-area span').style.display='none'; } } 
+                        else if (node.name === 'audio') { const span = el.querySelector('.upload-area span'); if(span) span.innerHTML = '<i class="fas fa-check"></i> Áudio Salvo!'; }
                     }
                 }
-
                 for(let key in node.data) {
                     const input = el.querySelector(`[df-${key}]`);
-                    if(input) {
-                        if(input.type === 'checkbox') input.checked = node.data[key];
-                        else input.value = node.data[key];
-                    }
+                    if(input) { if(input.type === 'checkbox') input.checked = node.data[key]; else input.value = node.data[key]; }
                 }
             }
         }
-
-        // --- LÓGICA DO MENU ---
+        function getRelativeTop(element, rootNode) {
+            let y = 0; let el = element;
+            while (el && el !== rootNode) { y += el.offsetTop; el = el.offsetParent; }
+            return y;
+        }
         function updateMenuOutputs(nodeId) {
-            const el = document.getElementById('node-' + nodeId);
-            if (!el) return;
-            const outputContainer = el.querySelector('.outputs');
-            const menuRows = Array.from(el.querySelectorAll('.menu-item'));
-            const errorToggle = el.querySelector('.error-row input').checked;
-            const timeoutToggle = el.querySelector('.timeout-row input').checked;
-            
-            let needed = menuRows.length;
-            if(errorToggle) needed++;
-            if(timeoutToggle) needed++;
-
-            const current = Object.keys(editor.getNodeFromId(nodeId).outputs).length;
-            if(current < needed) for(let i=0; i < (needed-current); i++) editor.addNodeOutput(nodeId);
-            else if(current > needed) for(let i=0; i < (current-needed); i++) editor.removeNodeOutput(nodeId, `output_${current-i}`);
-
+            const nodeEl = document.getElementById('node-' + nodeId); if (!nodeEl) return;
+            const outputContainer = nodeEl.querySelector('.outputs');
+            const menuRows = Array.from(nodeEl.querySelectorAll('.menu-item'));
+            const timeoutRow = nodeEl.querySelector('.timeout-row');
+            const errorRow = nodeEl.querySelector('.error-row');
+            const timeoutActive = timeoutRow && timeoutRow.querySelector('input').checked;
+            const errorActive = errorRow && errorRow.querySelector('input').checked;
+            let needed = menuRows.length; if (timeoutActive) needed++; if (errorActive) needed++;
+            const currentOutputs = editor.getNodeFromId(nodeId).outputs;
+            const currentCount = Object.keys(currentOutputs).length;
+            if (currentCount < needed) { for(let i=0; i < (needed - currentCount); i++) editor.addNodeOutput(nodeId); } 
+            else if (currentCount > needed) { for(let i=0; i < (currentCount - needed); i++) editor.removeNodeOutput(nodeId, `output_${currentCount - i}`); }
             setTimeout(() => {
-                const outputs = Array.from(outputContainer.children);
-                let outIdx = 0;
-                const titleH = el.querySelector('.title').offsetHeight;
-                
-                menuRows.forEach(row => {
-                    if(outputs[outIdx]) {
-                        const top = row.offsetTop + titleH + (row.offsetHeight/2) - 7;
-                        outputs[outIdx].style.top = top + 'px';
-                        outputs[outIdx].style.display = 'block';
+                const outputs = Array.from(outputContainer.children); let outIdx = 0;
+                const posicionar = (targetEl, color = null) => {
+                    if (outputs[outIdx] && targetEl) {
+                        const realTop = getRelativeTop(targetEl, nodeEl) + (targetEl.offsetHeight / 2);
+                        outputs[outIdx].style.top = `${realTop}px`; outputs[outIdx].style.display = 'block';
+                        if(color) outputs[outIdx].style.borderColor = color; else outputs[outIdx].style.borderColor = '#000';
                         outIdx++;
                     }
-                });
-                if(errorToggle && outputs[outIdx]) {
-                    const row = el.querySelector('.error-row');
-                    const top = row.offsetTop + titleH + (row.offsetHeight/2) - 7;
-                    outputs[outIdx].style.top = top + 'px';
-                    outputs[outIdx].style.display = 'block';
-                    outIdx++;
-                }
-                if(timeoutToggle && outputs[outIdx]) {
-                    const row = el.querySelector('.timeout-row');
-                    const top = row.offsetTop + titleH + (row.offsetHeight/2) - 7;
-                    outputs[outIdx].style.top = top + 'px';
-                    outputs[outIdx].style.display = 'block';
-                    outIdx++;
-                }
+                };
+                menuRows.forEach(row => posicionar(row));
+                if (timeoutActive) posicionar(timeoutRow, '#fbbf24');
+                if (errorActive) posicionar(errorRow, '#ef4444');
                 editor.updateConnectionNodes(nodeId);
-            }, 50);
+            }, 30);
         }
-
         const observers = new Map();
         function watchNode(nodeId) {
             if(observers.has(nodeId)) return;
-            const el = document.getElementById('node-'+nodeId);
-            if(!el) return;
-            const ro = new ResizeObserver(() => updateMenuOutputs(nodeId));
-            ro.observe(el);
-            observers.set(nodeId, ro);
+            const el = document.getElementById('node-'+nodeId); if(!el) return;
+            const ro = new ResizeObserver(() => updateMenuOutputs(nodeId)); ro.observe(el); observers.set(nodeId, ro);
         }
-
         window.addMenuOption = function(btn) {
-            const nodeId = getNodeId(btn);
-            const list = btn.previousElementSibling;
-            const newIdx = list.children.length + 1;
-            const div = document.createElement('div');
-            div.className = 'menu-item';
-            div.id = 'opt-'+newIdx;
+            const nodeId = getNodeId(btn); const list = btn.previousElementSibling; const newIdx = list.children.length + 1;
+            const div = document.createElement('div'); div.className = 'menu-item'; div.id = 'opt-'+newIdx;
             div.innerHTML = `<i class="fas fa-grip-vertical menu-handle"></i><input type="text" df-opcao${newIdx} placeholder="Opção ${newIdx}"><div class="btn-del-opt" onclick="removeOption(this)"><i class="fas fa-trash"></i></div>`;
-            list.appendChild(div);
-            updateMenuOutputs(nodeId);
+            list.appendChild(div); updateMenuOutputs(nodeId);
         }
-
         window.removeOption = function(btn) {
-            const row = btn.closest('.menu-item');
-            const nodeId = getNodeId(btn);
-            const input = row.querySelector('input');
+            const row = btn.closest('.menu-item'); const nodeId = getNodeId(btn); const input = row.querySelector('input');
             const attr = Array.from(input.attributes).find(a => a.name.startsWith('df-'));
-            if(attr) {
-                const data = editor.getNodeFromId(nodeId).data;
-                delete data[attr.name.replace('df-', '')];
-                editor.updateNodeDataFromId(nodeId, data);
-            }
-            row.remove();
-            updateMenuOutputs(nodeId);
+            if(attr) { const data = editor.getNodeFromId(nodeId).data; delete data[attr.name.replace('df-', '')]; editor.updateNodeDataFromId(nodeId, data); }
+            row.remove(); updateMenuOutputs(nodeId);
         }
-
         window.toggleSpecialFlow = function(key, chk) {
-            const nodeId = getNodeId(chk);
-            const data = editor.getNodeFromId(nodeId).data;
-            data[key+'-active'] = chk.checked;
-            editor.updateNodeDataFromId(nodeId, data);
-            updateMenuOutputs(nodeId);
+            const nodeId = getNodeId(chk); const data = editor.getNodeFromId(nodeId).data;
+            data[key+'-active'] = chk.checked; editor.updateNodeDataFromId(nodeId, data); updateMenuOutputs(nodeId);
         }
-
         document.getElementById('drawflow').addEventListener('input', (e) => {
             if(!e.target.matches('input, textarea')) return;
-            const nodeEl = e.target.closest('.drawflow-node');
-            if(!nodeEl) return;
+            const nodeEl = e.target.closest('.drawflow-node'); if(!nodeEl) return;
             const nodeId = nodeEl.id.replace('node-', '');
             const attr = Array.from(e.target.attributes).find(a => a.name.startsWith('df-'));
             if(attr) {
-                const key = attr.name.replace('df-', '');
-                const data = editor.getNodeFromId(nodeId).data;
-                data[key] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
-                editor.updateNodeDataFromId(nodeId, data);
+                const key = attr.name.replace('df-', ''); const data = editor.getNodeFromId(nodeId).data;
+                data[key] = e.target.type === 'checkbox' ? e.target.checked : e.target.value; editor.updateNodeDataFromId(nodeId, data);
             }
         });
-
         async function uploadFile(input, tipo='imagem') {
             const file = input.files[0]; if(!file) return;
-            const area = input.parentElement.querySelector('.upload-area');
-            area.innerHTML = '<span>⏳...</span>';
+            const area = input.parentElement.querySelector('.upload-area'); area.innerHTML = '<span>⏳ Enviando...</span>';
             const formData = new FormData(); formData.append('file', file);
             try {
-                const res = await fetch('/api/upload', {method:'POST', body:formData});
-                const data = await res.json();
+                const res = await fetch('/api/upload', {method:'POST', body:formData}); const data = await res.json();
                 if(data.url) {
-                    const inputUrl = input.parentElement.querySelector('[df-url]');
-                    inputUrl.value = data.url;
-                    inputUrl.dispatchEvent(new Event('input', {bubbles:true}));
-                    if(tipo !== 'audio') {
-                        area.innerHTML = `<span>Upload</span><img src="${data.url}" style="display:block">`;
-                        area.querySelector('span').style.display='none';
-                    } else { 
-                        area.innerHTML = `<span><i class="fas fa-check"></i> Áudio Salvo!</span>`; 
-                    }
+                    const inputUrl = input.parentElement.querySelector('[df-url]'); inputUrl.value = data.url; inputUrl.dispatchEvent(new Event('input', {bubbles:true}));
+                    if(tipo !== 'audio') { area.innerHTML = `<span>Substituir</span><img src="${data.url}" style="display:block">`; area.querySelector('span').style.display='none'; } 
+                    else { area.innerHTML = `<span><i class="fas fa-check"></i> Áudio Salvo!</span>`; }
                 }
-            } catch(e) { area.innerHTML = '<span>Erro</span>'; }
+            } catch(e) { area.innerHTML = '<span>❌ Erro</span>'; console.error(e); }
+        }
+        async function salvarFluxo() {
+            const exportData = editor.export(); const btn = document.querySelector('.btn-save'); const originalTxt = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+            try {
+                const res = await fetch(`/api/clientes/${idCliente}/fluxo`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({fluxo: exportData}) });
+                if(res.ok) { Swal.fire({ title: 'Salvo!', icon: 'success', timer: 1000, showConfirmButton: false }); } else { throw new Error('Erro API'); }
+            } catch(e) { Swal.fire('Erro', 'Não foi possível salvar.', 'error'); } finally { btn.innerHTML = originalTxt; }
+        }
+        async function escolherModoImportacao() {
+            const { isConfirmed, isDenied } = await Swal.fire({
+                title: 'Importar Fluxo', text: 'Isso substituirá o desenho atual.', showCancelButton: true, showDenyButton: true, confirmButtonText: '📂 Arquivo JSON', denyButtonText: '📝 Colar Texto', confirmButtonColor: '#00d2ff', denyButtonColor: '#2d2d2d'
+            });
+            if (isConfirmed) { document.getElementById('fileImport').click(); } else if (isDenied) {
+                const { value: text } = await Swal.fire({ input: 'textarea', inputLabel: 'Cole o código JSON:', showCancelButton: true });
+                if (text) try { processarImportacao(JSON.parse(text)); } catch (e) { Swal.fire('Erro', 'JSON Inválido!', 'error'); }
+            }
+        }
+        function lerArquivo(input) {
+            const file = input.files[0]; if (!file) return;
+            const reader = new FileReader(); reader.onload = (e) => { try { processarImportacao(JSON.parse(e.target.result)); } catch (err) { Swal.fire('Erro', 'Arquivo inválido.', 'error'); } }; reader.readAsText(file); input.value = ''; 
+        }
+        function processarImportacao(json) {
+            editor.clear(); json = sanitizarJson(json); setTimeout(() => { try { editor.import(json); setTimeout(restoreData, 50); Swal.fire({ icon: 'success', title: 'Importado!', timer: 1000, showConfirmButton: false }); } catch (e) { console.error(e); Swal.fire('Erro', 'Falha ao desenhar.', 'error'); } }, 10);
         }
     </script>
 </body>

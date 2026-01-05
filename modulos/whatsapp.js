@@ -1,211 +1,168 @@
 // ============================================================
-// ARQUIVO: modulos/whatsapp.js
-// DESCRIÇÃO: V39 - SLOW MOTION (MAC OS + 10s DELAY)
+// ARQUIVO: modulos/whatsapp.js (V5.3 - LEITURA DE BOTÕES)
 // ============================================================
-
 const { 
-    makeWASocket, 
+    default: makeWASocket, 
     useMultiFileAuthState, 
     DisconnectReason, 
-    delay,
     fetchLatestBaileysVersion,
-    Browsers
+    makeCacheableSignalKeyStore,
+    proto
 } = require('@whiskeysockets/baileys');
-const { getEtapaUsuario, setEtapaUsuario, isPausado } = require('./sessions');
-const { executarPasso } = require('./engine');
 const pino = require('pino');
-const path = require('path');
 const fs = require('fs');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+const engine = require('./engine'); 
 
-const sessionMap = new Map();
+const sessoes = new Map();
 
-async function salvarMensagem(prisma, clienteId, remoteJid, nome, texto, fromMe) {
-    try {
-        let contato = await prisma.contato.findUnique({ where: { remoteJid } });
-        if (!contato) {
-            contato = await prisma.contato.create({ data: { remoteJid, nome: nome || "User", clienteId } });
-        }
-        await prisma.mensagem.create({ data: { texto, fromMe, contatoId: contato.id } });
-    } catch (e) {}
-}
+async function iniciarWhatsApp(cliente, io) {
+    if (sessoes.has(cliente.id)) {
+        try { sessoes.get(cliente.id).end(undefined); sessoes.delete(cliente.id); } catch (e) {}
+    }
 
-async function iniciarCliente(cliente, io, prisma) {
-    const id = cliente.id;
-    if (!cliente.numero) return;
-    const numeroLimpo = cliente.numero.replace(/\D/g, '');
+    const checkStatus = await prisma.cliente.findUnique({ where: { id: cliente.id } });
+    if (!checkStatus || !checkStatus.ativo) {
+        console.log(`[${cliente.nome}] ⏹️ Bot desligado. Abortando.`);
+        return;
+    }
 
-    console.log(`\n[SISTEMA] 🐢 Iniciando (Modo Lento) para: ${cliente.nome}`);
-    
-    const sessionPath = `./sessions/${id}`;
-    if (!fs.existsSync(sessionPath)) fs.mkdirSync(sessionPath, { recursive: true });
+    console.log(`[SISTEMA] 🔗 Conectando: ${cliente.nome}...`);
 
-    const { state, saveCreds } = await useMultiFileAuthState(sessionPath);
+    const pathAuth = `./sessions/${cliente.nome}-${cliente.id}`;
+    if (!fs.existsSync(pathAuth)) {
+        fs.mkdirSync(pathAuth, { recursive: true });
+    }
+
+    const { state, saveCreds } = await useMultiFileAuthState(pathAuth);
     const { version } = await fetchLatestBaileysVersion();
-
-    // TRAVA DE SEGURANÇA
-    let isCleaning = false;
 
     const sock = makeWASocket({
         version,
-        auth: state,
+        logger: pino({ level: 'silent' }),
         printQRInTerminal: false,
-        mobile: false,
-        logger: pino({ level: "silent" }),
-        // MUDANÇA: Usar macOS para variar a impressão digital
-        browser: Browsers.macOS('Chrome'), 
-        // AUMENTO DE TIMEOUTS PARA REDES LENTAS/4G
-        connectTimeoutMs: 90000, 
-        keepAliveIntervalMs: 10000, // Pinga a cada 10s para não cair
-        retryRequestDelayMs: 5000,
-        syncFullHistory: false,
-        shouldIgnoreJid: jid => jid.endsWith('@g.us') || jid === 'status@broadcast'
+        auth: {
+            creds: state.creds,
+            keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })),
+        },
+        browser: ["Ubuntu", "Chrome", "20.0.04"], 
+        markOnlineOnConnect: true,
+        connectTimeoutMs: 60000, 
+        defaultQueryTimeoutMs: 60000,
+        keepAliveIntervalMs: 10000,
+        syncFullHistory: false 
     });
 
-    global.sessoes[id] = sock; 
-    sessionMap.set(id, sock);
-
-    sock.ev.on('creds.update', async (creds) => {
-        if (isCleaning) return;
-        try { await saveCreds(creds); } catch (e) {}
-    });
-
-    // --- CÓDIGO DE PAREAMENTO (COM DELAY LONGO) ---
     if (!sock.authState.creds.registered) {
-        
-        // Espera 10 SEGUNDOS antes de pedir. É muito tempo, mas garante estabilidade.
         setTimeout(async () => {
-            if (isCleaning) return;
             try {
-                console.log(`[${cliente.nome}] ...Aguardando estabilização da rede (10s)...`);
+                const current = await prisma.cliente.findUnique({ where: { id: cliente.id } });
+                if (!current.ativo) return;
+                const phoneNumber = cliente.numero.replace(/[^0-9]/g, '');
+                if (sock.ws.isClosed || sock.authState.creds.registered) return;
                 
-                // Verifica se o socket ainda está vivo antes de pedir
-                if(global.sessoes[id]) {
-                    console.log(`[${cliente.nome}] 📞 Solicitando código agora...`);
-                    const code = await sock.requestPairingCode(numeroLimpo);
-                    
-                    console.log(`------------------------------------------------`);
-                    console.log(`🔐 CÓDIGO: ${code}`);
-                    console.log(`------------------------------------------------`);
-                    
-                    io.emit('pairingCode', { clienteId: id, code: code });
-                }
-            } catch (err) {
-                console.error(`[ERRO] O WhatsApp recusou: ${err.message}`);
-                // Se der erro 428 aqui, é porque precisa esperar mais tempo ou trocar IP
-            }
-        }, 10000); // <--- 10.000ms = 10 segundos
+                console.log(`[${cliente.nome}] ⏳ Gerando código...`);
+                const code = await sock.requestPairingCode(phoneNumber);
+                const codeFormatado = code?.match(/.{1,4}/g)?.join('-') || code;
+                console.log(`[${cliente.nome}] 🔢 CÓDIGO: ${codeFormatado}`);
+                
+                if (io) io.emit('pairingCode', { clienteId: cliente.id, code: codeFormatado });
+            } catch (erro) {}
+        }, 5000);
     }
+
+    sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
-        
         if (connection === 'close') {
-            const statusCode = (lastDisconnect.error)?.output?.statusCode;
-            console.log(`[${cliente.nome}] 🔴 Caiu (Erro: ${statusCode})`);
-
-            // 401: Logout | 428: Precondition Required (Bloqueio temporário)
-            // 515: Restart Required (Erro comum, tenta de novo)
-            
-            if (statusCode === 401) {
-                console.log(`[${cliente.nome}] ⛔ Sessão Inválida. Limpando.`);
-                isCleaning = true;
-                limparTudo(id, sessionPath, prisma, io);
-                return;
-            }
-
-            if (statusCode === 428) {
-                console.log(`[${cliente.nome}] ⚠️ Bloqueio temporário (428). Esperando 30s antes de tentar de novo...`);
-                // Não limpamos a sessão, apenas esperamos mais tempo
-                sessionMap.delete(id);
-                setTimeout(() => iniciarCliente(cliente, io, prisma), 30000); 
-                return;
-            }
-
-            const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-            if (shouldReconnect) {
-                // Reconexão padrão
-                setTimeout(() => iniciarCliente(cliente, io, prisma), 5000);
+            const statusCode = lastDisconnect?.error?.output?.statusCode;
+            sessoes.delete(cliente.id);
+            if (statusCode === DisconnectReason.loggedOut) {
+                console.log(`[${cliente.nome}] ❌ LOGOUT.`);
+                try {
+                    fs.rmSync(pathAuth, { recursive: true, force: true });
+                    await prisma.cliente.update({ where: { id: cliente.id }, data: { ativo: false } });
+                    if(io) io.emit('status', { clienteId: cliente.id, status: 'OFFLINE' });
+                } catch(e){}
             } else {
-                sessionMap.delete(id);
+                const dbCheck = await prisma.cliente.findUnique({ where: { id: cliente.id } });
+                if (dbCheck && dbCheck.ativo) {
+                    console.log(`[${cliente.nome}] ⚠️ Queda. Reconectando...`);
+                    setTimeout(() => iniciarWhatsApp(cliente, io), 3000);
+                }
             }
-
         } else if (connection === 'open') {
-            console.log(`[${cliente.nome}] 🟢 CONECTADO (ESTÁVEL)`);
-            isCleaning = false;
-            try { await prisma.cliente.update({ where: { id }, data: { status: 'ONLINE' } }); } catch (e) {}
-            io.emit('status', { clienteId: id, status: 'ONLINE' });
+            console.log(`[${cliente.nome}] 🟢 CONECTADO!`);
+            sessoes.set(cliente.id, sock);
+            await prisma.cliente.update({ where: { id: cliente.id }, data: { ativo: true } });
+            if(io) io.emit('status', { clienteId: cliente.id, status: 'ONLINE' });
         }
     });
 
-    // --- MENSAGENS (MANTIDO COMPACTO) ---
-    sock.ev.on('messages.upsert', async (m) => {
+    // --- LEITURA DE MENSAGENS E BOTÕES ---
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
         try {
-            const msg = m.messages[0];
-            if (!msg.message || msg.key.remoteJid === 'status@broadcast') return;
-            const usuarioId = msg.key.remoteJid;
-            const isMe = msg.key.fromMe; 
-            const texto = msg.message.conversation || msg.message.extendedTextMessage?.text || "";
-            await salvarMensagem(prisma, id, usuarioId, msg.pushName, texto, isMe);
+            if (type !== 'notify') return;
+            const msg = messages[0];
+            if (!msg.message) return;
+            if (msg.key.fromMe) return;
+            if (msg.key.remoteJid === 'status@broadcast') return;
+            if (msg.key.remoteJid.includes('@g.us')) return;
 
-            if (isMe) {
-                if (texto === '!reset') { setEtapaUsuario(usuarioId, null); await sock.sendMessage(usuarioId, {text: '♻️ Reset.'}); }
-                return;
+            const botId = sock.user?.id?.split(':')[0];
+            const senderId = msg.key.remoteJid.split('@')[0];
+            if (botId && botId === senderId) return;
+
+            const remoteJid = msg.key.remoteJid;
+            
+            // --- LÓGICA DE EXTRAÇÃO DO TEXTO ---
+            let texto = "";
+
+            // 1. Texto Simples
+            if (msg.message.conversation) texto = msg.message.conversation;
+            else if (msg.message.extendedTextMessage?.text) texto = msg.message.extendedTextMessage.text;
+            
+            // 2. Resposta de Botão Antigo
+            else if (msg.message.buttonsResponseMessage?.selectedButtonId) {
+                texto = msg.message.buttonsResponseMessage.selectedButtonId;
             }
-            const check = await prisma.cliente.findUnique({ where: { id } });
-            if (!check || check.status !== 'ONLINE') return;
-            if (isPausado(usuarioId)) return;
-            const fluxo = check.fluxoJson;
-            if (!fluxo || !fluxo.drawflow) return;
-            let etapaAtual = getEtapaUsuario(usuarioId);
-            let processando = true;
-            let proximoId = etapaAtual;
-            let inputUsuario = texto;
-
-            while (processando) {
-                const resultado = await executarPasso(proximoId, fluxo, proximoId ? inputUsuario : "");
-                if (!resultado) { processando = false; break; }
-                if (['texto', 'imagem', 'video', 'audio', 'midia'].includes(resultado.tipo)) {
-                    await sock.sendPresenceUpdate(resultado.tipo === 'audio' ? 'recording' : 'composing', usuarioId);
-                    await delay(1000);
-                    if (resultado.tipo === 'texto') await sock.sendMessage(usuarioId, { text: resultado.mensagem });
-                    else if (resultado.url) {
-                        const fileName = path.basename(decodeURIComponent(resultado.url));
-                        const caminhoAbsoluto = path.join(process.cwd(), 'public', 'uploads', fileName);
-                        if(fs.existsSync(caminhoAbsoluto)) {
-                             const buffer = fs.readFileSync(caminhoAbsoluto);
-                             const mime = path.extname(caminhoAbsoluto) === '.mp3' ? 'audio/mpeg' : 'audio/mp4';
-                             if(resultado.tipo === 'audio') await sock.sendMessage(usuarioId, { audio: buffer, mimetype: mime, ptt: resultado.ptt });
-                             else if(resultado.tipo === 'video') await sock.sendMessage(usuarioId, { video: buffer, caption: resultado.caption });
-                             else await sock.sendMessage(usuarioId, { image: buffer, caption: resultado.caption });
-                        }
-                    }
-                    await sock.sendPresenceUpdate('paused', usuarioId);
-                }
-                if (resultado.parar) {
-                    if (resultado.idAtual) { setEtapaUsuario(usuarioId, resultado.idAtual); processando = false; }
-                    else if (resultado.manterNoAtual) { setEtapaUsuario(usuarioId, proximoId || resultado.idAtual); processando = false; }
-                    else {
-                        if (resultado.proximoId) { proximoId = resultado.proximoId; inputUsuario = ""; setEtapaUsuario(usuarioId, proximoId); await delay(500); }
-                        else { setEtapaUsuario(usuarioId, null); processando = false; }
-                    }
-                } else {
-                    proximoId = resultado.proximoId; inputUsuario = ""; 
-                    if (!proximoId) processando = false; else await delay(100); 
+            else if (msg.message.listResponseMessage?.singleSelectReply?.selectedRowId) {
+                texto = msg.message.listResponseMessage.singleSelectReply.selectedRowId;
+            }
+            
+            // 3. Resposta de Botão Novo (Interactive)
+            else if (msg.message.interactiveResponseMessage) {
+                const native = msg.message.interactiveResponseMessage.nativeFlowResponseMessage;
+                const body = msg.message.interactiveResponseMessage.body;
+                
+                if (native) {
+                    // Tenta ler o JSON do botão
+                    try {
+                        const params = JSON.parse(native.paramsJson);
+                        texto = params.id || "";
+                    } catch (e) { texto = "" }
+                } 
+                else if (body) {
+                    texto = body.text; // Fallback
                 }
             }
-        } catch (erro) { console.error(`Erro:`, erro.message); }
+
+            // 4. Mídias
+            if (!texto && msg.message.audioMessage) texto = "#AUDIO";
+            if (!texto && msg.message.imageMessage) texto = "#IMAGEM";
+            if (!texto && msg.message.documentMessage) texto = "#ARQUIVO";
+
+            if (texto) {
+                await engine.processarMensagem(cliente.id, remoteJid, texto, sock, prisma);
+            }
+        } catch (error) {
+            console.error(`Erro msg: ${error.message}`);
+        }
     });
+
+    sessoes.set(cliente.id, sock);
 }
 
-// Função auxiliar de limpeza
-async function limparTudo(id, sessionPath, prisma, io) {
-    if(global.sessoes[id]) delete global.sessoes[id];
-    sessionMap.delete(id);
-    try { await prisma.cliente.update({ where: { id }, data: { status: 'OFFLINE' } }); } catch(e) {}
-    try { io.emit('status', { clienteId: id, status: 'OFFLINE' }); } catch(e) {}
-    setTimeout(() => {
-        try { fs.rmSync(sessionPath, { recursive: true, force: true }); } catch(e) {}
-    }, 1000);
-}
-
-module.exports = { sessionMap, iniciarCliente, deletarSessao: (id) => { if(global.sessoes[id]) delete global.sessoes[id]; sessionMap.delete(id); try { fs.rmSync(`./sessions/${id}`, { recursive: true, force: true }); } catch (e) {} } };
+module.exports = { iniciarWhatsApp, sessoes };

@@ -16,11 +16,17 @@
         .btn-new:hover { background-color: #0056cc; box-shadow: 0 0 15px rgba(0, 110, 255, 0.3); }
 
         .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 30px; max-width: 1400px; margin: 0 auto; }
-        .card { background-color: #0a0a0a; border: 1px solid #1f1f1f; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); position: relative; transition: transform 0.2s, border-color 0.2s; }
+        
+        .card { 
+            background-color: #0a0a0a; border: 1px solid #1f1f1f; padding: 25px; border-radius: 12px; 
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5); position: relative; transition: transform 0.2s, border-color 0.2s; 
+            display: flex; flex-direction: column;
+        }
         .card:hover { border-color: #333; transform: translateY(-5px); }
+        
         .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
         .client-name { font-weight: 600; font-size: 1.1rem; }
-        .client-id { font-size: 0.75rem; color: #444; margin-bottom: 20px; display: block; font-family: monospace; }
+        .client-id { font-size: 0.75rem; color: #444; margin-bottom: 15px; display: block; font-family: monospace; }
 
         /* SWITCH */
         .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
@@ -33,24 +39,45 @@
         /* STATUS */
         .status { font-size: 0.8rem; color: #888; margin-bottom: 20px; display: flex; align-items: center; gap: 6px; }
         .dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; }
-        .dot.red { background-color: #ff4444; box-shadow: 0 0 5px #ff4444; }
         .dot.green { background-color: #00ff88; box-shadow: 0 0 5px #00ff88; }
+        .dot.red { background-color: #ff4444; box-shadow: 0 0 5px #ff4444; }
         .dot.gray { background-color: #666; }
+        .dot.orange { background-color: #ffaa00; animation: pulse 1s infinite; }
+
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        /* PAIRING BOX (NOVO) */
+        .pairing-box {
+            background: #111;
+            border: 1px dashed #333;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+            display: none; /* Escondido por padrão */
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .pairing-title { font-size: 0.8rem; color: #888; margin-bottom: 5px; }
+        .pairing-code { 
+            font-size: 1.4rem; font-weight: bold; color: #00d2ff; letter-spacing: 2px; 
+            font-family: monospace; background: #000; padding: 8px; border-radius: 4px; border: 1px solid #222;
+        }
+        .pairing-loading { color: #666; font-size: 0.9rem; font-style: italic; }
 
         /* INPUTS */
         .field-label { font-size: 0.75rem; color: #666; margin-bottom: 6px; display: block; }
         .fake-input { background-color: #161616; border: 1px solid #2a2a2a; border-radius: 6px; padding: 12px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; color: #ddd; font-size: 0.9rem; font-weight: 500; }
-        .fake-input i { color: #555; cursor: pointer; transition: 0.3s; }
-        .fake-input i:hover { color: #fff; }
-
-        .actions { display: flex; gap: 10px; margin-top: 25px; }
+        
+        .actions { display: flex; gap: 10px; margin-top: auto; }
         .btn { flex: 1; border: none; padding: 12px; border-radius: 6px; color: white; font-weight: 600; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 0.9rem; text-decoration: none; transition: opacity 0.2s; }
         .btn:hover { opacity: 0.9; }
         .btn-blue { background-color: #0056b3; }
         .btn-del { background-color: #1a1a1a; border: 1px solid #333; color: #666; width: 45px; flex: none; }
         .btn-del:hover { background-color: #ef4444; color: white; border-color: #ef4444; }
 
-        /* MODAL */
+        /* MODAL NOVO CLIENTE */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(2px); justify-content: center; align-items: center; z-index: 1000; }
         .modal-box { background-color: #121212; width: 350px; padding: 30px; border-radius: 8px; border: 1px solid #333; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
         .modal-title { font-size: 1.2rem; font-weight: bold; margin-bottom: 20px; color: white; }
@@ -96,16 +123,19 @@
                     </span>
                 </div>
 
-                <span class="field-label">Nome do Cliente</span>
-                <div class="fake-input">
-                    <span id="view-nome-<%= c.id %>"><%= c.nome %></span>
-                    <i class="fas fa-pen" onclick="abrirModalEdicao('<%= c.id %>', '<%= c.nome %>', '<%= c.numero %>')"></i>
+                <div id="pairing-box-<%= c.id %>" class="pairing-box">
+                    <div class="pairing-title">Conectar no WhatsApp:</div>
+                    <div id="code-display-<%= c.id %>" class="pairing-loading">
+                        <i class="fas fa-circle-notch fa-spin"></i> Solicitando código...
+                    </div>
+                    <div style="font-size: 10px; color: #555; margin-top: 5px;">
+                        Aparelhos Conectados > Conectar com Número
+                    </div>
                 </div>
 
                 <span class="field-label">WhatsApp Conectado</span>
                 <div class="fake-input">
                     <span id="view-numero-<%= c.id %>"><%= c.numero || 'Sem número' %></span>
-                    <i class="fas fa-pen" onclick="abrirModalEdicao('<%= c.id %>', '<%= c.nome %>', '<%= c.numero %>')"></i>
                 </div>
 
                 <div class="actions">
@@ -122,8 +152,7 @@
 
     <div id="modal-form" class="modal-overlay">
         <div class="modal-box">
-            <div class="modal-title" id="modal-title">Novo Cliente</div>
-            <input type="hidden" id="inp-id">
+            <div class="modal-title">Novo Cliente</div>
             <input type="text" id="inp-nome" class="modal-input" placeholder="Nome do Cliente">
             <input type="text" id="inp-numero" class="modal-input" placeholder="55219..." maxlength="13">
             <button class="btn-ok" onclick="salvarDados()">Salvar</button>
@@ -131,128 +160,118 @@
         </div>
     </div>
 
-    <div id="modal-pairing" class="modal-overlay" style="display: none; z-index: 2000;">
-        <div class="modal-box" style="width: 400px; text-align: center;">
-            <div style="font-size: 3rem; color: #00d2ff; margin-bottom: 10px;">
-                <i class="fab fa-whatsapp"></i>
-            </div>
-            <h2 style="color: white; margin: 0;">Conectar WhatsApp</h2>
-            <p style="color: #aaa; font-size: 0.9rem; margin-top: 5px;">
-                No celular: <b>Aparelhos Conectados > Conectar > Conectar com número</b>
-            </p>
-            
-            <div id="display-code" style="background: #1a1a1a; border: 2px dashed #00d2ff; color: #fff; font-size: 2.2rem; font-weight: bold; padding: 15px; margin: 20px 0; border-radius: 8px; letter-spacing: 4px;">
-                ...
-            </div>
-
-            <button onclick="fecharModalPairing()" style="background: #333; color: white; border: none; padding: 10px 30px; border-radius: 4px; cursor: pointer;">Fechar</button>
-        </div>
-    </div>
-
     <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
 
-        // 1. Receber Código
+        // 1. RECEBE O CÓDIGO E MOSTRA NA CAIXINHA DO CLIENTE ESPECÍFICO
         socket.on('pairingCode', (data) => {
-            document.getElementById('display-code').innerText = data.code;
-            document.getElementById('modal-pairing').style.display = 'flex';
-        });
+            const box = document.getElementById('pairing-box-' + data.clienteId);
+            const display = document.getElementById('code-display-' + data.clienteId);
+            const statusLabel = document.getElementById('status-' + data.clienteId);
 
-        // 2. Receber Status (Fecha modal se conectar)
-        socket.on('status', (data) => {
-            const label = document.getElementById('status-' + data.clienteId);
-            const toggle = document.getElementById('toggle-' + data.clienteId);
-            
-            if (label) {
-                if (data.status === 'ONLINE') {
-                    label.innerHTML = '<span class="dot green"></span> <b style="color: #00ff88">ONLINE</b>';
-                    if(toggle) toggle.checked = true;
-                    fecharModalPairing();
-                } else {
-                    label.innerHTML = '<span class="dot red"></span> <b style="color: #ff4444">OFFLINE</b>';
-                    if(toggle) toggle.checked = false;
-                }
+            if (box && display) {
+                // Mostra a caixa
+                box.style.display = 'block';
+                // Atualiza o código
+                display.className = 'pairing-code';
+                display.innerText = data.code;
+                
+                // Muda status para "Pareando"
+                if(statusLabel) statusLabel.innerHTML = '<span class="dot orange"></span> <b style="color: #ffaa00">PAREANDO...</b>';
             }
         });
 
-        function fecharModalPairing() { document.getElementById('modal-pairing').style.display = 'none'; }
-        
+        // 2. ATUALIZA STATUS (SE CONECTAR, ESCONDE A CAIXA)
+        socket.on('status', (data) => {
+            const label = document.getElementById('status-' + data.clienteId);
+            const toggle = document.getElementById('toggle-' + data.clienteId);
+            const box = document.getElementById('pairing-box-' + data.clienteId);
+            
+            if (data.status === 'ONLINE') {
+                if(label) label.innerHTML = '<span class="dot green"></span> <b style="color: #00ff88">ONLINE</b>';
+                if(toggle) toggle.checked = true;
+                // Esconde a caixa de código pois já conectou
+                if(box) box.style.display = 'none';
+            } else {
+                if(label) label.innerHTML = '<span class="dot red"></span> <b style="color: #ff4444">OFFLINE</b>';
+                // Não desliga o switch automaticamente aqui para evitar feedback loop visual,
+                // mas se foi um logout real, o backend já cuidou disso.
+            }
+        });
+
+        // FUNÇÕES GERAIS
         function abrirModalNovo() {
-            document.getElementById('modal-title').innerText = "Novo Cliente";
-            document.getElementById('inp-id').value = "";
             document.getElementById('inp-nome').value = "";
             document.getElementById('inp-numero').value = "";
-            document.getElementById('modal-form').style.display = 'flex';
-        }
-
-        function abrirModalEdicao(id, nome, numero) {
-            document.getElementById('modal-title').innerText = "Editar";
-            document.getElementById('inp-id').value = id;
-            document.getElementById('inp-nome').value = nome;
-            document.getElementById('inp-numero').value = numero;
             document.getElementById('modal-form').style.display = 'flex';
         }
 
         function fecharModal() { document.getElementById('modal-form').style.display = 'none'; }
 
         async function salvarDados() {
-            const id = document.getElementById('inp-id').value;
             const nome = document.getElementById('inp-nome').value;
             const numero = document.getElementById('inp-numero').value;
-            if(!nome) return alert("O nome é obrigatório!");
+            if(!nome || !numero) return alert("Preencha tudo!");
 
-            const url = '/api/clientes'; 
-            
             try {
-                // OBS: Para edição real, você pode precisar ajustar a API para PUT se tiver ID
-                // Aqui estou usando POST simplificado para o exemplo
-                const res = await fetch(url, {
+                const res = await fetch('/api/clientes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ nome, numero })
                 });
+                const data = await res.json();
                 if(res.ok) window.location.reload();
-                else alert("Erro ao salvar.");
-            } catch (e) { console.error(e); alert("Erro de conexão."); }
+                else alert("Erro: " + (data.error || "Falha"));
+            } catch (e) { alert("Erro conexão."); }
         }
 
         async function excluir(id) {
-            if(confirm("Deseja realmente excluir este cliente e todo o histórico?")) {
+            if(confirm("Deseja apagar este cliente e desconectar o bot?")) {
                 try {
-                    await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
-                    window.location.reload();
-                } catch (e) { alert("Erro ao excluir."); }
+                    const res = await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
+                    if(res.ok) document.getElementById('card-'+id).remove();
+                    else alert("Erro ao excluir.");
+                } catch (e) { alert("Erro conexão."); }
             }
         }
 
-        // --- BOTÃO LIGAR/DESLIGAR ---
         async function toggleBot(clienteId, elementoSwitch) {
             const novoStatus = elementoSwitch.checked ? 'ONLINE' : 'OFFLINE';
             const label = document.getElementById('status-' + clienteId);
-            
-            // Feedback visual
-            if(label) label.innerHTML = '<span class="dot gray"></span> <i>Processando...</i>';
+            const box = document.getElementById('pairing-box-' + clienteId);
+            const display = document.getElementById('code-display-' + clienteId);
 
+            if (novoStatus === 'ONLINE') {
+                // Feedback visual imediato: "Iniciando..."
+                if(label) label.innerHTML = '<span class="dot gray"></span> <i>Iniciando...</i>';
+                
+                // Abre a caixa em modo "Carregando"
+                if(box) {
+                    box.style.display = 'block';
+                    if(display) {
+                        display.className = 'pairing-loading';
+                        display.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Solicitando...';
+                    }
+                }
+            } else {
+                // Se desligou, esconde a caixa imediatamente
+                if(box) box.style.display = 'none';
+                if(label) label.innerHTML = '<span class="dot red"></span> <b>OFFLINE</b>';
+            }
+
+            // Chama API
             try {
-                const response = await fetch('/api/status', {
+                await fetch('/api/status', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ clienteId: clienteId, status: novoStatus })
                 });
-
-                const data = await response.json();
-                
-                if (data.success) {
-                    window.location.reload(); // Recarrega para garantir
-                } else {
-                    alert("Erro ao atualizar status: " + (data.error || "Desconhecido"));
-                    window.location.reload();
-                }
             } catch (erro) {
                 console.error(erro);
+                // Se der erro de rede, volta o switch
+                elementoSwitch.checked = !elementoSwitch.checked;
                 alert("Erro de conexão com o servidor.");
-                window.location.reload();
             }
         }
     </script>

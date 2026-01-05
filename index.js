@@ -1,179 +1,204 @@
 // ============================================================
-// ARQUIVO: index.js
-// DESCRIÇÃO: V25 - SERVIDOR ESTÁVEL (CORRIGIDO)
+// ARQUIVO: index.js (ORQUESTRADOR V7.0 - FINAL)
+// ============================================================
+require('dotenv').config();
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+const bodyParser = require('body-parser');
+const path = require('path');
+const multer = require('multer'); 
+const { PrismaClient } = require('@prisma/client');
+
+// Módulos Internos
+const whatsapp = require('./modulos/whatsapp');
+const redis = require('./modulos/redis');
+
+// Configuração
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: "*" } }); // Socket para Pairing Code
+const prisma = new PrismaClient();
+const PORT = process.env.PORT || 3000;
+
+// Middleware
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.static('public'));
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+
+// Configuração de Upload (Para Mídia do Bot)
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => cb(null, 'public/uploads/'),
+    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname)
+});
+const upload = multer({ storage });
+
+// ============================================================
+// 1. ROTAS DE FRONTEND (PÁGINAS)
 // ============================================================
 
-const express = require('express');
-const app = express(); // Inicializa o App primeiro!
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+// Rota Raiz -> Redireciona para o Painel (Fim do Loop Infinito)
+app.get('/', (req, res) => {
+    res.redirect('/dashboard');
+});
 
-// Importa funções do módulo WhatsApp
-// Certifique-se que o modulos/whatsapp.js exporta { iniciarCliente, sessionMap }
-const { iniciarCliente, sessionMap } = require('./modulos/whatsapp'); 
+// Painel Principal
+app.get('/dashboard', async (req, res) => {
+    try {
+        // Busca clientes ordenados
+        const clientes = await prisma.cliente.findMany({ orderBy: { criadoEm: 'desc' } });
+        
+        // Verifica quem está realmente conectado na memória
+        const clientesComStatus = clientes.map(c => {
+            // Verifica se existe sessão ativa no Map do whatsapp.js
+            const session = whatsapp.sessoes.get(c.id);
+            const isOnline = !!session; 
+            return { ...c, status: isOnline ? 'ONLINE' : 'OFFLINE' };
+        });
 
-// Variável global para sessões (compatibilidade)
-global.sessoes = {}; 
-
-// Configuração do Express
-app.set('view engine', 'ejs'); 
-app.use(express.static('public')); 
-app.use('/uploads', express.static('public/uploads')); 
-app.use(express.json({ limit: '50mb' })); 
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
-
-// --- UPLOADS ---
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = path.join(__dirname, 'public', 'uploads');
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        const ext = path.extname(file.originalname);
-        const name = `file-${Date.now()}${ext}`;
-        cb(null, name);
+        res.render('dashboard', { clientes: clientesComStatus });
+    } catch (error) {
+        console.error(error);
+        res.status(500).send("Erro ao carregar dashboard: " + error.message);
     }
 });
-const upload = multer({ storage: storage });
 
-// --- ROTAS DO PAINEL (FRONTEND) ---
-app.get('/', async (req, res) => {
-    try {
-        const clientes = await prisma.cliente.findMany({ orderBy: { id: 'desc' } });
-        res.render('dashboard', { clientes });
-    } catch (e) { res.status(500).send("Erro ao carregar dashboard: " + e.message); }
-});
-
+// Editor de Fluxo
 app.get('/editor/:id', async (req, res) => {
     try {
         const cliente = await prisma.cliente.findUnique({ where: { id: req.params.id } });
-        if (!cliente) return res.send("Cliente não encontrado");
-        // Garante JSON válido
-        const fluxo = cliente.fluxoJson || { "drawflow": { "Home": { "data": {} } } };
-        res.render('editor', { cliente, fluxo });
-    } catch (e) { res.status(500).send("Erro no editor: " + e.message); }
+        if(!cliente) return res.status(404).send("Cliente não encontrado");
+        res.render('editor', { cliente, fluxo: cliente.fluxoJson });
+    } catch (e) {
+        res.status(500).send("Erro ao abrir editor");
+    }
 });
 
-// --- API (CRUD) ---
+// ============================================================
+// 2. ROTAS DE API (GERENCIAMENTO DE CLIENTES)
+// ============================================================
+
+// Criar Novo Cliente
 app.post('/api/clientes', async (req, res) => {
     try {
         const { nome, numero } = req.body;
-        // Validação básica
-        if (!nome) return res.status(400).json({ error: "Nome é obrigatório" });
+        if(!nome || !numero) return res.status(400).json({ error: "Dados incompletos" });
 
-        const novo = await prisma.cliente.create({
-            data: { 
-                nome: nome, 
-                numero: numero || '', 
-                status: 'OFFLINE', 
-                fluxoJson: { "drawflow": { "Home": { "data": {} } } } 
-            }
-        });
-        res.json(novo);
-    } catch (e) { res.status(500).json({ error: "Erro ao criar cliente" }); }
+        await prisma.cliente.create({ data: { nome, numero } });
+        res.json({ success: true });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: "Erro ao criar cliente" });
+    }
 });
 
+// Excluir Cliente (E deletar sessão do WhatsApp)
 app.delete('/api/clientes/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        console.log(`[API] Excluindo cliente: ${id}`);
         
-        // 1. Derruba a sessão se existir
-        if (global.sessoes[id]) {
-            try { global.sessoes[id].end(undefined); } catch (e) {}
-            delete global.sessoes[id];
-        }
-        if (sessionMap && sessionMap.has(id)) {
-            sessionMap.delete(id);
+        // 1. Desconectar WhatsApp se existir
+        const session = whatsapp.sessoes.get(id);
+        if(session) {
+            try { session.end(undefined); } catch(e){}
+            whatsapp.sessoes.delete(id);
         }
 
-        // 2. Apaga pasta da sessão
-        const sessionPath = path.join(__dirname, 'sessions', id);
-        if (fs.existsSync(sessionPath)) {
-            fs.rmSync(sessionPath, { recursive: true, force: true });
-        }
-
-        // 3. Limpa Banco de Dados (Cascading Delete Manual)
-        await prisma.$transaction(async (tx) => {
-            const contatos = await tx.contato.findMany({ where: { clienteId: id }, select: { id: true } });
-            const ids = contatos.map(c => c.id);
-            if(ids.length) await tx.mensagem.deleteMany({ where: { contatoId: { in: ids } } });
-            await tx.contato.deleteMany({ where: { clienteId: id } });
-            await tx.cliente.delete({ where: { id } });
-        });
+        // 2. Deletar do Banco (Cascade deleta contatos e msgs)
+        await prisma.cliente.delete({ where: { id } });
         
         res.json({ success: true });
-    } catch (e) { 
+    } catch (e) {
         console.error(e);
-        res.status(500).json({ error: "Erro ao excluir" }); 
+        res.status(500).json({ error: "Erro ao excluir" });
     }
 });
 
-// ROTA ON/OFF (CORRIGIDA)
+// Ligar/Desligar Bot (Switch do Dashboard)
 app.post('/api/status', async (req, res) => {
     try {
-        const { clienteId, status } = req.body;
-        console.log(`[API] Alterando status ${clienteId} -> ${status}`);
-        
-        await prisma.cliente.update({ where: { id: clienteId }, data: { status } });
-        io.emit('status', { clienteId, status }); // Avisa o Front
+        const { clienteId, status } = req.body; // 'ONLINE' ou 'OFFLINE'
+        const ativo = status === 'ONLINE';
 
-        if (status === 'ONLINE') {
-            const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
-            // Só inicia se tiver número configurado
-            if (cliente && cliente.numero && cliente.numero.length > 8) {
-                if (!global.sessoes[clienteId]) {
-                    console.log(`[RESTART] Iniciando processo do bot...`);
-                    iniciarCliente(cliente, io, prisma);
-                }
-            } else {
-                console.log(`[AVISO] Cliente ${clienteId} sem número válido.`);
+        // Atualiza no banco
+        const cliente = await prisma.cliente.update({
+            where: { id: clienteId },
+            data: { ativo: ativo }
+        });
+
+        if (ativo) {
+            // LIGA: Inicia conexão passando o IO para enviar Código de Pareamento
+            whatsapp.iniciarWhatsApp(cliente, io);
+        } else {
+            // DESLIGA: Derruba conexão
+            const sock = whatsapp.sessoes.get(clienteId);
+            if(sock) {
+                try { sock.end(undefined); } catch(e){}
+                whatsapp.sessoes.delete(clienteId);
             }
         }
+
         res.json({ success: true });
     } catch (e) {
         console.error(e);
-        res.status(500).json({ error: "Erro interno no servidor" });
+        res.status(500).json({ error: "Erro ao mudar status" });
     }
 });
 
+// Salvar Fluxo
 app.post('/api/clientes/:id/fluxo', async (req, res) => {
     try {
-        await prisma.cliente.update({ where: { id: req.params.id }, data: { fluxoJson: req.body.fluxo } });
+        const { id } = req.params;
+        const { fluxo } = req.body;
+        await prisma.cliente.update({ where: { id }, data: { fluxoJson: fluxo } });
+        console.log(`[API] Fluxo salvo para cliente ${id}`);
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Erro ao salvar fluxo" }); }
-});
-
-app.post('/api/upload', upload.single('file'), (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-    res.json({ url: req.file.filename }); 
-});
-
-// --- INICIALIZAÇÃO DO SERVIDOR ---
-const PORT = process.env.PORT || 3000;
-
-http.listen(PORT, async () => {
-    console.log(`\n🚀 CALIXTO OMNISYSTEM - RODANDO NA PORTA ${PORT}`);
-    
-    // Recuperação de desastre: Reiniciar clientes ONLINE
-    try {
-        const onlines = await prisma.cliente.findMany({ where: { status: 'ONLINE' } });
-        console.log(`[SISTEMA] Encontrados ${onlines.length} clientes ONLINE para iniciar.`);
-        
-        onlines.forEach(c => {
-            if (c.numero && c.numero.length > 8) {
-                iniciarCliente(c, io, prisma);
-            } else {
-                console.log(`[SISTEMA] Ignorando ${c.nome} (Sem número configurado)`);
-            }
-        });
-    } catch (e) {
-        console.error("[CRITICO] Erro ao carregar clientes iniciais:", e);
+    } catch (error) {
+        res.status(500).json({ error: 'Erro interno' });
     }
+});
+
+// Upload de Arquivos
+app.post('/api/upload', upload.single('file'), (req, res) => {
+    if (!req.file) return res.status(400).json({ error: 'Sem arquivo' });
+    // Garante a barra correta
+    res.json({ url: `/uploads/${req.file.filename}` });
+});
+
+// ============================================================
+// INICIALIZAÇÃO DO SISTEMA
+// ============================================================
+server.listen(PORT, async () => {
+    // MENSAGEM NO TERMINAL ADICIONADA AQUI:
+    console.log(`\n===================================================`);
+    console.log(`🚀 CALIXTO OMNISYSTEM - TUDO FUNCIONANDO!`);
+    console.log(`👉 ACESSE O PAINEL: http://localhost:${PORT}/dashboard`);
+    console.log(`===================================================\n`);
+    
+    // 1. Verifica Redis
+    try {
+        await redis.ping();
+        console.log('✅ [REDIS] Conectado com sucesso!');
+    } catch (e) {
+        console.error('❌ [REDIS] Falha fatal na conexão:', e);
+    }
+
+    // 2. Inicia Bots Ativos
+    try {
+        const clientesAtivos = await prisma.cliente.findMany({ where: { ativo: true } });
+        console.log(`[SISTEMA] Encontrados ${clientesAtivos.length} clientes ONLINE para iniciar.\n`);
+
+        clientesAtivos.forEach(cliente => {
+            whatsapp.iniciarWhatsApp(cliente, io); 
+        });
+
+    } catch (e) {
+        console.error('[CRITICO] Erro ao carregar clientes:', e);
+    }
+});
+
+io.on('connection', (socket) => {
+    console.log('🔌 Painel conectado:', socket.id);
 });
