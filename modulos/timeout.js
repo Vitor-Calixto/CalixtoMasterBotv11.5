@@ -1,5 +1,5 @@
 // ============================================================
-// ARQUIVO: modulos/timeout.js (NOVO MONITOR)
+// ARQUIVO: modulos/timeout.js
 // ============================================================
 const sessions = require('./sessions');
 const engine = require('./engine');
@@ -15,17 +15,16 @@ async function verificarTimeouts() {
         for (const chave of chaves) {
             const userNum = chave.split(':')[1];
             
-            // Pega dados ricos (timestamp, timeoutAt, ids)
             const sessao = await sessions.getSessaoCompleta(userNum);
             
             if (sessao && sessao.timeoutAt) {
-                // Se a hora atual for maior que o tempo limite
+                // Se o tempo expirou
                 if (agora > sessao.timeoutAt) {
                     
                     const sock = whatsapp.sessoes.get(sessao.clienteId);
                     
                     if (sock) {
-                        // O cliente está online, executa o fluxo de timeout
+                        // Avisa o Engine (que decide se é abandono ou fim de espera)
                         await engine.executarTimeout(
                             userNum, 
                             sessao.clienteId, 
@@ -35,7 +34,6 @@ async function verificarTimeouts() {
                             sock
                         );
                     } else {
-                        // Bot desligado, apenas limpa
                         await sessions.limparSessao(userNum);
                     }
                 }
@@ -47,8 +45,8 @@ async function verificarTimeouts() {
 }
 
 function iniciar() {
-    setInterval(verificarTimeouts, 5000); // Checa a cada 5 segundos
-    console.log('[SISTEMA] ⏰ Monitor de Timeouts iniciado.');
+    setInterval(verificarTimeouts, 5000); 
+    console.log('[SISTEMA] ⏰ Monitor de Timeouts e Delays iniciado.');
 }
 
 module.exports = { iniciar };

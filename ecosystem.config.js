@@ -1,17 +1,22 @@
 module.exports = {
-    apps : [{
-      name   : "calixto-omnisystem",
-      script : "./index.js",
-      instances : 1,          // <--- MUDANÇA AQUI: Apenas 1 Piloto
-      exec_mode : "fork",     // <--- MUDANÇA AQUI: Modo Fork é mais estável para Single Instance
-      watch  : false,
-      max_memory_restart : "1G",
-      env: {
-        NODE_ENV: "production",
-        PORT: 3000
-      },
-      error_file: "./logs/err.log",
-      out_file: "./logs/out.log",
-      time: true
-    }]
+  apps : [{
+    script: 'index.js',
+    watch: '.'
+  }, {
+    script: './service-worker/',
+    watch: ['./service-worker']
+  }],
+
+  deploy : {
+    production : {
+      user : 'SSH_USERNAME',
+      host : 'SSH_HOSTMACHINE',
+      ref  : 'origin/master',
+      repo : 'GIT_REPOSITORY',
+      path : 'DESTINATION_PATH',
+      'pre-deploy-local': '',
+      'post-deploy' : 'npm install && pm2 reload ecosystem.config.js --env production',
+      'pre-setup': ''
+    }
   }
+};

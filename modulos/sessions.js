@@ -1,74 +1,84 @@
 // ============================================================
-// ARQUIVO: modulos/sessions.js (V3.0 - DADOS RICOS)
+// ARQUIVO: modulos/sessions.js v5.0
 // ============================================================
-const redis = require('./redis');
+const Redis = require('ioredis');
+// Ajuste o host se necessário
+const redis = new Redis(process.env.REDIS_URL || { host: '127.0.0.1', port: 6379 });
 
 const PREFIX = 'sessao:';
+const PREFIX_PAUSA = 'pausa:';
+
+// Salva onde o usuário está no fluxo
+async function setEtapaUsuario(userNum, nodeId, ttlSeconds = 600, clienteId, remoteJid) {
+    const key = `${PREFIX}${userNum}`;
+    const data = {
+        userNum,
+        nodeId,
+        clienteId,
+        remoteJid,
+        timestamp: Date.now(),
+        // Timeout lógico (para o script timeout.js ler)
+        timeoutAt: ttlSeconds ? Date.now() + (ttlSeconds * 1000) : null
+    };
+
+    await redis.set(key, JSON.stringify(data));
+    // Expiração de segurança (24h)
+    await redis.expire(key, 86400); 
+}
+
+// Lê o nó atual
+async function getEtapaUsuario(userNum) {
+    const key = `${PREFIX}${userNum}`;
+    const data = await redis.get(key);
+    if (!data) return null;
+    try {
+        const json = JSON.parse(data);
+        return json.nodeId;
+    } catch (e) { return null; }
+}
+
+// Pega dados ricos (incluindo timestamp)
+async function getSessaoCompleta(userNum) {
+    const key = `${PREFIX}${userNum}`;
+    const data = await redis.get(key);
+    if (!data) return null;
+    return JSON.parse(data);
+}
+
+// Apaga sessão (Reset)
+async function limparSessao(userNum) {
+    const key = `${PREFIX}${userNum}`;
+    await redis.del(key);
+}
+
+// Lista chaves ativas (para o monitor)
+async function listarSessoesAtivas() {
+    return await redis.keys(`${PREFIX}*`);
+}
+
+// --- FUNÇÕES DE PAUSA (ATENDIMENTO HUMANO) ---
+
+async function setPausado(userNum, status) {
+    const key = `${PREFIX_PAUSA}${userNum}`;
+    if (status) {
+        await redis.set(key, '1'); // Trava
+    } else {
+        await redis.del(key); // Destrava
+    }
+}
+
+async function isPausado(userNum) {
+    const key = `${PREFIX_PAUSA}${userNum}`;
+    const result = await redis.get(key);
+    return result === '1';
+}
 
 module.exports = {
-    // Salva onde o usuário está e QUANDO ele deve expirar
-    async setEtapaUsuario(userNum, nodeId, ttlSeconds, clienteId, remoteJid) {
-        const key = PREFIX + userNum;
-        
-        const data = {
-            nodeId: nodeId,
-            timestamp: Date.now(),
-            // Se tiver TTL, calcula a hora exata que vence. Se não, é null (infinito)
-            timeoutAt: ttlSeconds ? Date.now() + (ttlSeconds * 1000) : null,
-            clienteId: clienteId,
-            remoteJid: remoteJid
-        };
-
-        // Salvamos como JSON string. 
-        // IMPORTANTE: Removemos o 'EX' (expiração automática) para o monitor poder ler depois.
-        await redis.set(key, JSON.stringify(data));
-    },
-
-    // Retorna apenas o ID do nó (para o Engine saber onde está)
-    async getEtapaUsuario(userNum) {
-        const key = PREFIX + userNum;
-        const raw = await redis.get(key);
-        if (!raw) return null;
-        try {
-            const data = JSON.parse(raw);
-            return data.nodeId; // Retorna só o ID (ex: "3")
-        } catch (e) {
-            return raw; // Fallback para compatibilidade antiga
-        }
-    },
-
-    // Retorna o objeto completo (para o Monitor de Timeout saber quem é o cliente)
-    async getSessaoCompleta(userNum) {
-        const key = PREFIX + userNum;
-        const raw = await redis.get(key);
-        if (!raw) return null;
-        try {
-            return JSON.parse(raw);
-        } catch (e) { return null; }
-    },
-
-    // Apaga a sessão (Reset)
-    async limparSessao(userNum) {
-        await redis.del(PREFIX + userNum);
-    },
-
-    // Lista todas as sessões ativas (para o Monitor varrer)
-    async listarSessoesAtivas() {
-        return await redis.keys(`${PREFIX}*`);
-    },
-
-    // --- PAUSA (HUMANO) ---
-    async isPausado(userNum) {
-        try {
-            const status = await redis.get(`pausa:${userNum}`);
-            return status === 'true';
-        } catch (error) { return false; }
-    },
-
-    async setPausa(userNum, status) {
-        try {
-            if (status) await redis.set(`pausa:${userNum}`, 'true', 'EX', 86400);
-            else await redis.del(`pausa:${userNum}`);
-        } catch (error) { console.error('Erro Pause:', error); }
-    }
+    setEtapaUsuario,
+    getEtapaUsuario,
+    getSessaoCompleta,
+    limparSessao,
+    listarSessoesAtivas,
+    setPausado,
+    isPausado
 };

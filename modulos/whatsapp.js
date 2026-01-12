@@ -178,7 +178,11 @@ async function iniciarWhatsApp(cliente, io) {
             if (!texto && realMessage.videoMessage) texto = "#VIDEO";
 
             if (texto) {
-                await engine.processarMensagem(cliente.id, remoteJid, texto, sock, prisma);
+               // --- SEGURANÇA V9.5: Captura Nome ou usa Genérico ---
+               const nomePerfil = msg.pushName || "Cliente"; 
+                    
+               // Passamos o nome agora para o motor
+               await engine.processarMensagem(cliente.id, remoteJid, texto, sock, prisma, nomePerfil);
             }
         } catch (error) {
             console.error(`Erro msg: ${error.message}`);

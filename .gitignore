@@ -32,3 +32,8 @@ Thumbs.db
 # --- Uploads (Mantem a pasta mas ignora os arquivos) ---
 public/uploads/*
 !public/uploads/.gitkeep
+
+# --- Executaveis e Binarios (Nao subir para o GitHub) ---
+*.exe
+*.dat
+dump.rdb
