@@ -29,9 +29,9 @@ pids/
 .DS_Store
 Thumbs.db
 
-# --- Uploads (Mantem a pasta mas ignora os arquivos) ---
-public/uploads/*
-!public/uploads/.gitkeep
+# --- Uploads (ALTERADO: Comentamos com # para PERMITIR subir os vídeos) ---
+# public/uploads/*
+# !public/uploads/.gitkeep
 
 # --- Executaveis e Binarios (Nao subir para o GitHub) ---
 *.exe

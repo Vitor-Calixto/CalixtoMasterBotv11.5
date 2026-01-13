@@ -1,0 +1,125 @@
+
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Calixto OmniSystem</title>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --accent-purple: #9d4edd;
+            --glass: rgba(255, 255, 255, 0.05);
+            --text-color: #fff;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        /* Fundo animado sutil */
+        body::before {
+            content: '';
+            position: absolute;
+            width: 150vw; height: 150vw;
+            background: radial-gradient(circle, rgba(157, 78, 221, 0.1), transparent 60%);
+            top: -50%; left: -50%;
+            animation: pulse 10s infinite alternate;
+            z-index: -1;
+        }
+
+        @keyframes pulse { 0% { transform: scale(1); } 100% { transform: scale(1.1); } }
+
+        .login-box {
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(15px);
+            padding: 40px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 350px;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(0,0,0,0.5);
+        }
+
+        h2 { margin-bottom: 30px; letter-spacing: 2px; text-transform: uppercase; font-size: 20px; }
+        h2 span { color: var(--accent-purple); }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+            color: #fff;
+            border-radius: 5px;
+            box-sizing: border-box; /* Garante que o padding não estoure a largura */
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input:focus { border-color: var(--accent-purple); box-shadow: 0 0 10px rgba(157, 78, 221, 0.2); }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent-purple);
+            border: none;
+            color: #fff;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        button:hover { background: #be75ff; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(157, 78, 221, 0.3); }
+
+        .links { margin-top: 20px; font-size: 12px; }
+        .links a { color: #888; text-decoration: none; margin: 0 10px; transition: 0.3s; }
+        .links a:hover { color: #fff; }
+
+        .error-msg {
+            background: rgba(255, 0, 85, 0.2);
+            color: #ff5e89;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 13px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 0, 85, 0.3);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-box">
+        <h2>Calixto <span>SaaS</span></h2>
+        
+        <% if (message && message.length > 0) { %>
+            <div class="error-msg"><%= message %></div>
+        <% } %>
+
+        <form action="/login" method="POST">
+            <input type="email" name="email" placeholder="E-mail" required>
+            <input type="password" name="senha" placeholder="Senha" required>
+            <button type="submit">Entrar</button>
+        </form>
+
+        <div class="links">
+            <a href="/registro">Criar Conta</a>
+            <span style="color:#333">|</span>
+            <a href="/">Voltar ao Início</a>
+        </div>
+    </div>
+
+</body>
+</html>

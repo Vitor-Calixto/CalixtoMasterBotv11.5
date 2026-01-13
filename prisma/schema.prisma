@@ -5,20 +5,43 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql" // Use "sqlite" se preferir, mas mantenha consistente
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
+// --- NOVO: TABELA DE USUÁRIOS (LOGIN) ---
+model Usuario {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  senha        String
+  nome         String
+  role         String    @default("CLIENTE") // "ADMIN" ou "CLIENTE"
+  
+  // Campos para recuperar senha (já deixamos pronto!)
+  resetToken   String?   
+  resetExpires DateTime?
+
+  criadoEm     DateTime  @default(now())
+  
+  // Relacionamento: Um usuário pode ter vários bots
+  clientes     Cliente[] 
+}
+
+// --- ATUALIZAÇÃO: TABELA CLIENTE ---
 model Cliente {
   id        String   @id @default(uuid())
   nome      String
-  numero    String?  @unique // Isso impede números repetidos!
+  numero    String?  @unique
   ativo     Boolean  @default(true)
   fluxoJson Json?
   status    String   @default("OFFLINE")
   criadoEm  DateTime @default(now())
 
-  // O SEGREDO ESTÁ AQUI: onDelete: Cascade
+  // --- VÍNCULO COM O DONO (Opcional para não quebrar bots antigos) ---
+  donoId    String?  
+  dono      Usuario? @relation(fields: [donoId], references: [id])
+  // -------------------------------------------------------
+
   contatos      Contato[]
   sessoesAtivas SessaoAtiva[]
 }
@@ -30,9 +53,7 @@ model SessaoAtiva {
   noAtual   String
   dados     Json?
   updatedAt DateTime @updatedAt
-
   cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
-
   @@unique([clienteId, chatId])
 }
 
@@ -42,7 +63,6 @@ model Contato {
   nome      String?
   clienteId String
   criadoEm  DateTime @default(now())
-
   cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   mensagens Mensagem[]
 }
@@ -54,6 +74,5 @@ model Mensagem {
   fromMe    Boolean
   contatoId String
   criadoEm  DateTime @default(now())
-
   contato   Contato  @relation(fields: [contatoId], references: [id], onDelete: Cascade)
 }

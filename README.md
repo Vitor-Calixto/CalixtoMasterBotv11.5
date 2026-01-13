@@ -1,7 +1,83 @@
 
 ---
 
+
 # 📘 MANUAL TÉCNICO CALIXTOMASTERBOT V9.0
+
+## 0. Visão Geral do Sistema
+
+```text
++-----------------------------------------------------------------------------+
+|                        ☁️  INTERNET / MUNDO EXTERNO                         |
++-----------------------------------------------------------------------------+
+       |                                         |
+       v                                         v
+ [ 📱 WhatsApp / Usuários ]             [ 💻 Admin / Dashboard ]
+       | (WebSocket)                             | (HTTPS Seguro)
+       |                                         |
++------|-----------------------------------------|----------------------------+
+|  🖥️  | SERVIDOR / VPS (Ubuntu Server)          |                            |
+|      v                                         v                            |
+|  +-----------------------------------------------------------------------+  |
+|  |  🛡️ PM2 CLUSTER (Gerenciador de Processos)                            |  |
+|  |                                                                       |  |
+|  |  +-----------------------+           +-----------------------------+  |  |
+|  |  | ID 0: CALIXTO BOT     | <-------> | ID 1: CLOUDFLARE TUNNEL     |  |  |
+|  |  | (Node.js + Baileys)   |  Local    | (Sem abrir portas no Router)|  |  |
+|  |  +-----------------------+  Host     +-----------------------------+  |  |
+|  |            |  ^                                                       |  |
+|  +------------|--|-------------------------------------------------------+  |
+|               |  |                                                          |
+|      (Leitura |  | (Gravação                                                |
+|       Rápida) |  |  Segura)                                                 |
+|               v  |                                                          |
+|      +------------------+             +--------------------------+          |
+|      | ⚡ REDIS DB      |             | 🐘 POSTGRESQL DB         |          |
+|      | (Memória RAM)    |             | (Disco Rígido / NVMe)    |          |
+|      | - Sessão Ativa   |             | - Histórico de Mensagens |          |
+|      | - Estado do Chat |             | - Cadastro de Clientes   |          |
+|      | - Filas          |             | - Desenho dos Fluxos     |          |
+|      +------------------+             +--------------------------+          |
++-----------------------------------------------------------------------------+
+O Calixto OmniSystem é uma infraestrutura de automação e orquestração de atendimentos via WhatsApp (SaaS), projetada para alta disponibilidade e escala.
+
+Diferente de chatbots convencionais que rodam localmente ou dependem de emuladores instáveis, o OmniSystem opera como um Servidor Backend Dedicado (Headless). Ele gerencia múltiplas instâncias de conexão simultaneamente, mantendo o estado da conversa e a lógica de negócios dissociados da interface visual.
+
+O objetivo do sistema é transformar o WhatsApp em uma API controlável, permitindo:
+
+Atendimento massivo 24/7 sem intervenção humana.
+
+Gestão multi-cliente (Multi-tenancy) em um único núcleo.
+
+Monitoramento granula de falhas e recuperação automática (Self-Healing).
+
+0.1. Capacidades do Núcleo (Core Features)
+O sistema é alimentado por uma arquitetura baseada em eventos, capaz de:
+
+⚡ Conectividade Resiliente: Utiliza a biblioteca Baileys com uma camada proprietária de reconexão inteligente. Se o WhatsApp cair, o sistema tenta reconectar exponencialmente sem travar o processo principal.
+
+🧠 Motor de Fluxos Dinâmicos: Processa nós lógicos (Mensagem, Áudio, Mídia, Menu, Horário) em tempo real, lendo as instruções diretamente do banco de dados, permitindo alterações de fluxo sem necessidade de reiniciar o código.
+
+💾 Persistência de Dados (PostgreSQL + Prisma): Cada interação, status de cliente e sessão é salva em banco de dados relacional, garantindo que nenhum dado se perca em caso de reinicialização do servidor.
+
+🛡️ Gestão de Processos (PM2 Cluster): O sistema não roda "solto". Ele é encapsulado pelo gerenciador de processos PM2, que monitora o consumo de memória (RAM) e CPU, reiniciando o sistema automaticamente em milissegundos caso ocorra algum erro crítico.
+
+0.2. Arquitetura de Conectividade (Tunneling)
+Para garantir acesso seguro ao Dashboard Administrativo e aos Webhooks sem expor a infraestrutura a ataques diretos (DDoS) ou necessitar de configurações complexas de Firewall/Portas, o Calixto OmniSystem utiliza uma arquitetura de Túnel Criptografado.
+
+Tecnologia: Cloudflare Tunnel (via cloudflared)
+
+Como funciona: Em vez de abrir uma porta no roteador (o que seria uma falha de segurança), o servidor cria um túnel de saída criptografado diretamente para a rede Edge da Cloudflare.
+
+Benefícios:
+
+IP Mascarado: O IP real do servidor (VPS ou Local) nunca é revelado publicamente.
+
+HTTPS Nativo: Todo o tráfego é automaticamente protegido com certificado SSL.
+
+Persistência: O túnel é gerenciado pelo PM2 (Processo ID 1), garantindo que o link público permaneça online 24h, mesmo se a conexão de internet oscilar.
+
+Status Atual da Versão: v9.0 Stable Ambiente: Node.js | PostgreSQL | PM2 | Cloudflare
 
 ## CAPÍTULO 1: ARSENAL TECNOLÓGICO, INSTALAÇÃO E DEPENDÊNCIAS
 
@@ -906,6 +982,263 @@ O arquivo contém um bloco <style> robusto.
 Paleta de Cores: Fundo #000 (Preto Absoluto) e Cartões #0a0a0a (Cinza Quase Preto) com detalhes em #00d2ff (Azul Neon). Essa paleta "Cyberpunk" é intencional para reduzir o cansaço visual de operadores que monitoram o painel à noite.
 
 Responsividade: A classe .grid usa grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)). Isso significa que em monitores grandes, cabem 4 bots lado a lado. Em celulares, eles se empilham um embaixo do outro automaticamente.
+
+
+**PROMPT PARA IA:**
+
+> "Aja como um Arquiteto de Software do Calixto OmniSystem. Gere um JSON de fluxo para um **Consultório de Dentista**.
+> **Regras V9 (Rígidas):**
+> 1. Use o formato Drawflow abaixo.
+> 2. **Menus:** Devem ter a propriedade `"timeout-active": true` e `"invalid-active": true`.
+> 3. **Conexões de Menu:** Se o menu tem 2 opções, a saída `output_3` deve ligar ao nó de timeout (ex: mensagem de encerramento) e `output_4` ao nó de erro (ex: mensagem 'não entendi').
+> 4. **Nó Finalizar:** Obrigatório no fim de cada ramo.
+> 
+> 
+> **Modelo JSON Base:**"
+
+```json
+{
+  "drawflow": {
+    "Home": {
+      "data": {
+        "1": {
+          "id": 1,
+          "name": "inicio",
+          "data": {},
+          "class": "inicio",
+          "html": "Início",
+          "typenode": "vue",
+          "inputs": {},
+          "outputs": {
+            "output_1": { "connections": [{ "node": "2", "output": "input_1" }] }
+          },
+          "pos_x": 50, "pos_y": 50
+        },
+        "2": {
+          "id": 2,
+          "name": "menu",
+          "data": {
+            "question": "Olá! Bem-vindo à SorrisoDent. Como posso ajudar?",
+            "opcao1": "Agendar Consulta",
+            "opcao2": "Falar com Atendente",
+            "buttons-active": true,
+            "timeout-active": true,
+            "timeout": "2",
+            "invalid-active": true
+          },
+          "class": "menu",
+          "html": "Menu Principal",
+          "typenode": "vue",
+          "inputs": { "input_1": { "connections": [{ "node": "1", "input": "output_1" }] } },
+          "outputs": {
+            "output_1": { "connections": [{ "node": "5", "output": "input_1" }] }, 
+            "output_2": { "connections": [{ "node": "6", "output": "input_1" }] },
+            "output_3": { "connections": [{ "node": "98", "output": "input_1" }] }, 
+            "output_4": { "connections": [{ "node": "2", "output": "input_1" }] }  
+          },
+          "pos_x": 400, "pos_y": 50
+        },
+        "5": {
+          "id": 5,
+          "name": "mensagem",
+          "data": { "message": "Para agendar, acesse: agendar.sorrisodent.com" },
+          "class": "mensagem",
+          "html": "Link Agenda",
+          "typenode": "vue",
+          "inputs": { "input_1": { "connections": [] } },
+          "outputs": { "output_1": { "connections": [{ "node": "99", "output": "input_1" }] } },
+          "pos_x": 800, "pos_y": -100
+        },
+        "98": {
+          "id": 98,
+          "name": "mensagem",
+          "data": { "message": "Poxa, você não respondeu. Vou encerrar por aqui." },
+          "class": "mensagem",
+          "html": "Msg Timeout",
+          "typenode": "vue",
+          "inputs": { "input_1": { "connections": [] } },
+          "outputs": { "output_1": { "connections": [{ "node": "99", "output": "input_1" }] } },
+          "pos_x": 800, "pos_y": 300
+        },
+        "99": {
+          "id": 99,
+          "name": "finalizar",
+          "data": {},
+          "class": "finalizar",
+          "html": "Fim",
+          "typenode": "vue",
+          "inputs": { "input_1": { "connections": [] } },
+          "outputs": {},
+          "pos_x": 1200, "pos_y": 100
+        }
+      }
+    }
+  }
+}
+
+## 📌 ATUALIZAÇÃO DE VERSÃO: V9.5 (STABLE) - "The Identity Update"
+**Data:** 12/01/2026
+**Status:** Pronto para Produção (Contabo)
+
+### 1. Identificação Inteligente (PushName Hybrid)
+Resolvemos o problema de identificação em contas Multi-Device (iPhone/Web) onde o WhatsApp enviava IDs criptografados (LID) ao invés do número.
+- **Antes:** O sistema exibia apenas o ID (ex: `1825...@lid`), dificultando saber quem era o cliente.
+- **Agora:** O sistema captura o `pushName` (Nome do Perfil) do usuário.
+- **Fallback de Segurança:** Se o nome não vier, o sistema preenche automaticamente com "Cliente" para evitar quebra de código (`undefined`).
+
+### 2. Módulo de Agenda Nativa (Web)
+Eliminamos a necessidade de Webhooks externos (Zapier/Make) para agendamentos.
+- **Rota:** `/agendar/:clienteId` (Interface Visual para o Lead).
+- **API:** `/api/agendar-externo` (Processa e envia confirmação no WhatsApp).
+- **Funcionamento:** O servidor Node.js agora serve páginas HTML estáticas (`views/agenda.ejs`) que se comunicam diretamente com o núcleo do bot.
+
+### 3. Melhoria no Nó "Transferir"
+A notificação para o Admin agora é rica em detalhes e visualmente limpa.
+- **Template:**
+  🔔 *NOVO TRANSBORDO SOLICITADO*
+  👤 *Nome:* João Silva (Capturado automaticamente)
+  📱 *ID Técnico:* +5521999... (Ou LID)
+  📂 *Setor:* Financeiro
+  👉 *Ação:* Instrução clara de #VOLTAR.
+
+### 4. Nó de Espera (Wait Logic)
+Implementada lógica de pausa real no `engine.js`.
+- O bot agora respeita o tempo configurado no nó "Espera" antes de avançar para o próximo passo, utilizando o `setTimeout` controlado pelo `timeout.js`.
+
+📘 MANUAL TÉCNICO CALIXTO OMNISYSTEM V10.0
+CAPÍTULO EXTRA: GESTÃO DE ATIVOS E MÍDIA (ASSETS)
+Este capítulo detalha como integrar os recursos visuais gerados por IA (Veo 3, Nano Bana) dentro da infraestrutura Node.js do Calixto OmniSystem.
+
+E.1 A Arquitetura de Arquivos Estáticos
+Diferente de sites estáticos simples, o Node.js precisa de uma "Zona Pública" declarada para servir arquivos. No nosso index.js, esta linha define a regra:
+
+JavaScript
+
+app.use(express.static('public'));
+Isso significa que tudo que estiver dentro da pasta public é acessível pelo navegador, mas a palavra "public" não entra na URL.
+
+Estrutura de Diretórios Obrigatória:
+
+Plaintext
+
+CalixtoMasterBotV10/
+├── public/
+│   ├── uploads/            <-- O COFRE DE MÍDIA
+│   │   ├── matrix.jpg      (Sua imagem de fundo atual)
+│   │   ├── video-demo-1.mp4
+│   │   └── foto-nano-1.jpg
+│   ├── css/
+│   └── js/
+├── views/
+│   └── landing.ejs         (Onde o código chama a mídia)
+E.2 Procedimento de Injeção de Mídia
+Para colocar os vídeos e fotos gerados pela IA na Landing Page, siga este protocolo:
+
+Transferência: Mova os arquivos gerados para a pasta public/uploads/.
+
+Padronização: Renomeie os arquivos para facilitar a manutenção (ex: demo-veo-8s.mp4, demo-nano.jpg).
+
+Vinculação no Código: Edite o arquivo views/landing.ejs.
+
+Localizando o ponto de injeção: Procure pela seção comentada como ``.
+
+Antes (Código Atual - Placeholder):
+
+HTML
+
+<div class="gallery-item">
+    <div class="placeholder-text">
+        <i class="ri-movie-ai-line"></i> Demo Veo 3 (8s)
+    </div>
+</div>
+Depois (Como deve ficar com o vídeo):
+
+HTML
+
+<div class="gallery-item">
+    <video autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;">
+        <source src="/uploads/demo-veo-8s.mp4" type="video/mp4">
+    </video>
+    
+    <div class="video-overlay">Demo Veo 3</div>
+</div>
+ATUALIZAÇÃO DO CAPÍTULO 7: FRONTEND V10.0 (THE NEURAL UPDATE)
+A versão 10.0 introduz uma reformulação completa da camada de apresentação, focada em Conversão High-End e Estética Cyberpunk.
+
+7.1 Landing Page "Glassmorphism"
+A antiga página estática foi substituída por uma interface fluida baseada em camadas de vidro e neon.
+
+Tecnologia: CSS3 Puro (Sem Frameworks pesados como Bootstrap).
+
+Performance: Removemos bibliotecas 3D (Spline) para garantir carregamento instantâneo (< 1s).
+
+Fundo Dinâmico: Utilizamos uma imagem de alta resolução (illustration-rain-futuristic-city) com uma máscara de opacidade (rgba(5, 5, 10, 0.7)) para garantir leitura perfeita do texto branco.
+
+7.2 O Protocolo "Jarvis Loader"
+Implementamos uma tela de carregamento cinematográfica para aumentar a percepção de valor do software.
+
+Funcionamento Técnico:
+
+Estado Inicial: O navegador carrega um div com z-index: 99999 (acima de tudo) com fundo preto.
+
+Animação CSS: Círculos giram (@keyframes spin-right) simulando processamento de núcleo.
+
+Logs Simulados: Um script JS injeta linhas de texto ("LOADING KERNEL...", "ACCESS GRANTED") a cada 800ms.
+
+Efeito CRT: Ao finalizar, disparamos a animação crtTurnOn, que simula uma TV de tubo ligando, revelando o site.
+
+7.3 Módulo AI Studio (Vitrine de Serviços)
+Uma nova seção comercial foi adicionada para upsell de serviços de IA Generativa.
+
+Grid Responsivo: Utiliza grid-template-columns: repeat(auto-fit) para se adaptar de Celulares a Telas 4K.
+
+Cards "AI-Tier": Estilização exclusiva com bordas Roxas (--neon-purple) para diferenciar dos planos de automação (Rosas/Ciano).
+
+Botões Deep Link: Os botões "Solicitar" abrem diretamente o WhatsApp API já com a mensagem preenchida (ex: text=Quero%20Cinema%20Pro).
+
+📌 ATUALIZAÇÃO DE VERSÃO: V10.0 (STABLE) - "The Neural Update"
+Data: 14/01/2026 Status: Pronto para Produção (VPS Ubuntu/Windows)
+
+1. Novo Core Visual (Landing Page V10)
+Substituição total do frontend.
+
+Estética: Cyberpunk/Noir.
+
+Paleta: Neon Pink (#ff0055), Cyan (#00f3ff) e Purple (#bd00ff).
+
+Tipografia: Família Orbitron (Títulos) e Rajdhani (Corpo).
+
+2. Integração "Neural Studio"
+Capacidade nativa de exibir portfólio de vídeo e imagem sem iframes externos (YouTube/Vimeo), servindo arquivos diretamente do núcleo Node.js para máxima velocidade e privacidade.
+
+3. Loader "Jarvis"
+Implementação de feedback visual de carregamento para mascarar o tempo de conexão inicial do Socket.io, melhorando a experiência do usuário (UX) em conexões lentas.
+
+4. Conectividade Social Nativa
+Adição de barra de navegação superior com links diretos para WhatsApp e Instagram, aumentando a retenção de leads que visitam a página mas não compram de imediato.
+
+Procedimento de Deploy V10.0
+Como houve alteração em arquivos estáticos e views, o procedimento de atualização requer atenção aos arquivos de mídia.
+
+Parar o processo:
+
+PowerShell
+
+npx pm2 stop calixto-omnisystem
+Atualizar Arquivos: Substituir o conteúdo de views/landing.ejs e garantir que a imagem de fundo esteja em public/uploads/.
+
+Limpar Cache (Opcional):
+
+PowerShell
+
+npx pm2 flush
+Reiniciar:
+
+PowerShell
+
+npx pm2 restart calixto-omnisystem
+Status do Sistema: 🟢 ONLINE | Versão: 10.0.1 | Protocolo: SEGURO
+
 
 
 

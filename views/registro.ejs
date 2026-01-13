@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Criar Conta - Calixto OmniSystem</title>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --accent-pink: #ff0055; /* Rosa para diferenciar do Login */
+            --text-color: #fff;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            width: 150vw; height: 150vw;
+            background: radial-gradient(circle, rgba(255, 0, 85, 0.08), transparent 60%);
+            bottom: -50%; right: -50%;
+            z-index: -1;
+        }
+
+        .login-box {
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(15px);
+            padding: 40px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            width: 350px;
+            text-align: center;
+            box-shadow: 0 0 40px rgba(0,0,0,0.5);
+        }
+
+        h2 { margin-bottom: 10px; letter-spacing: 1px; text-transform: uppercase; font-size: 18px; }
+        p { color: #666; font-size: 13px; margin-bottom: 25px; }
+
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
+            color: #fff;
+            border-radius: 5px;
+            box-sizing: border-box;
+            outline: none;
+            transition: 0.3s;
+        }
+
+        input:focus { border-color: var(--accent-pink); }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            background: var(--accent-pink);
+            border: none;
+            color: #fff;
+            font-weight: bold;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+
+        button:hover { background: #ff4482; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 0, 85, 0.3); }
+
+        .links { margin-top: 20px; font-size: 12px; }
+        .links a { color: #888; text-decoration: none; }
+        .links a:hover { color: #fff; text-decoration: underline; }
+
+        .error-msg {
+            background: rgba(255, 255, 255, 0.1);
+            color: #ffcccc;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="login-box">
+        <h2>Nova Conta</h2>
+        <p>Comece a automatizar hoje.</p>
+
+        <% if (message && message.length > 0) { %>
+            <div class="error-msg"><%= message %></div>
+        <% } %>
+
+        <form action="/registro" method="POST">
+            <input type="text" name="nome" placeholder="Seu Nome" required>
+            <input type="email" name="email" placeholder="Seu E-mail" required>
+            <input type="password" name="senha" placeholder="Crie uma Senha" required>
+            <button type="submit">REGISTRAR</button>
+        </form>
+
+        <div class="links">
+            Já tem conta? <a href="/login">Fazer Login</a>
+        </div>
+    </div>
+
+</body>
+</html>
