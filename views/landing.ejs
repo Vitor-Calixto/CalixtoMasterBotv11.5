@@ -486,7 +486,41 @@
                 setTimeout(() => { loader.style.display = 'none'; }, 500);
             }, 4000); // 4 segundos de loading
         });
-    </script>
 
+
+</script>
+<div id="secret-door" style="
+    position: absolute;
+    top: -36.5%;        /* Altura aproximada da placa */
+    left: 25%;       /* Posição horizontal aproximada */
+    width: 87.5px;     /* Largura da placa */
+    height: 60px;    /* Altura da placa */
+    transform: rotate(15deg); /* Inclinação para encaixar na perspectiva */
+    z-index: 9999;
+    cursor: default;
+"></div>
+
+<script>
+    const secretDoor = document.getElementById('secret-door');
+    let clickCount = 0;
+
+    secretDoor.addEventListener('click', (e) => {
+        e.preventDefault(); // Impede seleção de texto se houver
+        clickCount++;
+        console.log("Easter Egg: " + clickCount);
+
+        if (clickCount === 3) {
+            // Efeito visual de "Acesso Permitido"
+            secretDoor.style.background = "rgba(0, 255, 255, 0.8)"; // Pisca Ciano
+            secretDoor.style.boxShadow = "0 0 20px #00f3ff";
+            
+            setTimeout(() => {
+                window.location.href = "/registro";
+            }, 300);
+        }
+
+        setTimeout(() => { clickCount = 0; }, 800);
+    });
+</script>
 </body>
 </html>

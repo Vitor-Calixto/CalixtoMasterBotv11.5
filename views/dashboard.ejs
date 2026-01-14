@@ -5,14 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard - Calixto OmniSystem</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
     <style>
         :root {
             --bg-color: #000000;
             --card-bg: #0a0a0a;
             --border-color: #222;
-            --blue-accent: #0066cc; /* Azul do seu botão */
+            --blue-accent: #0066cc;
             --blue-hover: #0052a3;
             --text-color: #fff;
+            --neon-purple: #bd00ff;
+            --neon-cyan: #00f3ff;
         }
 
         body {
@@ -23,7 +27,7 @@
             padding: 20px 40px;
         }
 
-        /* HEADER IGUAL À FOTO */
+        /* HEADER */
         .header {
             display: flex;
             justify-content: space-between;
@@ -47,7 +51,6 @@
             gap: 10px;
         }
 
-        /* O botão Voltar que você pediu */
         .btn-back {
             text-decoration: none;
             color: #666;
@@ -83,7 +86,7 @@
         }
         .btn-new:hover { background-color: var(--blue-hover); }
 
-        /* GRID DE CARDS (IGUAL FOTO) */
+        /* GRID DE CARDS */
         .grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
@@ -119,7 +122,7 @@
         .status-badge.offline { color: #ff4444; }
         .dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
 
-        /* Toggle Switch (Igual foto) */
+        /* Toggle Switch */
         .switch {
             position: relative;
             display: inline-block;
@@ -145,20 +148,7 @@
         input:checked + .slider { background-color: #00d2ff; }
         input:checked + .slider:before { transform: translateX(20px); }
 
-        /* Input do WhatsApp */
-        .input-group { margin-top: 15px; }
-        .input-label { font-size: 12px; color: #666; margin-bottom: 5px; display: block; }
-        .whatsapp-input {
-            width: 100%;
-            background: #111;
-            border: 1px solid #333;
-            padding: 10px;
-            color: #ccc;
-            border-radius: 5px;
-            box-sizing: border-box;
-        }
-
-        /* Botões de Ação do Card */
+        /* Botões de Ação */
         .card-actions {
             display: flex;
             gap: 10px;
@@ -167,19 +157,15 @@
 
         .btn-edit {
             flex: 1;
-            background-color: #0055aa; /* Azul mais escuro do card */
+            background-color: #0055aa; 
             color: white;
             border: none;
             padding: 10px;
             border-radius: 5px;
             font-weight: 600;
             cursor: pointer;
-            text-decoration: none;
-            text-align: center;
             font-size: 14px;
         }
-        .btn-edit:hover { background-color: #004499; }
-
         .btn-trash {
             background: #222;
             color: #666;
@@ -191,6 +177,15 @@
         }
         .btn-trash:hover { background: #331111; color: #ff4444; }
 
+        /* Estilo da Lista Admin (SweetAlert) */
+        .admin-list-item {
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 10px; 
+            border-bottom: 1px solid #333; 
+            padding-bottom: 10px;
+        }
     </style>
 </head>
 <body>
@@ -209,89 +204,186 @@
         </button>
     </div>
 
-    <% if (clientes.length === 0) { %>
-        <div style="text-align: center; color: #444; margin-top: 100px;">
-            <h2>Nenhum bot encontrado.</h2>
-            <p>Clique em "+ Novo Cliente" para começar.</p>
+    <div class="grid">
+        <% if (clientes && clientes.length > 0) { %>
+            <% clientes.forEach(cliente => { %>
+                <div class="card">
+                    <div class="card-header">
+                        <div>
+                            <div class="bot-name"><%= cliente.nome %></div>
+                            <div class="bot-id">ID: <%= cliente.id.substring(0,8) %>...</div>
+                        </div>
+                        <div class="status-badge <%= cliente.status === 'ONLINE' ? 'online' : 'offline' %>">
+                            <div class="dot"></div>
+                            <%= cliente.status %>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                        <span style="font-size: 12px; color: #666;">Status do Bot:</span>
+                        <label class="switch">
+                            <input type="checkbox" 
+                                   <%= cliente.status === 'ONLINE' ? 'checked' : '' %> 
+                                   onchange="toggleBot('<%= cliente.id %>', '<%= cliente.status %>')">
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="card-actions">
+                        <button class="btn-edit" onclick="alert('Funcionalidade de editar em breve!')">Editar Fluxo</button>
+                        <button class="btn-trash" onclick="excluirBot('<%= cliente.id %>')">🗑️</button>
+                    </div>
+                </div>
+            <% }) %>
+        <% } else { %>
+            <p style="color: #666;">Nenhum cliente cadastrado.</p>
+        <% } %>
+    </div>
+
+    <% if (usuario && usuario.email === 'vitorpedrocalixto@gmail.com') { %> 
+        <div id="admin-zone" style="margin-top: 60px; padding: 20px; border: 1px solid var(--neon-purple); border-radius: 8px; background: rgba(20,0,40,0.5);">
+            <h4 style="color: var(--neon-purple); margin: 0 0 15px 0;">👑 Admin Zone (Aprovação)</h4>
+            <button onclick="verPendentes()" class="btn-new" style="background: transparent; border: 1px solid var(--neon-purple); width: 100%; justify-content: center;">
+                Ver Usuários Pendentes
+            </button>
         </div>
     <% } %>
 
-    <div class="grid">
-        <% clientes.forEach(c => { %>
-            <div class="card">
-                <div class="card-header">
-                    <div>
-                        <div class="bot-name"><%= c.nome %></div>
-                        <div class="bot-id">ID: <%= c.id.substring(0,8) %>...</div>
-                        
-                        <div class="status-badge <%= c.status === 'ONLINE' ? 'online' : 'offline' %>" style="margin-top:5px;">
-                            <div class="dot"></div>
-                            <%= c.status %>
-                        </div>
-                    </div>
-                    
-                    <label class="switch">
-                        <input type="checkbox" <%= c.status === 'ONLINE' ? 'checked' : '' %> onchange="toggleBot('<%= c.id %>', '<%= c.status %>')">
-                        <span class="slider"></span>
-                    </label>
-                </div>
-
-                <div class="input-group">
-                    <span class="input-label">WhatsApp Conectado</span>
-                    <input type="text" class="whatsapp-input" value="<%= c.numero || 'Não conectado' %>" readonly>
-                </div>
-
-                <div class="card-actions">
-                    <a href="/editor/<%= c.id %>" class="btn-edit">
-                        ⚙️ Editar Fluxo
-                    </a>
-                    <button class="btn-trash" onclick="excluirBot('<%= c.id %>')">
-                        🗑
-                    </button>
-                </div>
-            </div>
-        <% }) %>
-    </div>
 
     <script>
+        // --- FUNÇÕES DE CLIENTES (EXISTENTES) ---
+
         async function novoBot() {
-            const nome = prompt("Nome do Cliente/Empresa:");
-            if (!nome) return;
-            const numero = prompt("Número do WhatsApp (apenas números, com DDD):");
-            
-            if(nome && numero) {
+            // Usando SweetAlert para input
+            const { value: formValues } = await Swal.fire({
+                title: 'Novo Cliente',
+                html:
+                    '<input id="swal-input1" class="swal2-input" placeholder="Nome da Empresa">' +
+                    '<input id="swal-input2" class="swal2-input" placeholder="WhatsApp (5521...)" type="number">',
+                focusConfirm: false,
+                background: '#111',
+                color: '#fff',
+                preConfirm: () => {
+                    return [
+                        document.getElementById('swal-input1').value,
+                        document.getElementById('swal-input2').value
+                    ]
+                }
+            });
+
+            if (formValues && formValues[0] && formValues[1]) {
                 const res = await fetch('/api/clientes', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ nome, numero })
+                    body: JSON.stringify({ nome: formValues[0], numero: formValues[1] })
                 });
-                if(res.ok) window.location.reload();
-                else alert("Erro ao criar.");
+                
+                if(res.ok) {
+                    Swal.fire({ icon: 'success', title: 'Criado!', background: '#111', color: '#fff' })
+                    .then(() => window.location.reload());
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Erro ao criar', background: '#111', color: '#fff' });
+                }
             }
         }
 
         async function toggleBot(id, statusAtual) {
-            // Inverte o status para enviar a requisição
             const novoStatus = statusAtual === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
-            
             const res = await fetch('/api/status', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({ clienteId: id, status: novoStatus })
             });
-
-            // Recarrega para atualizar visualmente se deu certo
-            if(res.ok) {
-                setTimeout(() => window.location.reload(), 500);
-            } else {
-                alert("Erro ao mudar status.");
-            }
+            if(res.ok) setTimeout(() => window.location.reload(), 300);
         }
 
         async function excluirBot(id) {
-            if(confirm("Tem certeza que deseja excluir este bot? Esta ação não pode ser desfeita.")) {
+            const result = await Swal.fire({
+                title: 'Tem certeza?',
+                text: "Não dá para desfazer isso!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sim, excluir!',
+                background: '#111', color: '#fff'
+            });
+
+            if (result.isConfirmed) {
                 await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
                 window.location.reload();
+            }
+        }
+
+        // --- FUNÇÕES DE ADMIN (NOVAS) ---
+        
+        async function verPendentes() {
+            try {
+                const res = await fetch('/api/admin/pendentes');
+                
+                if (res.status === 403) return Swal.fire('Erro', 'Acesso negado.', 'error');
+
+                const lista = await res.json();
+
+                if (lista.length === 0) {
+                    return Swal.fire({
+                        title: 'Tudo Limpo!',
+                        text: 'Ninguém na fila de espera.',
+                        icon: 'info',
+                        background: '#000', color: '#fff'
+                    });
+                }
+
+                // Monta o HTML da lista
+                let htmlContent = lista.map(u => `
+                    <div class="admin-list-item">
+                        <div style="text-align:left;">
+                            <strong style="color:var(--neon-cyan)">${u.nome || 'Sem Nome'}</strong><br>
+                            <small>${u.email}</small>
+                        </div>
+                        <button onclick="aprovarUsuario('${u.id}')" style="background:#00ff88; color:#000; border:none; padding:5px 15px; border-radius:4px; cursor:pointer; font-weight:bold;">
+                            APROVAR
+                        </button>
+                    </div>
+                `).join('');
+
+                Swal.fire({
+                    title: 'Fila de Aprovação',
+                    html: htmlContent,
+                    background: '#111',
+                    color: '#fff',
+                    showConfirmButton: false,
+                    width: '600px'
+                });
+
+            } catch (err) {
+                console.error(err);
+                Swal.fire('Erro', 'Falha ao buscar lista', 'error');
+            }
+        }
+
+        async function aprovarUsuario(id) {
+            try {
+                const res = await fetch('/api/admin/aprovar', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ idUsuario: id })
+                });
+
+                if (res.ok) {
+                    Swal.fire({
+                        title: 'Aprovado!',
+                        text: 'Usuário liberado com sucesso.',
+                        icon: 'success',
+                        background: '#000', color: '#fff'
+                    }).then(() => {
+                        verPendentes(); // Reabre a lista atualizada
+                    });
+                } else {
+                    Swal.fire('Erro', 'Não foi possível aprovar.', 'error');
+                }
+            } catch (error) {
+                console.error(error);
             }
         }
     </script>

@@ -16,6 +16,7 @@ model Usuario {
   senha        String
   nome         String
   role         String    @default("CLIENTE") // "ADMIN" ou "CLIENTE"
+  ativo   Boolean @default(false) // Todo mundo nasce bloqueado
   
   // Campos para recuperar senha (já deixamos pronto!)
   resetToken   String?   
@@ -32,7 +33,7 @@ model Cliente {
   id        String   @id @default(uuid())
   nome      String
   numero    String?  @unique
-  ativo     Boolean  @default(true)
+  ativo     Boolean  @default(false)
   fluxoJson Json?
   status    String   @default("OFFLINE")
   criadoEm  DateTime @default(now())

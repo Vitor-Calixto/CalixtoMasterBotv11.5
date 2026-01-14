@@ -1,5 +1,5 @@
 // ============================================================
-// ARQUIVO: index.js (V10.0 - SAAS + LANDING PAGE)
+// ARQUIVO: index.js (V10.0 - SAAS + LANDING PAGE) - CORRIGIDO
 // ============================================================
 require('dotenv').config();
 const express = require('express');
@@ -13,10 +13,8 @@ const bcrypt = require('bcryptjs'); // Criptografia
 const session = require('express-session'); // Sessão
 const flash = require('connect-flash'); // Mensagens de erro
 
-// Módulos Internos (Mantidos Intactos)
+// Módulos Internos
 const whatsapp = require('./modulos/whatsapp');
-// const redis = require('./modulos/redis'); // Ative se usar Redis
-// const timeoutMonitor = require('./modulos/timeout'); // Ative se usar Timeout
 
 // Configuração
 const app = express();
@@ -25,22 +23,21 @@ const io = new Server(server, { cors: { origin: "*" } });
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
-// Configuração de Limite de Upload (Para áudios/imagens grandes)
+// Configuração de Limite de Upload
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 
 // Arquivos Estáticos e Views
-// A pasta 'public' serve as imagens (como matrix.jpg)
 app.use(express.static('public'));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // --- SEGURANÇA E SESSÃO ---
 app.use(session({
-    secret: 'segredo_calixto_v10_super_secreto', // Troque isso em produção
+    secret: 'segredo_calixto_v10_super_secreto', 
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 horas logado
+    cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24 horas
 }));
 app.use(flash());
 
@@ -51,75 +48,77 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// --- MIDDLEWARE DE PROTEÇÃO (O Porteiro) ---
+// --- MIDDLEWARE DE PROTEÇÃO ---
 function isAuth(req, res, next) {
-    if (req.session.userId) {
-        return next(); // Tem crachá? Pode passar.
+    if (req.session.usuario) { // Verifica o objeto CORRETO na sessão
+        return next(); 
     }
-    res.redirect('/login'); // Sem crachá? Vai pro login.
+    res.redirect('/login'); 
 }
 
 // ============================================================
-// 1. ROTAS PÚBLICAS (LANDING PAGE & LOGIN)
+// 1. ROTAS PÚBLICAS
 // ============================================================
 
-// Rota Principal: Inteligente
 app.get('/', (req, res) => {
-    // Se já estiver logado, joga pro Dashboard direto
-    if (req.session.userId) {
-        return res.redirect('/dashboard');
-    }
-    // Se não, mostra a Landing Page bonita (landing.ejs)
+    if (req.session.usuario) return res.redirect('/dashboard');
     res.render('landing');
 });
 
-// Tela de Login
 app.get('/login', (req, res) => {
-    if (req.session.userId) return res.redirect('/dashboard');
-    res.render('login', { message: req.flash('error') });
+    if (req.session.usuario) return res.redirect('/dashboard');
+    res.render('login', { message: req.flash('error'), erro: null });
 });
 
-// Processar Login
+// LOGIN (CORRIGIDO)
 app.post('/login', async (req, res) => {
     const { email, senha } = req.body;
     
     try {
+        // 1. PRIMEIRO busca o usuário
         const user = await prisma.usuario.findUnique({ where: { email } });
 
+        // 2. Verifica se existe e se a senha bate
         if (!user || !bcrypt.compareSync(senha, user.senha)) {
             req.flash('error', 'E-mail ou senha inválidos.');
-            return res.redirect('/login');
+            return res.render('login', { message: 'E-mail ou senha inválidos.', erro: null });
         }
 
-        // Salva dados na sessão
+        // 3. AGORA SIM verifica a trava de segurança (Ativo/Inativo)
+        if (user.ativo === false) {
+            return res.render('login', { 
+                message: null, 
+                erro: 'Sua conta está em análise! Aguarde aprovação do administrador.' 
+            });
+        }
+
+        // 4. Salva o objeto COMPLETO na sessão (RESOLVE O ERRO 'usuario is not defined')
+        req.session.usuario = user; 
+        
+        // Atalhos úteis
         req.session.userId = user.id;
         req.session.role = user.role;
-        req.session.nome = user.nome;
         
         res.redirect('/dashboard');
+
     } catch (e) {
         console.error(e);
-        req.flash('error', 'Erro interno ao logar.');
-        res.redirect('/login');
+        res.render('login', { message: 'Erro interno.', erro: null });
     }
 });
 
-// Logout
 app.get('/logout', (req, res) => {
     req.session.destroy();
     res.redirect('/');
 });
 
-// Tela de Registro (Criar Conta)
 app.get('/registro', (req, res) => {
     res.render('registro', { message: req.flash('error') });
 });
 
-// Processar Registro
 app.post('/registro', async (req, res) => {
     const { nome, email, senha } = req.body;
     try {
-        // Verifica se já existe
         const existe = await prisma.usuario.findUnique({ where: { email } });
         if (existe) {
             req.flash('error', 'Este e-mail já está em uso.');
@@ -128,20 +127,31 @@ app.post('/registro', async (req, res) => {
 
         const hash = bcrypt.hashSync(senha, 10);
         
-        // O 1º usuário do sistema vira ADMIN. Os próximos são CLIENTE.
+        // Lógica: 1º user é ADMIN, resto é CLIENTE
         const totalUsers = await prisma.usuario.count();
         const role = totalUsers === 0 ? 'ADMIN' : 'CLIENTE';
 
         const novoUsuario = await prisma.usuario.create({
-            data: { nome, email, senha: hash, role }
+            // Cria como ativo: false (bloqueado) por padrão, exceto se for o primeiro (Admin)
+            data: { 
+                nome, 
+                email, 
+                senha: hash, 
+                role,
+                ativo: role === 'ADMIN' ? true : false 
+            }
         });
 
-        // Loga automaticamente após registrar
-        req.session.userId = novoUsuario.id;
-        req.session.role = novoUsuario.role;
-        req.session.nome = novoUsuario.nome;
-        
-        res.redirect('/dashboard');
+        // Se for admin, já loga. Se for cliente, avisa da aprovação.
+        if (novoUsuario.ativo) {
+            req.session.usuario = novoUsuario;
+            req.session.userId = novoUsuario.id;
+            req.session.role = novoUsuario.role;
+            res.redirect('/dashboard');
+        } else {
+            res.render('login', { message: null, erro: 'Conta criada! Aguarde aprovação do administrador para entrar.' });
+        }
+
     } catch (e) {
         req.flash('error', 'Erro ao criar conta.');
         res.redirect('/registro');
@@ -149,15 +159,13 @@ app.post('/registro', async (req, res) => {
 });
 
 // ============================================================
-// 2. ROTAS PROTEGIDAS (DASHBOARD & SAAS)
+// 2. ROTAS PROTEGIDAS
 // ============================================================
 
 app.get('/dashboard', isAuth, async (req, res) => {
     try {
         let clientes;
         
-        // LÓGICA SAAS: 
-        // Admin vê tudo. Cliente vê só o dele.
         if (req.session.role === 'ADMIN') {
             clientes = await prisma.cliente.findMany({ 
                 orderBy: { criadoEm: 'desc' }, 
@@ -175,25 +183,26 @@ app.get('/dashboard', isAuth, async (req, res) => {
             return { ...c, status: session ? 'ONLINE' : 'OFFLINE' };
         });
 
+        // CORRIGIDO: Envia a variável com o nome 'usuario' (que o dashboard.ejs espera)
         res.render('dashboard', { 
             clientes: clientesComStatus, 
-            user: req.session // Envia dados do usuário para o frontend
+            usuario: req.session.usuario 
         });
+
     } catch (error) {
-        res.status(500).send("Erro dashboard: " + error.message);
+        console.error(error);
+        res.status(500).send("Erro dashboard");
     }
 });
 
-// Editor de Fluxo (Protegido)
+// Editor de Fluxo
 app.get('/editor/:id', isAuth, async (req, res) => {
     try {
         const cliente = await prisma.cliente.findUnique({ where: { id: req.params.id } });
-        
         if(!cliente) return res.status(404).send("Bot não encontrado");
 
-        // Verificação de Segurança de Propriedade
         if (req.session.role !== 'ADMIN' && cliente.donoId && cliente.donoId !== req.session.userId) {
-            return res.status(403).send("Você não tem permissão para editar este bot.");
+            return res.status(403).send("Sem permissão.");
         }
 
         res.render('editor', { cliente, fluxo: cliente.fluxoJson });
@@ -201,44 +210,40 @@ app.get('/editor/:id', isAuth, async (req, res) => {
 });
 
 // ============================================================
-// 3. API SEGURA (CRIAÇÃO E GESTÃO DE BOTS)
+// 3. API SEGURA
 // ============================================================
 
-// Criar Cliente (Bot)
 app.post('/api/clientes', isAuth, async (req, res) => {
     try {
         await prisma.cliente.create({ 
             data: { 
                 nome: req.body.nome, 
                 numero: req.body.numero,
-                donoId: req.session.userId // <--- VINCULA AO USUÁRIO LOGADO
+                donoId: req.session.userId 
             } 
         });
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: "Erro ao criar" }); }
 });
 
-// Função auxiliar de permissão
+// Função auxiliar
 async function verificarPermissao(req, clienteId) {
     const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
     if (!cliente) return null;
     
-    // Se for bot antigo (sem dono), só Admin mexe.
     if (!cliente.donoId && req.session.role !== 'ADMIN') return false;
 
-    // Se tem dono, verifica se é o usuário logado ou Admin
     if (req.session.role === 'ADMIN' || cliente.donoId === req.session.userId) {
         return cliente;
     }
     return false;
 }
 
-// Mudar Status (Ligar/Desligar)
 app.post('/api/status', isAuth, async (req, res) => {
     try {
         const { clienteId, status } = req.body;
-        
         const cliente = await verificarPermissao(req, clienteId);
+        
         if (cliente === false) return res.status(403).json({ error: "Acesso negado." });
         if (cliente === null) return res.status(404).json({ error: "Bot não encontrado." });
 
@@ -258,7 +263,6 @@ app.post('/api/status', isAuth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Erro interno" }); }
 });
 
-// Salvar Fluxo
 app.post('/api/clientes/:id/fluxo', isAuth, async (req, res) => {
     try {
         const cliente = await verificarPermissao(req, req.params.id);
@@ -269,7 +273,6 @@ app.post('/api/clientes/:id/fluxo', isAuth, async (req, res) => {
     } catch (error) { res.status(500).json({ error: 'Erro' }); }
 });
 
-// Excluir Bot
 app.delete('/api/clientes/:id', isAuth, async (req, res) => {
     try {
         const cliente = await verificarPermissao(req, req.params.id);
@@ -283,32 +286,49 @@ app.delete('/api/clientes/:id', isAuth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Erro ao excluir" }); }
 });
 
-// Upload de Mídia (Protegido)
 app.post('/upload', isAuth, upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado' });
-    // URL correta apontando para a pasta estática
     const fileUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
     res.json({ url: fileUrl });
 });
 
 // ============================================================
-// 4. ROTAS PÚBLICAS FINAIS (AGENDA EXTERNA)
+// 4. ROTAS ADMIN (APROVAÇÃO)
 // ============================================================
 
-// Agendamento (O cliente final acessa isso, não precisa de login)
-app.get('/agendar/:id', async (req, res) => {
-    res.render('agenda', { clienteId: req.params.id });
+app.get('/api/admin/pendentes', async (req, res) => {
+    // TROQUE O E-MAIL ABAIXO PELO SEU
+    const MEU_EMAIL = 'vitorpedrocalixto@gmail.com'; 
+
+    if (!req.session.usuario || req.session.usuario.email !== MEU_EMAIL) { 
+        return res.status(403).json({ erro: 'Acesso Negado' });
+    }
+
+    const pendentes = await prisma.usuario.findMany({
+        where: { ativo: false },
+        select: { id: true, nome: true, email: true }
+    });
+    res.json(pendentes);
 });
 
-// API de Agendamento Externo
-app.post('/api/agendar-externo', async (req, res) => {
-    const { clienteId, nome, telefone, data, horario } = req.body;
-    try {
-        console.log(`Novo agendamento: ${nome} - ${data} ${horario}`);
-        res.json({ success: true });
-    } catch (e) {
-        res.status(500).json({ error: "Erro ao agendar" });
+app.post('/api/admin/aprovar', async (req, res) => {
+    const MEU_EMAIL = 'vitorpedrocalixto@gmail.com';
+
+    if (!req.session.usuario || req.session.usuario.email !== MEU_EMAIL) {
+        return res.status(403).json({ erro: 'Acesso Negado' });
     }
+
+    const { idUsuario } = req.body;
+    await prisma.usuario.update({
+        where: { id: idUsuario },
+        data: { ativo: true } 
+    });
+    res.json({ status: 'ok' });
+});
+
+// Agendamento Público
+app.get('/agendar/:id', async (req, res) => {
+    res.render('agenda', { clienteId: req.params.id });
 });
 
 // ============================================================
@@ -317,11 +337,13 @@ app.post('/api/agendar-externo', async (req, res) => {
 server.listen(PORT, async () => {
     console.log(`🚀 CALIXTO SAAS V10 RODANDO NA PORTA ${PORT}`);
     
-    // Auto-Start (Inicia todos os bots ativos)
+    // Auto-Start
     const clientesAtivos = await prisma.cliente.findMany({ where: { ativo: true } });
     for (const cliente of clientesAtivos) {
         console.log(`🔄 Reiniciando bot: ${cliente.nome}`);
         whatsapp.iniciarWhatsApp(cliente, io);
-        await new Promise(r => setTimeout(r, 2000)); // Delay para não sobrecarregar
+        await new Promise(r => setTimeout(r, 2000));
     }
+
+    
 });
