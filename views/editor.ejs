@@ -100,7 +100,6 @@
             midia: `<div class="title"><i class="fas fa-image"></i> Mídia</div><div style="padding:16px"><div class="upload-area" onclick="this.nextElementSibling.click()"><span>Clique para Upload</span><img src="" style="display:none"></div><input type="file" style="display:none" onchange="uploadFile(this)"><input type="text" df-url style="display:none"><label style="margin-top:10px">Legenda:</label><input type="text" df-caption></div>`,
             audio: `<div class="title"><i class="fas fa-microphone"></i> Áudio</div><div style="padding:16px"><div class="upload-area" onclick="this.nextElementSibling.click()"><span>Upload MP3</span></div><input type="file" accept="audio/*" style="display:none" onchange="uploadFile(this, 'audio')"><input type="text" df-url style="display:none"><label class="toggle-row" style="margin-top:10px"><div class="switch"><input type="checkbox" df-ptt checked><span class="slider"></span></div><span>Como gravado</span></label></div>`,
             
-            // [ATUALIZADO] TEMPLATE TRANSFERIR COM CAMPO DE NOTIFICAÇÃO
             transferir: `<div class="title"><i class="fas fa-headset"></i> Transferir</div><div style="padding:16px"><label>Nome da Fila/Setor:</label><input type="text" df-fila placeholder="Ex: Financeiro"><label style="margin-top:10px">Notificar WhatsApp:</label><input type="text" df-notificacao placeholder="Ex: 5521999999999"><p style="font-size:10px; color:#888; margin-top:5px">Deixe vazio se não quiser notificação.</p></div>`,
             
             horario: `<div class="title"><i class="fas fa-clock"></i> Horário</div><div style="padding:16px"><p style="font-size:12px; color:#aaa; margin-bottom:10px">Defina o expediente:</p><div style="display:flex; gap:10px;"><div style="flex:1"><label>Abertura:</label><input type="time" df-inicio value="09:00"></div><div style="flex:1"><label>Fechamento:</label><input type="time" df-fim value="18:00"></div></div><div style="margin-top:15px; display:flex; justify-content:space-between; font-size:11px; font-weight:bold;"><span style="color:var(--success)">● Aberto</span><span style="color:var(--danger)">Fechado ●</span></div></div>`,
@@ -258,17 +257,43 @@
             }
         });
         async function uploadFile(input, tipo='imagem') {
-            const file = input.files[0]; if(!file) return;
-            const area = input.parentElement.querySelector('.upload-area'); area.innerHTML = '<span>⏳ Enviando...</span>';
-            const formData = new FormData(); formData.append('file', file);
+            const file = input.files[0]; 
+            if(!file) return;
+            
+            const area = input.parentElement.querySelector('.upload-area'); 
+            area.innerHTML = '<span>⏳ Enviando...</span>';
+            
+            const formData = new FormData(); 
+            formData.append('file', file);
+            
             try {
-                const res = await fetch('/api/upload', {method:'POST', body:formData}); const data = await res.json();
+                // FIXED: Changed /api/upload to /upload
+                const res = await fetch('/upload', { method: 'POST', body: formData });
+                
+                if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
+                
+                const data = await res.json();
+                
                 if(data.url) {
-                    const inputUrl = input.parentElement.querySelector('[df-url]'); inputUrl.value = data.url; inputUrl.dispatchEvent(new Event('input', {bubbles:true}));
-                    if(tipo !== 'audio') { area.innerHTML = `<span>Substituir</span><img src="${data.url}" style="display:block">`; area.querySelector('span').style.display='none'; } 
-                    else { area.innerHTML = `<span><i class="fas fa-check"></i> Áudio Salvo!</span>`; }
+                    const inputUrl = input.parentElement.querySelector('[df-url]'); 
+                    inputUrl.value = data.url; 
+                    
+                    // Force Drawflow update
+                    const event = new Event('input', {bubbles:true});
+                    inputUrl.dispatchEvent(event);
+                    
+                    // Update UI
+                    if(tipo !== 'audio') { 
+                        area.innerHTML = `<span>Substituir</span><img src="${data.url}" style="display:block; max-height: 100px; margin-top: 5px;">`; 
+                        area.querySelector('span').style.display='none'; 
+                    } else { 
+                        area.innerHTML = `<span><i class="fas fa-check"></i> Áudio Salvo!</span>`; 
+                    }
                 }
-            } catch(e) { area.innerHTML = '<span>❌ Erro</span>'; console.error(e); }
+            } catch(e) { 
+                area.innerHTML = '<span>❌ Falha</span>'; 
+                console.error("Erro no upload:", e); 
+            }
         }
         async function salvarFluxo() {
             const exportData = editor.export(); const btn = document.querySelector('.btn-save'); const originalTxt = btn.innerHTML;

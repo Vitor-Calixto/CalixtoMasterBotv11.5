@@ -9,26 +9,28 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- NOVO: TABELA DE USUÁRIOS (LOGIN) ---
+// --- MODELO USUÁRIO (CORRIGIDO) ---
 model Usuario {
   id           String    @id @default(uuid())
   email        String    @unique
   senha        String
   nome         String
   role         String    @default("CLIENTE") // "ADMIN" ou "CLIENTE"
-  ativo   Boolean @default(false) // Todo mundo nasce bloqueado
+  ativo        Boolean   @default(false)
   
-  // Campos para recuperar senha (já deixamos pronto!)
+  // Campos de recuperação de senha
   resetToken   String?   
   resetExpires DateTime?
 
-  criadoEm     DateTime  @default(now())
+  // --- PLANOS (NOVO) ---
+  plano        String    @default("ESSENTIAL") // ESSENTIAL, ADVANCED, SIGNATURE
   
-  // Relacionamento: Um usuário pode ter vários bots
+  // Relacionamentos (Definidos apenas UMA vez)
   clientes     Cliente[] 
+  criadoEm     DateTime  @default(now())
 }
 
-// --- ATUALIZAÇÃO: TABELA CLIENTE ---
+// --- MODELO CLIENTE ---
 model Cliente {
   id        String   @id @default(uuid())
   nome      String
@@ -38,10 +40,9 @@ model Cliente {
   status    String   @default("OFFLINE")
   criadoEm  DateTime @default(now())
 
-  // --- VÍNCULO COM O DONO (Opcional para não quebrar bots antigos) ---
+  // Vínculo com o Dono
   donoId    String?  
   dono      Usuario? @relation(fields: [donoId], references: [id])
-  // -------------------------------------------------------
 
   contatos      Contato[]
   sessoesAtivas SessaoAtiva[]

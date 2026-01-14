@@ -1,1518 +1,368 @@
 
----
+```markdown
+# 🚀 CALIXTO OMNISYSTEM V12 (ENTERPRISE EDITION)
 
+![Version](https://img.shields.io/badge/version-12.0.0-blue.svg?style=for-the-badge)
+![Status](https://img.shields.io/badge/status-PRODUCTION_READY-success.svg?style=for-the-badge)
+![Stack](https://img.shields.io/badge/stack-NODEJS_|_REDIS_|_POSTGRESQL-important.svg?style=for-the-badge)
+![Security](https://img.shields.io/badge/security-SESSIONS_ENCRYPTED-shield.svg?style=for-the-badge)
 
-# 📘 MANUAL TÉCNICO CALIXTOMASTERBOT V9.0
-
-## 0. Visão Geral do Sistema
-
-```text
-+-----------------------------------------------------------------------------+
-|                        ☁️  INTERNET / MUNDO EXTERNO                         |
-+-----------------------------------------------------------------------------+
-       |                                         |
-       v                                         v
- [ 📱 WhatsApp / Usuários ]             [ 💻 Admin / Dashboard ]
-       | (WebSocket)                             | (HTTPS Seguro)
-       |                                         |
-+------|-----------------------------------------|----------------------------+
-|  🖥️  | SERVIDOR / VPS (Ubuntu Server)          |                            |
-|      v                                         v                            |
-|  +-----------------------------------------------------------------------+  |
-|  |  🛡️ PM2 CLUSTER (Gerenciador de Processos)                            |  |
-|  |                                                                       |  |
-|  |  +-----------------------+           +-----------------------------+  |  |
-|  |  | ID 0: CALIXTO BOT     | <-------> | ID 1: CLOUDFLARE TUNNEL     |  |  |
-|  |  | (Node.js + Baileys)   |  Local    | (Sem abrir portas no Router)|  |  |
-|  |  +-----------------------+  Host     +-----------------------------+  |  |
-|  |            |  ^                                                       |  |
-|  +------------|--|-------------------------------------------------------+  |
-|               |  |                                                          |
-|      (Leitura |  | (Gravação                                                |
-|       Rápida) |  |  Segura)                                                 |
-|               v  |                                                          |
-|      +------------------+             +--------------------------+          |
-|      | ⚡ REDIS DB      |             | 🐘 POSTGRESQL DB         |          |
-|      | (Memória RAM)    |             | (Disco Rígido / NVMe)    |          |
-|      | - Sessão Ativa   |             | - Histórico de Mensagens |          |
-|      | - Estado do Chat |             | - Cadastro de Clientes   |          |
-|      | - Filas          |             | - Desenho dos Fluxos     |          |
-|      +------------------+             +--------------------------+          |
-+-----------------------------------------------------------------------------+
-O Calixto OmniSystem é uma infraestrutura de automação e orquestração de atendimentos via WhatsApp (SaaS), projetada para alta disponibilidade e escala.
-
-Diferente de chatbots convencionais que rodam localmente ou dependem de emuladores instáveis, o OmniSystem opera como um Servidor Backend Dedicado (Headless). Ele gerencia múltiplas instâncias de conexão simultaneamente, mantendo o estado da conversa e a lógica de negócios dissociados da interface visual.
-
-O objetivo do sistema é transformar o WhatsApp em uma API controlável, permitindo:
-
-Atendimento massivo 24/7 sem intervenção humana.
-
-Gestão multi-cliente (Multi-tenancy) em um único núcleo.
-
-Monitoramento granula de falhas e recuperação automática (Self-Healing).
-
-0.1. Capacidades do Núcleo (Core Features)
-O sistema é alimentado por uma arquitetura baseada em eventos, capaz de:
-
-⚡ Conectividade Resiliente: Utiliza a biblioteca Baileys com uma camada proprietária de reconexão inteligente. Se o WhatsApp cair, o sistema tenta reconectar exponencialmente sem travar o processo principal.
-
-🧠 Motor de Fluxos Dinâmicos: Processa nós lógicos (Mensagem, Áudio, Mídia, Menu, Horário) em tempo real, lendo as instruções diretamente do banco de dados, permitindo alterações de fluxo sem necessidade de reiniciar o código.
-
-💾 Persistência de Dados (PostgreSQL + Prisma): Cada interação, status de cliente e sessão é salva em banco de dados relacional, garantindo que nenhum dado se perca em caso de reinicialização do servidor.
-
-🛡️ Gestão de Processos (PM2 Cluster): O sistema não roda "solto". Ele é encapsulado pelo gerenciador de processos PM2, que monitora o consumo de memória (RAM) e CPU, reiniciando o sistema automaticamente em milissegundos caso ocorra algum erro crítico.
-
-0.2. Arquitetura de Conectividade (Tunneling)
-Para garantir acesso seguro ao Dashboard Administrativo e aos Webhooks sem expor a infraestrutura a ataques diretos (DDoS) ou necessitar de configurações complexas de Firewall/Portas, o Calixto OmniSystem utiliza uma arquitetura de Túnel Criptografado.
-
-Tecnologia: Cloudflare Tunnel (via cloudflared)
-
-Como funciona: Em vez de abrir uma porta no roteador (o que seria uma falha de segurança), o servidor cria um túnel de saída criptografado diretamente para a rede Edge da Cloudflare.
-
-Benefícios:
-
-IP Mascarado: O IP real do servidor (VPS ou Local) nunca é revelado publicamente.
-
-HTTPS Nativo: Todo o tráfego é automaticamente protegido com certificado SSL.
-
-Persistência: O túnel é gerenciado pelo PM2 (Processo ID 1), garantindo que o link público permaneça online 24h, mesmo se a conexão de internet oscilar.
-
-Status Atual da Versão: v9.0 Stable Ambiente: Node.js | PostgreSQL | PM2 | Cloudflare
-
-## CAPÍTULO 1: ARSENAL TECNOLÓGICO, INSTALAÇÃO E DEPENDÊNCIAS
-
-Este capítulo disseca as tecnologias que compõem o motor do Calixto OmniSystem. Entender essas peças é fundamental para qualquer manutenção, upgrade ou correção de bugs críticos.
+> **Designação Arquitetural:** Titan-V12 Event-Driven Kernel
+> **Papel Operacional:** Middleware de Orquestração de Mensageria e Automação SaaS.
+> **Autoridade:** CalixtoDev Engineering.
 
 ---
 
-### 1.1 O Motor de Comunicação: @whiskeysockets/baileys
 
-A peça mais crítica do sistema. Diferente da API Oficial da Meta (que cobra por mensagem), o Baileys simula um navegador real conectando-se ao WhatsApp Web via WebSocket.
+Com certeza. Para um projeto **Enterprise Edition**, um diagrama visual é obrigatório logo no cabeçalho.
 
-* **Para que serve:** É a ponte entre o seu código Node.js e os servidores do WhatsApp. Ele gerencia a criptografia de ponta a ponta, envia mensagens, recebe status de leitura e manipula arquivos de mídia.
-* **Instalação:**
-```powershell
-npm install @whiskeysockets/baileys
+Vou adicionar um **Diagrama de Topologia de Sistema** usando a sintaxe **Mermaid.js**. O GitHub renderiza isso nativamente como um gráfico interativo e nítido.
 
-```
-
-
-* **Configuração:**
-No arquivo `modulos/whatsapp.js`, é instanciado através da função `makeWASocket`. Exige uma estratégia de autenticação (`useMultiFileAuthState`) para salvar as credenciais na pasta `/sessions` ou `/clientes`.
-* **Nota de Versão:** Estamos usando a versão `^7.0.0-rc.9`. Isso indica uma versão "Release Candidate". É estável, mas requer atenção às atualizações de segurança do WhatsApp.
+Aqui está o **Cabeçalho Atualizado** do seu `README.md`. Substitua apenas o início do arquivo (até a seção 1) por este bloco abaixo. Ele já inclui o diagrama visual no topo.
 
 ---
 
-### 1.2 O Cérebro de Estado: Redis & IORedis
+```markdown
+# 🚀 CALIXTO OMNISYSTEM V12 (ENTERPRISE EDITION)
 
-O CalixtoMasterBot utiliza uma **Arquitetura Híbrida**. Enquanto os dados vitais ficam no disco, o estado da conversa ("Onde o usuário está agora?") vive na memória RAM através do Redis.
+![Version](https://img.shields.io/badge/version-12.0.0-blue.svg?style=for-the-badge)
+![Status](https://img.shields.io/badge/status-PRODUCTION_READY-success.svg?style=for-the-badge)
+![Stack](https://img.shields.io/badge/stack-NODEJS_|_REDIS_|_POSTGRESQL-important.svg?style=for-the-badge)
+![Security](https://img.shields.io/badge/security-SESSIONS_ENCRYPTED-shield.svg?style=for-the-badge)
 
-* **Para que serve:**
-1. **Velocidade:** Recupera o estado do cliente em 2 milissegundos.
-2. **Sessão:** Evita leituras lentas no banco de dados principal a cada mensagem recebida.
-3. **Filas (Bull):** Gerencia processos em segundo plano.
-
-
-* **Instalação:**
-O projeto possui duas bibliotecas (redundância ou legados de módulos diferentes):
-```powershell
-npm install redis ioredis
-
-```
-
-
-* **Configuração:**
-Configurado no arquivo `modulos/redis.js`. Requer um servidor Redis rodando (geralmente na porta `6379`). Em produção, usa-se a string de conexão no `.env`.
+> **Designação Arquitetural:** Titan-V12 Event-Driven Kernel
+> **Papel Operacional:** Middleware de Orquestração de Mensageria e Automação SaaS.
+> **Autoridade:** CalixtoDev Engineering.
 
 ---
 
-### 1.3 O Gerenciador de Banco de Dados: Prisma ORM
-
-O Prisma é o tradutor que permite que o código JavaScript converse com o banco de dados PostgreSQL sem precisar escrever SQL puro.
-
-* **Para que serve:**
-* **Segurança:** Previne injeção de SQL.
-* **Tipagem:** Garante que se você pedir "nome do cliente", o banco não devolva um número.
-* **Schema:** Define a estrutura do banco no arquivo `prisma/schema.prisma`.
-
-
-* **Instalação:**
-```powershell
-npm install prisma --save-dev
-npm install @prisma/client
-
-```
-
-
-* **Configuração:**
-1. Definir modelos em `prisma/schema.prisma`.
-2. Conectar via `.env` (`DATABASE_URL="postgresql://..."`).
-3. Rodar `npx prisma generate` sempre que houver alteração.
-
-
-
----
-
-### 1.4 A Interface em Tempo Real: Socket.io
-
-Enquanto o Express serve as páginas, o Socket.io mantém o canal aberto entre o Navegador (Dashboard) e o Servidor.
-
-* **Para que serve:**
-* **QR Code Dinâmico:** Atualiza o QR Code na tela sem precisar dar F5 na página.
-* **Status Online:** Mostra "Conectado" ou "Desconectado" instantaneamente no painel.
-* **Logs:** Envia logs do terminal direto para a tela do administrador.
-
-
-* **Instalação:**
-```powershell
-npm install socket.io
-
-```
-
-
-* **Configuração:**
-Inicializado no `index.js` atrelado ao servidor HTTP (`server`). No frontend (`views`), o cliente se conecta para escutar eventos como `'qrcode'` ou `'connection-status'`.
-
----
-
-### 1.5 O Motor Visual: EJS (Embedded JavaScript)
-
-O sistema não usa React ou Vue complexos. Ele usa EJS para gerar HTML dinâmico direto no servidor (Server-Side Rendering).
-
-* **Para que serve:** Permite injetar variáveis do Backend (ex: Lista de Clientes do banco) diretamente no HTML antes de enviar para o navegador. É o que faz o `dashboard.ejs` mostrar a tabela de usuários.
-* **Instalação:**
-```powershell
-npm install ejs
-
-```
-
-
-* **Configuração:**
-No `index.js`: `app.set('view engine', 'ejs');` e `app.set('views', './views');`.
-
----
-
-### 1.6 Inteligência de Texto: String-Similarity
-
-Uma ferramenta pequena, mas poderosa, usada no `engine.js` para o recurso de "Fuzzy Match".
-
-* **Para que serve:** Permite que o bot entenda erros de digitação. Se o menu diz "Financeiro" e o usuário digita "finaceiro" ou "finan", essa biblioteca calcula a semelhança (0 a 1) e aceita a resposta se for parecida o suficiente.
-* **Instalação:**
-```powershell
-npm install string-similarity
-
-```
-
-
-
----
-
-### 1.7 Utilitários do Sistema (Middleware & Helpers)
-
-Dependências que atuam nos bastidores para manter a estabilidade.
-
-* **Express (`^5.2.1`):** O servidor web. Estamos usando a versão 5 (moderna), que possui melhor tratamento de erros em promessas (Promises).
-* **Dotenv:** Carrega variáveis sensíveis (senhas, portas) do arquivo `.env` para a memória, garantindo segurança.
-* **Node-Cron:** O "Despertador". Executa tarefas agendadas (como limpeza de cache ou disparos programados) em horários específicos.
-* **Pino:** Logger de alta performance. Substitui o `console.log` tradicional, gerando logs estruturados (JSON) que são mais leves e fáceis de analisar em caso de erro.
-* **Multer / Express-Fileupload:** Gerenciam o upload de arquivos (áudios, imagens) que você sobe pelo painel para enviar nas mensagens.
-
----
-
-### 1.8 Frontend Library: Drawflow (Visual)
-
-*Nota: Não está no `package.json` pois é um script de frontend importado via CDN ou arquivo estático na pasta `public`, mas é vital citar.*
-
-* **Para que serve:** É a biblioteca JavaScript que cria a interface de "nós e linhas" (Fluxograma) no seu navegador. Ele exporta um JSON que o `interpretador.js` lê para saber o que o bot deve fazer.
-* **Configuração:** Arquivos localizados em `public/css/drawflow.css` e `public/js/drawflow.min.js`.
-
----
-
-**Fim do Capítulo 1.**
-
-CAPÍTULO 2: GUIAS OPERACIONAIS
-A operação do Calixto OmniSystem não deve ser feita "no escuro". Existem procedimentos padrão para garantir que os dados não sejam corrompidos durante o início ou o encerramento do sistema.
-
-2.1 GUIA DE INÍCIO (LAUNCH SEQUENCE)
-Para colocar o sistema no ar, não basta apenas "rodar o código". Existe uma ordem de precedência que deve ser respeitada para evitar erros de conexão com o banco de dados.
-
-2.1.1 Pré-voo (Checklist)
-Antes de iniciar o bot, verifique se os sistemas de suporte estão ativos:
-
-PostgreSQL: O serviço do banco de dados deve estar rodando (Porta 5432).
-
-Redis: O servidor de memória deve estar acessível (Porta 6379). Se você não usa o Redis como serviço do Windows, inicie-o manualmente em um terminal separado.
-
-2.1.2 Procedimento de Decolagem (Start)
-No ambiente de produção, utilizamos o PM2 para gerenciar o processo. Nunca use node index.js diretamente, pois se o bot cair, ele não volta.
-
-Comando Padrão:
-
-PowerShell
-
-npx pm2 start index.js --name "calixto-omnisystem"
-npx pm2 start: Invoca o gerenciador.
-
-index.js: O arquivo de entrada.
-
---name "calixto-omnisystem": Batiza o processo. Isso facilita identificá-lo nos logs depois.
-
-Validação de Sucesso: Após o comando, uma tabela aparecerá. O status deve estar verde: online. Se estiver errored ou stopping, consulte o Guia de Monitoramento.
-
-2.2 GUIA DE MONITORAMENTO (COCKPIT)
-Uma vez no ar, você precisa saber o que está acontecendo. O sistema oferece duas visões: a Visão de Engenharia (Terminal) e a Visão de Controle (Dashboard).
-
-2.2.1 A Visão de Engenharia (Logs em Tempo Real)
-Para ver o "cérebro" do bot pensando, processando mensagens e erros:
-
-Comando:
-
-PowerShell
-
-npx pm2 logs calixto-omnisystem --lines 50
---lines 50: Mostra as últimas 50 linhas do histórico imediato.
-
-O que procurar:
-
-[ENGINE]: Logs de processamento de fluxo (ex: "Cliente entrou no nó X").
-
-[SISTEMA]: Logs de conexão (ex: "Conectado", "QR Code Gerado").
-
-🔴 Vermelho: Erros críticos ou exceções não tratadas.
-
-2.2.2 Painel de Instrumentos (PM2 Monit)
-Para monitorar o consumo de recursos (CPU e RAM) e garantir que não há vazamento de memória:
-
-Comando:
-
-PowerShell
-
-npx pm2 monit
-Isso abre um painel gráfico dentro do terminal.
-
-Esquerda: Lista de processos.
-
-Direita Superior: Logs em tempo real.
-
-Direita Inferior: Métricas de Saúde (Uso de Memória).
-
-2.2.3 Visão de Controle (Dashboard Web)
-A interface para o usuário final.
-
-URL: http://localhost:3000/dashboard
-
-Indicadores:
-
-Status: Bolinha Verde (Online) ou Vermelha (Offline).
-
-QR Code: Se o bot estiver desconectado, o código aparecerá aqui automaticamente via Socket.io.
-
-2.3 GUIA DE STOP (ENCERRAMENTO)
-Existem duas formas de parar o sistema: a graciosa e a forçada.
-
-2.3.1 Parada Graciosa (Soft Stop)
-Este é o método padrão. Ele envia um sinal (SIGINT) para o bot, permitindo que ele feche as conexões com o banco e salve os arquivos pendentes antes de desligar.
-
-Comando:
-
-PowerShell
-
-npx pm2 stop calixto-omnisystem
-Use este comando para manutenções rotineiras ou atualizações de código.
-
-2.3.2 Extermínio de Processos (Kill / Force Stop)
-Utilizado quando o bot trava, entra em loop infinito ou se torna um "Processo Zumbi" (continua rodando no fundo mesmo após o stop).
-
-Passo 1: Matar o Gerenciador
-
-PowerShell
-
-npx pm2 kill
-Passo 2: Varredura do Windows (Obrigatório em casos de Erro 515) O comando acima mata o gerenciador, mas às vezes o node.exe continua vivo segurando a porta do WhatsApp.
-
-PowerShell
-
-taskkill /F /IM node.exe
-Repita este comando até receber a mensagem "ERRO: O processo... não foi encontrado". Isso garante que a memória está limpa.
-
-2.4 GUIA DE RESET (EMERGÊNCIA)
-Procedimentos para restaurar o sistema após falhas críticas.
-
-2.4.1 Reset de Aplicação (Restart)
-Use quando você altera o código (engine.js, fluxo.js) ou edita o arquivo .env.
-
-PowerShell
-
-npx pm2 restart calixto-omnisystem
-Nota: Isso não desconecta o WhatsApp, apenas reinicia o software.
-
-2.4.2 Reset de Sessão (A Cura do Erro 515)
-Use quando o bot entra em "Loop de Conexão", pede QR Code repetidamente ou apresenta erro de descriptografia.
-
-Pare o sistema (npx pm2 stop calixto-omnisystem).
-
-Navegue até a pasta do projeto.
-
-Delete a pasta sessions (ou auth_info_baileys dependendo da config).
-
-Inicie novamente. Isso forçará a geração de um novo QR Code limpo.
-
-2.4.3 Reset de Banco de Dados (Nuclear Option)
-Use APENAS em ambiente de desenvolvimento ou se o banco estiver corrompido irremediavelmente. Isso apaga todos os clientes e fluxos.
-
-Pare o sistema.
-
-Execute o script de limpeza (se houver zerar_tudo.js) ou delete o arquivo do banco (se for SQLite).
-
-Rode npx prisma db push para recriar as tabelas do zero.
-
-**Fim do Capítulo 2.**
-
-CAPÍTULO 3: INSTALAÇÃO EM PRODUÇÃO (WINDOWS SERVER)
-Este capítulo marca a transição do ambiente de desenvolvimento para o ambiente de produção. Até o momento, o sistema foi operado via VS Code. No entanto, para um software de alta disponibilidade que deve operar 24/7 (SaaS), depender de uma interface gráfica (IDE) é um risco operacional.
-
-Aqui, aprenderemos a desacoplar o CalixtoMasterBot da IDE e transformá-lo em um Serviço Nativo do Windows, que opera de forma "Headless" (sem interface), inicia automaticamente com o sistema operacional e possui persistência contra falhas de energia.
-
-3.1 RODANDO SEM IDE (MODO HEADLESS)
-O VS Code é uma ferramenta de escrita de código, não de execução de servidores. Ele consome memória RAM desnecessária apenas para renderizar a interface gráfica. Em um cenário profissional, o bot deve ser controlado exclusivamente via terminal (Command Line Interface).
-
-3.1.1 O Conceito de "Serviço"
-O objetivo desta etapa é configurar o bot para rodar nos bastidores, similar ao Antivírus ou aos Drivers do sistema: invisível ao usuário comum, mas sempre ativo e monitorando.
-
-3.1.2 Preparando o Ambiente
-Para executar comandos que alteram o registro de inicialização do Windows, é necessário elevar os privilégios de acesso:
-
-Feche o VS Code completamente para garantir que nenhum arquivo esteja travado.
-
-Pressione a tecla Windows e digite PowerShell.
-
-CRUCIAL: Não clique apenas em abrir. Clique com o botão direito e selecione "Executar como Administrador".
-
-3.1.3 Navegação via Terminal
-Sem a barra lateral de arquivos do VS Code, a navegação entre pastas é feita via comandos. Utilize o comando cd (Change Directory) para entrar na pasta do projeto.
-
-Comando: cd "F:\workspace\SecretáriaVirtualBackupDefinitivo\CalixtoMasterBotv9.0"
-
-(Nota: Se o caminho conter espaços, o uso de aspas é obrigatório).
-
-3.2 CONFIGURANDO A INICIALIZAÇÃO AUTOMÁTICA (AUTO-BOOT)
-Um dos maiores riscos para um SaaS é o reinício não planejado do servidor (queda de energia ou atualização do Windows). Sem a configuração correta, o servidor ligará, mas o bot permanecerá desligado.
-
-Utilizaremos o pacote pm2-windows-startup para criar uma chave de registro que garante a ressurreição do sistema. Siga a sequência exata abaixo:
-
-Passo 1: Instalação Global das Ferramentas
-Instalamos o PM2 e o plugin de startup no escopo global do sistema (-g), tornando os comandos acessíveis de qualquer pasta.
-
-Comando: npm install pm2 -g npm install pm2-windows-startup -g
-
-Passo 2: Instalar o Registro de Inicialização
-Este comando injeta uma instrução no Registro do Windows para reviver o PM2 assim que o usuário Administrator fizer login (ou assim que o servidor bootar, dependendo da configuração).
-
-Comando: pm2-startup install
-
-(O resultado esperado é uma mensagem de sucesso indicando "Successfully added PM2 startup registry entry").
-
-Passo 3: Inicializar a Instância
-Se o bot ainda não estiver rodando, inicie-o agora.
-
-Comando: pm2 start index.js --name "calixto-omnisystem"
-
-Passo 4: Congelar a Lista de Processos (Save)
-Este é o passo mais crítico e frequentemente esquecido. O PM2 precisa tirar uma "foto" (Dump) de quais processos estão rodando agora para saber o que restaurar no futuro. Sem este comando, o registro de inicialização (Passo 2) abrirá um PM2 vazio.
-
-Comando: pm2 save
-
-(O resultado esperado é a mensagem "[PM2] Freeze a process list on saving to...", confirmando o salvamento).
-
-3.3 MANUAL DE COMANDOS DO CMD (SHELL)
-Em produção, o teclado é o seu único painel de controle. Abaixo estão listados os comandos essenciais para a manutenção do ciclo de vida da aplicação.
-
-Comandos de Gerenciamento (Ciclo de Vida)
-Ligar (Start): pm2 start index.js --name "nome-do-bot"
-
-Uso: Apenas na primeira vez que for rodar o sistema.
-
-Reiniciar (Restart): pm2 restart 0 (ou o nome do bot)
-
-Uso: Obrigatório após qualquer alteração de código (.js) ou configuração (.env) para aplicar as mudanças.
-
-Parar (Stop): pm2 stop 0
-
-Uso: Pausa o funcionamento sem remover o bot da lista de monitoramento. Ideal para manutenções rápidas.
-
-Excluir (Delete): pm2 delete 0
-
-Uso: Remove o processo da lista do PM2. Necessário se você quiser mudar o nome do processo ou mudar parâmetros de inicialização.
-
-Salvar (Save): pm2 save
-
-Uso: Obrigatório sempre que adicionar ou remover um bot da lista, para atualizar o arquivo de boot do Windows.
-
-Comandos de Visibilidade (Telemetria)
-Listar Status: pm2 list
-
-Saída: Exibe uma tabela com ID, nome, versão, status (online/stopped), uptime (tempo ligado) e consumo de memória.
-
-Logs Gerais: pm2 logs
-
-Saída: Exibe as últimas 15 linhas de log de todos os processos simultaneamente.
-
-Logs Detalhados: pm2 logs 0 --lines 100
-
-Saída: Exibe as últimas 100 linhas de histórico apenas do bot com ID 0. Essencial para rastrear erros que aconteceram há alguns minutos.
-
-Painel Gráfico: pm2 monit
-
-Saída: Abre um dashboard interativo no terminal mostrando gráficos de uso de CPU e logs em tempo real lado a lado.
-
-Limpar Logs: pm2 flush
-
-Uso: Apaga todo o histórico de logs armazenado para limpar a tela e facilitar a leitura de novos eventos.
-
-3.4 GERENCIAMENTO DE VARIÁVEIS DE AMBIENTE (OVERRIDE)
-Em servidores avançados, é comum precisar alterar configurações sem editar o arquivo .env. O PowerShell permite injetar variáveis no momento da execução.
-
-Cenário de Exemplo: Rodar uma segunda instância do bot na porta 3001 para testes, mantendo a original na 3000.
-
-Comando: $env:PORT=3001; pm2 start index.js --name "bot-teste"
-
-Isso instrui o Node.js a ignorar a porta definida no arquivo e utilizar a porta 3001 especificamente para este processo.
-
-Fim do Capítulo 3.
-
-CAPÍTULO 4: TRATAMENTO DE ERROS E CONTINGÊNCIA
-Sistemas complexos baseados em eventos (como o CalixtoMasterBot) estão sujeitos a falhas externas: o WhatsApp pode cair, a internet pode oscilar ou o banco de dados pode travar. Este capítulo classifica os erros por gravidade e fornece a "receita médica" para cada um.
-
-4.1 ERROS COMUNS (NÍVEL 1 - ALERTA AMARELO)
-São falhas rotineiras que geralmente não exigem reinicialização profunda, apenas ajustes operacionais.
-
-4.1.1 Loop de Conexão (Conectando... Caindo...)
-Sintoma: O terminal mostra Connection Closed, tenta reconectar e cai novamente repetidas vezes.
-
-Causa: Instabilidade na internet local ou o celular principal está com pouca bateria/sem internet.
-
-Contra-medida:
-
-Verifique se o celular com o chip está ligado e com internet.
-
-Aguarde 5 minutos. O sistema de "Backoff Exponencial" do Baileys tenta reconectar automaticamente em intervalos maiores.
-
-4.1.2 Erro 401: Unauthorized
-Sintoma: O log exibe HttpError: 401.
-
-Causa: A sessão foi desconectada pelo celular (alguém clicou em "Sair dos aparelhos" no WhatsApp).
-
-Contra-medida:
-
-O sistema gerará um novo QR Code automaticamente no Terminal e no Dashboard.
-
-Leia o QR Code novamente para reestabelecer a confiança.
-
-4.1.3 JSON Parse Error (Travamento de Fluxo)
-Sintoma: O bot para de responder um cliente específico, mas continua funcionando para os outros. No log aparece SyntaxError ou Cannot read property of undefined.
-
-Causa: Um erro no desenho do fluxo (Drawflow). Ex: Uma seta apontando para o vazio ou um nó deletado incorretamente.
-
-Contra-medida:
-
-Acesse o Dashboard (/editor).
-
-Verifique a última alteração feita.
-
-Corrija a conexão solta e clique em Salvar. O mecanismo de try...catch no engine.js recuperará o cliente na próxima mensagem.
-
-4.2 ERROS CRÍTICOS (NÍVEL 2 - ALERTA VERMELHO)
-Falhas que interrompem o serviço totalmente e exigem intervenção manual imediata no servidor.
-
-4.2.1 O "Erro 515" (Restart Required / Stream Error)
-Sintoma: O bot entra em loop infinito de reinicialização. O log mostra: Error: Stream Errored (restart required).
-
-Causa: Corrupção nas chaves de criptografia (Noise Keys) salvas na pasta de sessão. O WhatsApp rejeita a identidade do bot.
-
-Contra-medida (Protocolo de Limpeza):
-
-Pare o sistema: pm2 stop all.
-
-Delete a pasta de sessão: Vá em CalixtoMasterBotv9.0/sessions (ou auth_info_baileys) e delete a pasta inteira.
-
-Reinicie: pm2 start index.js.
-
-Conecte imediatamente com o novo Código/QR Code.
-
-4.2.2 Erro EADDRINUSE (Porta Ocupada)
-Sintoma: O sistema não liga. Log exibe: Error: listen EADDRINUSE: address already in use :::3000.
-
-Causa: O "Processo Zumbi". Você parou o PM2, mas o Windows manteve um node.exe fantasma rodando no fundo, segurando a porta 3000.
-
-Contra-medida (Extermínio):
-
-Abra o PowerShell como Administrador.
-
-Execute: taskkill /F /IM node.exe.
-
-Repita até aparecer "Erro: Processo não encontrado".
-
-Inicie novamente: pm2 start index.js.
-
-4.2.3 Erro Prisma Client (P2002 / Column not found)
-Sintoma: O bot liga, mas trava ao receber mensagem. Log exibe: The column '...' does not exist in the current database.
-
-Causa: Dessincronia. Você alterou o arquivo schema.prisma (ex: removeu uma coluna) mas não avisou o banco de dados real.
-
-Contra-medida:
-
-Pare o bot.
-
-Atualize o cliente JS: npx prisma generate.
-
-Atualize o banco real: npx prisma db push.
-
-Reinicie o bot.
-
-4.3 PREVENÇÃO E BLINDAGEM (PROFILAXIA)
-Como configurar o sistema para que os erros acima aconteçam com menos frequência.
-
-4.3.1 Watchdog de Memória (PM2)
-Bots de WhatsApp consomem muita RAM com o tempo (cache de mídia). Se a RAM lotar, o servidor trava.
-
-Prevenção: Configurar o PM2 para reiniciar o bot automaticamente se ele "comer" muita memória.
-
-Comando: pm2 start index.js --max-memory-restart 500M (Isso mata e revive o bot se ele passar de 500MB de RAM, liberando os recursos).
-
-4.3.2 Blindagem de Código (Try-Catch)
-No arquivo engine.js, nunca confie que os dados virão perfeitos.
-
-Prevenção: Envolver blocos críticos (leitura de fluxo, envio de mensagem) em estruturas de tratamento:
-
-JavaScript
-
-try {
-    // Tenta executar a lógica
-    await executarNo(...);
-} catch (erro) {
-    // Se falhar, apenas loga o erro e NÃO derruba o servidor
-    console.error("Erro blindado:", erro.message);
-}
-4.3.3 Auto-Reset de Estado (Self-Healing)
-Implementar lógica para detectar usuários presos em "limbos" (nós que não existem mais).
-
-Prevenção: Se o interpretador.js buscar um Nó ID que retorna undefined, o sistema deve automaticamente resetar o estadoAtual do cliente para o Menu Inicial, evitando que o atendimento pare.
-
-Fim do Capítulo 4.
-
-CAPÍTULO 5: ESTRUTURA E ANATOMIA DO PROJETO
-O CalixtoMasterBot segue uma arquitetura modular (Monolith Modular). Isso significa que, embora seja um único projeto, suas funções são separadas em pastas específicas para facilitar a manutenção. Se o WhatsApp quebrar, você mexe em uma pasta; se o Banco de Dados travar, você mexe em outra.
-
-5.1 A RAIZ (THE ROOT) - O CENTRO DE COMANDO
-Aqui ficam os arquivos de configuração global e os scripts de entrada. Eles dizem ao Node.js "como" o projeto deve rodar.
-
-index.js (O Porteiro):
-
-É o arquivo principal. Ele levanta o servidor Express (site), inicia o Socket.io (tempo real) e conecta ao Banco de Dados. Todas as requisições (Webhooks do WhatsApp ou acessos ao Painel) chegam primeiro aqui.
-
-ecosystem.config.js (O Manual do PM2):
-
-Arquivo de configuração do gerenciador de processos. Define quanta memória o bot pode usar antes de reiniciar, qual o nome do processo e quais variáveis de ambiente injetar.
-
-.env (O Cofre):
-
-Arquivo oculto que guarda segredos: Senha do Banco de Dados, Porta do Servidor e Chaves de API. Nunca compartilhe este arquivo.
-
-package.json (O Inventário):
-
-Lista todas as bibliotecas instaladas (dependências) e scripts de atalho (como npm start).
-
-5.2 O NÚCLEO LÓGICO (/modulos) - A CASA DAS MÁQUINAS
-Esta é a pasta mais importante. Aqui reside a inteligência artificial e a lógica de negócios.
-
-engine.js (O Maestro):
-
-Recebe a mensagem crua, decide se é um cliente novo ou antigo, verifica se há timeouts pendentes e orquestra quem deve responder. É ele quem chama o interpretador.js.
-
-whatsapp.js (O Comunicador):
-
-Contém a instância do Baileys. Responsável por fazer o "Handshake" (aperto de mão) com o servidor da Meta, gerar o QR Code e enviar as mensagens finais (texto, áudio, imagem).
-
-interpretador.js (O Navegador):
-
-Lê o arquivo JSON gerado pelo editor visual (Drawflow). Ele traduz "Nó 1 liga no Nó 2" para código real: "Se o usuário digitou 1, mande a mensagem de boas-vindas".
-
-redis.js (A Memória RAM):
-
-Gerencia a conexão com o banco de memória Redis. Responsável pela velocidade extrema do bot.
-
-sessions.js (O Gerente de Estado):
-
-Controla quem é o usuário. Funções como getEtapaUsuario (onde ele está?) e setEtapaUsuario (mover ele para o próximo passo) vivem aqui.
-
-timeout.js (O Cronômetro):
-
-O script que monitora o silêncio. Se um usuário ficar X minutos sem responder, este módulo dispara o gatilho de encerramento automático.
-
-5.3 A PERSISTÊNCIA DE DADOS (/prisma) - A CAIXA PRETA
-Onde a estrutura do banco de dados relacional é definida.
-
-schema.prisma (A Planta Baixa):
-
-Define as tabelas (Models) do sistema: Cliente (configurações do bot), SessaoAtiva (estado atual) e Mensagem (histórico). Qualquer alteração no banco começa editando este arquivo.
-
-migrations/ (O Histórico):
-
-Pasta que guarda o histórico de mudanças no banco de dados (ex: "No dia 05/01 criamos a tabela X").
-
-5.4 A INTERFACE VISUAL (/views e /public) - O COCKPIT
-Arquivos responsáveis pelo que o humano vê no navegador.
-
-/views (HTML Dinâmico / EJS)
-dashboard.ejs: A tela principal. Mostra a lista de clientes, status de conexão e botão de QR Code.
-
-editor.ejs: A tela de desenho de fluxo. Carrega a biblioteca Drawflow.
-
-chat.ejs: (Opcional) Interface para ver as conversas em tempo real ou assumir atendimento humano (Bate-papo).
-
-/public (Arquivos Estáticos)
-/uploads: O "Depósito". Quando você sobe uma foto ou áudio pelo painel para o bot enviar, o arquivo é salvo fisicamente aqui.
-
-/css e /js: Estilos e scripts que rodam no navegador do usuário (frontend).
-
-5.5 AS SESSÕES (/sessions ou /clientes) - O CHAVEIRO
-Pasta de alta segurança e volatilidade.
-
-Conteúdo: Contém pastas com nomes estranhos (UUIDs ou Números). Dentro delas, arquivos .json com as chaves de criptografia do WhatsApp.
-
-Função: Manter o bot logado. Se você apagar esta pasta, o bot desloga e pede QR Code novo.
-
-5.6 SCRIPTS DE MANUTENÇÃO (NA RAIZ) - FERRAMENTAS DE EMERGÊNCIA
-Arquivos soltos na raiz criados para operações específicas de reparo.
-
-limpar.js: Script utilitário para deletar arquivos temporários ou logs antigos que estejam enchendo o disco.
-
-reset.js: Script de "Soft Reset". Reinicia apenas as conexões do Baileys sem derrubar o servidor web.
-
-zerar_tudo.js (NUCLEAR): Script perigoso. Geralmente usado em desenvolvimento para apagar o banco de dados e começar do zero absoluto. Cuidado.
-
-Fim do Capítulo 5.
-
-CAPÍTULO 6: POR TRÁS DE CADA ARQUIVO (ENGENHARIA REVERSA)
-(Continuação...)
-
-6.3 O CÉREBRO LÓGICO: modulos/engine.js
-Se o whatsapp.js é a boca e o ouvido, o engine.js é o cérebro. Este arquivo contém a Máquina de Estados (State Machine) que decide o destino de cada interação. Ele não apenas repassa mensagens; ele interpreta intenções, simula comportamento humano e gerencia o tempo.
-
-Função Principal
-Processar a entrada do usuário, compará-la com o nó atual do fluxo desenhado e determinar qual a próxima ação (responder, enviar menu, verificar horário ou encerrar).
-
-Anatomia das Funções Internas
-1. A Lógica de "Fuzzy Match" (Correspondência Aproximada)
-O sistema não exige que o usuário digite perfeitamente.
-
-Função: normalizar(texto)
-
-O que faz: Remove acentos, converte para minúsculas e remove emojis.
-
-Exemplo: Se a opção é "Financeiro" e o usuário digita "finan", "Fínanceiro" ou "quero financeiro", o código consegue entender a semelhança através da biblioteca string-similarity (implícita na lógica de includes).
-
-2. Simulação de Humanização
-Para evitar bloqueios por "comportamento robótico", o bot nunca responde instantaneamente.
-
-Função: calcularTempo(texto)
-
-Lógica: O tempo de "Digitando..." é proporcional ao tamanho da mensagem que será enviada.
-
-Fórmula: 1000ms + (caracteres * 50ms). Teto máximo de 5 segundos.
-
-3. Blindagem de Navegação (Self-Healing)
-Esta é a função que impede o bot de cair se houver erro no desenho do fluxo.
-
-Função: getNextNodeId(node, outputName)
-
-Mecanismo: Envolvida em um bloco try...catch. Se o nó de destino não existir ou a conexão estiver quebrada, ela retorna null suavemente, permitindo que o engine trate o erro sem derrubar o processo Node.js.
-
-4. O Processador de Decisão (processarMensagem)
-O núcleo do script.
-
-Verificação de Reset: Se o usuário digitar #RESET, a sessão é limpa imediatamente (Hard Reset de Estado).
-
-Recuperação de Estado: Consulta o Redis/Banco para saber em qual "caixinha" o usuário estava.
-
-Roteamento de Menu:
-
-Se o nó atual for um Menu, ele compara a entrada do usuário com as opções disponíveis.
-
-Rota de Erro: Se a entrada não coincidir com nenhuma opção, ele verifica se existe uma saída de invalid-active. Se existir, direciona para lá. Se não, repete a pergunta.
-
-5. O Executor de Ações (executarNo)
-Esta função realiza o trabalho pesado ("Side Effects").
-
-Tipo Mensagem: Envia texto e aciona o gatilho recursivo (se houver próximo nó conectado, chama a si mesma).
-
-Tipo Mídia/Áudio:
-
-Detecta se é áudio e envia como PTT (Push-to-Talk). Isso faz o áudio aparecer no WhatsApp do cliente como "Gravado agora" (com ondas sonoras), aumentando a taxa de conversão.
-
-Caminho absoluto: Utiliza path.resolve para buscar arquivos na pasta public, garantindo que funcione tanto no Windows quanto no Linux.
-
-Tipo Menu:
-
-Decisão Inteligente de UI: Se o menu tiver até 3 opções, ele tenta enviar como Botões Interativos (clicáveis). Se tiver mais, envia como Lista de Texto numerada, garantindo compatibilidade.
-
-6. O Interceptador de Timeout (executarTimeout)
-Uma função especial que não é chamada pelo usuário, mas pelo sistema (timeout.js).
-
-Lógica: Quando o cronômetro estoura, ela força o usuário a sair do nó atual e ir para a saída de Timeout configurada no editor. Se não houver configuração, encerra o atendimento.
-
-6.4 A MEMÓRIA DE DADOS: prisma/schema.prisma
-Este arquivo não é um código executável, mas sim um "contrato". Ele diz ao PostgreSQL exatamente como organizar as gavetas do armário. O CalixtoMasterBot utiliza uma modelagem relacional estrita para garantir segurança, mas com campos JSON flexíveis para armazenar o fluxo visual.
-
-Arquitetura das Tabelas (Models)
-1. O Modelo Cliente (A Entidade Mestre)
-Representa uma instância do Bot (uma conexão de WhatsApp).
-
-id: UUID (Identificador Universal). Não usamos números sequenciais (1, 2, 3) para evitar que alguém adivinhe IDs de outros clientes.
-
-numero: Campo marcado com @unique.
-
-Engenharia: Isso é uma trava de banco de dados. Impede fisicamente que o sistema crie dois bots para o mesmo número de telefone, o que causaria conflito fatal de sessão.
-
-fluxoJson: Tipo Json.
-
-Engenharia: Aqui é onde o desenho do Drawflow é salvo. O PostgreSQL (diferente do MySQL antigo) tem suporte nativo a JSON (JSONB), permitindo salvar estruturas complexas de nós e setas dentro de uma única célula, sem precisar de tabelas auxiliares.
-
-onDelete: Cascade: Configuração crítica nas relações. Se a linha deste Cliente for apagada, o banco apaga automaticamente todos os Contato, Mensagem e SessaoAtiva vinculados a ele. Isso mantém o banco limpo sem scripts extras.
-
-2. O Modelo SessaoAtiva (A Persistência de Estado)
-Embora o Redis gerencie a velocidade, esta tabela é a "âncora" de segurança.
-
-Função: Armazena onde cada usuário está no fluxo (noAtual).
-
-@@unique([clienteId, chatId]): Chave composta.
-
-Engenharia: Garante que um usuário específico (chatId) só possa estar em um lugar do fluxo por vez dentro de um bot (clienteId). É impossível, a nível de banco, o usuário estar no "Menu" e no "Financeiro" simultaneamente.
-
-3. Os Modelos de CRM (Contato e Mensagem)
-Transformam o bot em um sistema de gestão de leads.
-
-Contato: Salva quem falou com o bot (remoteJid), permitindo futuro disparo de mensagens ativas.
-
-Mensagem: Cria um log histórico de auditoria. O campo fromMe distingue se foi o humano ou o robô que falou.
-
-6.5 O GERENTE DE ESTADO: modulos/sessions.js
-Este módulo atua como uma Camada de Abstração (Wrapper) sobre o Redis. O restante do sistema nunca chama o Redis diretamente; eles pedem ao sessions.js para "salvar o cliente" ou "ler o cliente". Isso permite mudar a tecnologia de banco no futuro sem quebrar o código inteiro.
-
-Inovações da Versão V9.0 (Dados Ricos)
-1. Serialização de JSON (setEtapaUsuario)
-Diferente de sistemas simples que salvam apenas "Nó 1", este módulo cria um "Passaporte" do usuário na memória RAM.
-
-O que ele salva:
-
-nodeId: Onde o usuário está.
-
-timestamp: A hora da última mensagem.
-
-timeoutAt: A hora exata (futura) que essa sessão deve morrer.
-
-clienteId e remoteJid: Dados para reconexão rápida.
-
-Por que isso é genial: Ao salvar o timeoutAt dentro do Redis, o monitor de timeout não precisa fazer cálculos complexos. Ele só compara: Agora > timeoutAt?. Se sim, derruba.
-
-2. Controle de Expiração Manual
-Observe que a função NÃO usa o EX (Expiration) nativo do Redis para a chave principal.
-
-Engenharia: Se usássemos o EX do Redis, a chave sumiria sozinha quando o tempo acabasse. O bot "esqueceria" o usuário, mas não mandaria mensagem de tchau.
-
-Solução: Mantemos a chave viva indefinidamente e deixamos o timeout.js decidir quando apagar. Isso permite executar uma lógica de encerramento (mandar mensagem de despedida) antes de limpar a memória.
-
-3. Namespacing (PREFIX = 'sessao:')
-Função: Adiciona um prefixo em todas as chaves.
-
-Segurança: Impede que uma chave de sessão (ex: sessao:5521...) sobrescreva uma chave de pausa ou de configuração do sistema. Organiza o Redis como se fossem pastas.
-
-4. Flag de Intervenção Humana (isPausado)
-Mecanismo: Cria uma chave separada pausa:5521....
-
-Prioridade: O engine.js verifica isso antes de processar qualquer coisa. Se for true, o robô fica lobotomizado para aquele número específico, permitindo que um atendente humano assuma sem que o bot atrapalhe.
-
-6.6 O VIGIA ATIVO: modulos/timeout.js
-Em sistemas web comuns, a sessão expira quando o usuário fecha o navegador. No WhatsApp, o usuário nunca "fecha" a conversa. Por isso, precisamos de um Monitor de Estado Ativo (Polling) que verifica proativamente quem parou de responder.
-
-Arquitetura de "Heartbeat" (Batimento Cardíaco)
-1. O Loop Infinito (iniciar)
-Mecanismo: Utiliza setInterval configurado para 5000ms (5 segundos).
-
-Engenharia: Por que 5 segundos?
-
-Se fosse 1 segundo: Sobrecarregaria a CPU do servidor varrendo o Redis à toa.
-
-Se fosse 1 minuto: O cliente poderia ficar "preso" esperando o timeout por muito tempo.
-
-5 segundos é o "Sweet Spot" (ponto de equilíbrio) entre performance e precisão.
-
-2. Varredura de Chaves (verificarTimeouts)
-Passo 1: Chama sessions.listarSessoesAtivas(). Isso executa um comando KEYS ou SCAN no Redis para pegar todos os usuários que estão conversando com o bot agora.
-
-Passo 2: Itera sobre cada usuário e recupera o Objeto Rico (JSON) que vimos no módulo anterior.
-
-3. A Lógica de Expulsão
-O código faz uma comparação matemática simples, mas vital:
-
-JavaScript
-
-if (agora > sessao.timeoutAt) { ... }
-Se o relógio do sistema passou da hora marcada no crachá do usuário, o despejo é iniciado.
-
-4. Delegação de Responsabilidade (Injeção de Dependência)
-O timeout.js não envia a mensagem de "Seu tempo acabou". Ele não sabe fazer isso.
-
-Ação: Ele pega a instância do socket (whatsapp.sessoes.get) e a instância do banco (prisma).
-
-Trigger: Ele chama engine.executarTimeout(...).
-
-Por que? Porque quem sabe navegar no fluxo e mandar mensagens é a engine. O timeout.js apenas aperta o gatilho. Isso mantém o código organizado (Separação de Responsabilidades).
-
-🏁 CONCLUSÃO DO CAPÍTULO 6: O CICLO DE VIDA DE UMA MENSAGEM
-
-O index.js inicia o servidor e acorda o timeout.js para começar a vigia.
-
-O whatsapp.js conecta na Meta e fica ouvindo eventos.
-
-Quando chega uma mensagem, ele a higieniza e passa para o engine.js.
-
-O engine.js pergunta para o sessions.js: "Onde esse cara está?".
-
-O sessions.js busca no redis.js em 2ms e devolve a posição.
-
-O engine.js consulta o prisma/schema.prisma para ver o desenho do fluxo e decide a resposta.
-
-Se o usuário demorar a responder, o timeout.js percebe e força o encerramento.
-
-CAPÍTULO 7: FRONTEND E INTERFACE (O COCKPIT)
-Se o Backend é o motor e a transmissão, o Frontend é o painel de instrumentos onde o piloto comanda a máquina. O CalixtoMasterBot utiliza uma abordagem clássica e robusta: EJS para estrutura e Socket.io para reatividade.
-
-Não usamos frameworks pesados (como React ou Angular) para manter o sistema leve. O HTML é gerado no servidor e enviado pronto para o navegador.
-
-7.1 ESTRUTURA DE RENDERIZAÇÃO (SERVER-SIDE)
-Ao acessar http://localhost:3000/dashboard, o navegador não baixa um arquivo HTML vazio. O servidor Node.js (via index.js) lê o banco de dados, pega a lista de clientes e "desenha" a página antes de enviar.
-
-O Loop de Criação de Cards
-A mágica acontece neste trecho do EJS:
-
-Snippet de código
-
-<% clientes.forEach(c => { %>
-    <div class="card" id="card-<%= c.id %>">
-        ...
-    </div>
-<% }) %>
-Funcionamento: O código entre <% ... %> é JavaScript que roda no servidor. Para cada cliente encontrado no Banco de Dados, ele clona o modelo HTML do "Card".
-
-IDs Dinâmicos: Note o id="card-<%= c.id %>". Isso gera elementos HTML únicos, como card-uuid-123 e card-uuid-456. Isso é crucial para que o JavaScript saiba qual "quadradinho" atualizar depois.
-
-7.2 COMUNICAÇÃO EM TEMPO REAL (SOCKET.IO)
-A maior inovação da interface V9.0 é que você não precisa dar F5 (atualizar a página) para ver se o bot conectou ou para pegar o código de pareamento.
-
-Isso é possível graças ao script no final do arquivo:
-
-JavaScript
-
-const socket = io();
-Isso abre um "Tubo" permanente entre o navegador e o servidor.
-
-Evento 1: Recebimento do Código de Pareamento
-Quando o whatsapp.js gera o código de 8 dígitos, ele envia um grito via Socket. O painel escuta:
-
-JavaScript
-
-socket.on('pairingCode', (data) => {
-    // 1. Acha a caixinha do cliente certo usando o ID que veio do backend
-    const box = document.getElementById('pairing-box-' + data.clienteId);
+## 🗺️ TOPOLOGIA DO SISTEMA (SYSTEM ARCHITECTURE)
+
+```mermaid
+graph TD
+    %% Estilos
+    classDef external fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef core fill:#e1f5fe,stroke:#01579b,stroke-width:2px;
+    classDef data fill:#fff9c4,stroke:#fbc02d,stroke-width:2px;
+    classDef security fill:#ffebee,stroke:#c62828,stroke-width:2px;
+
+    subgraph WORLD ["☁️ MUNDO EXTERNO (WAN)"]
+        User((👤 Cliente Final)):::external
+        Admin((👑 Super Admin)):::external
+        Meta[📡 WhatsApp/Meta Server]:::external
+    end
+
+    subgraph CLOUD ["🛡️ INFRAESTRUTURA V12 (VPS/LOCAL)"]
+        
+        subgraph NETWORK ["Camada de Rede"]
+            Tunnel[Cloudflare Tunnel<br/>(HTTPS Seguro)]:::security
+            Socket[Socket.io<br/>(Realtime Event Bus)]:::core
+        end
+
+        subgraph KERNEL ["🧠 CORE ENGINE (Node.js Cluster)"]
+            PM2[⚙️ PM2 Supervisor]:::core
+            Engine[Engine de Decisão<br/>(Máquina de Estados)]:::core
+            Interpreter[Interpretador Drawflow<br/>(Parser Lógico)]:::core
+            Auth[Middleware RBAC<br/>(Controle de Planos)]:::security
+        end
+
+        subgraph PERSISTENCE ["💾 CAMADA DE DADOS"]
+            Redis[(⚡ REDIS CACHE<br/>Hot Storage < 2ms)]:::data
+            Postgres[(🐘 POSTGRESQL<br/>Cold Storage / Logs)]:::data
+        end
+    end
+
+    %% Conexões
+    User <-->|WhatsApp Protocol| Meta
+    Meta <-->|WebSocket Criptografado| Kernel
+    Admin <-->|HTTPS/WSS| Tunnel
+    Tunnel <-->|Reverse Proxy| Socket
     
-    // 2. Faz a caixa preta (que estava oculta) aparecer
-    box.style.display = 'block';
-    
-    // 3. Escreve o código dentro dela
-    display.innerText = data.code;
-});
-Resultado: O usuário clica no botão de ligar, espera 3 segundos e a caixa preta aparece magicamente com o código, sem recarregar a tela.
+    %% Fluxo Interno
+    PM2 -->|Monitora & Reinicia| Engine
+    Engine -->|Valida Sessão| Auth
+    Auth -->|Leitura Rápida| Redis
+    Engine -->|Carrega Fluxo| Interpreter
+    Interpreter -->|Persiste Logs| Postgres
+    Interpreter -->|Executa Ação| Meta
 
-Evento 2: Monitor de Status (Online/Offline)
-O painel também escuta se o bot caiu ou conectou:
 
-JavaScript
+```
 
-socket.on('status', (data) => {
-    if (data.status === 'ONLINE') {
-        // Muda a bolinha para verde
-        label.innerHTML = '<span class="dot green"></span> ONLINE';
-        // Esconde a caixa de código (não precisa mais)
-        box.style.display = 'none';
+---
+
+## 📑 ÍNDICE ANALÍTICO (SYSTEM MAP)
+
+1. **[Visão Geral da Arquitetura](https://www.google.com/search?q=%23-1-vis%C3%A3o-geral-da-arquitetura-blueprint-do-sistema)** - O Blueprint do Kernel.
+2. **[Anatomia Técnica & Arquivos](https://www.google.com/search?q=%23-2-anatomia-t%C3%A9cnica--l%C3%B3gica-de-arquivos-deep-dive)** - Análise granular de cada módulo.
+3. **[Protocolo de Instalação](https://www.google.com/search?q=%23-3-protocolo-de-instala%C3%A7%C3%A3o-zero-to-hero)** - Guia de provisionamento em servidor limpo.
+4. **[Modos de Falha (FMEA)](https://www.google.com/search?q=%23-4-an%C3%A1lise-de-modos-de-falha-e-efeitos-fmea)** - Soluções para erros críticos.
+5. **[Arquitetura de Monetização (SaaS)](https://www.google.com/search?q=%23-5-arquitetura-de-monetiza%C3%A7%C3%A3o--controle-de-planos-saas-economy)** - Lógica de Planos, RBAC e Benefícios.
+6. **[Manual Operacional](https://www.google.com/search?q=%23-6-manual-operacional-do-usu%C3%A1rio)** - Guia de uso para Admin e Cliente.
+
+---
+
+```
+
+```
+## 📑 ÍNDICE ANALÍTICO (SYSTEM MAP)
+
+1.  [**Visão Geral da Arquitetura**](#-1-visão-geral-da-arquitetura-blueprint-do-sistema) - O Blueprint do Kernel.
+2.  [**Anatomia Técnica & Arquivos**](#-2-anatomia-técnica--lógica-de-arquivos-deep-dive) - Análise granular de cada módulo.
+3.  [**Protocolo de Instalação**](#-3-protocolo-de-instalação-zero-to-hero) - Guia de provisionamento em servidor limpo.
+4.  [**Modos de Falha (FMEA)**](#-4-análise-de-modos-de-falha-e-efeitos-fmea) - Soluções para erros críticos.
+5.  [**Arquitetura de Monetização (SaaS)**](#-5-arquitetura-de-monetização--controle-de-planos-saas-economy) - Lógica de Planos, RBAC e Benefícios.
+6.  [**Manual Operacional**](#-6-manual-operacional-do-usuário) - Guia de uso para Admin e Cliente.
+
+---
+
+## 📋 1. Visão Geral da Arquitetura (Blueprint do Sistema)
+
+O **Calixto OmniSystem V12** é uma plataforma SaaS de missão crítica projetada para atuar como uma ponte de alta frequência entre a infraestrutura do WhatsApp (Meta) e regras de negócios complexas. Diferente de chatbots convencionais que dependem de automação de navegador (instável), a V12 opera em um **Kernel Node.js Dedicado** com **Clusterização de Processos**.
+
+O sistema utiliza uma **Arquitetura de Estado Híbrido**:
+1.  **Hot State (RAM/Redis):** Sessões de usuário, contexto de conversação e filas de prioridade são armazenados em memória para latência < 2ms.
+2.  **Cold Storage (PostgreSQL):** Dados de negócios, logs de auditoria, configurações de fluxo e credenciais de usuários são persistidos em disco para durabilidade e conformidade.
+
+### 🏗️ Fluxo Lógico de Dados
+
+```mermaid
+graph TD
+    User[📱 Usuário Final] -->|WebSocket Criptografado| Baileys[📡 Adaptador Baileys]
+    Baileys -->|Stream de Eventos| Engine{⚙️ Motor de Decisão}
+    Engine -->|Busca Estado (2ms)| Redis[(⚡ Cache Redis)]
+    Engine -->|Busca Lógica de Fluxo| DB[(🐘 PostgreSQL / Prisma)]
+    Engine -->|Parseamento Lógico| Interpreter[🧠 Interpretador Drawflow]
+    Interpreter -->|Executar Ação| Baileys
+    Baileys -->|Resposta| User
+
+```
+
+---
+
+## 📂 2. Anatomia Técnica & Lógica de Arquivos (Deep Dive)
+
+Uma análise granular da estrutura de arquivos presente no repositório V12. Cada arquivo representa um módulo específico nesta arquitetura monolítica modular.
+
+### 🔴 Diretório Raiz (Kernel Layer)
+
+| Arquivo | Classificação | Lógica de Engenharia & Responsabilidade |
+| --- | --- | --- |
+| **`index.js`** | **Ponto de Entrada** | O sistema nervoso central. Inicializa o servidor HTTP Express, vincula o ouvinte `Socket.io` (Realtime), carrega middlewares de segurança (Helmet/CORS) e dispara a conexão com o Banco de Dados. Roteia o tráfego entre Frontend (Views) e Backend (Modules). |
+| **`ecosystem.config.js`** | **Supervisor de Processos** | O arquivo de configuração do **PM2**. Orquestra a inicialização simultânea do `calixto-bot` (Node.js) e do `redis-server` (Banco de Dados) como um ecossistema único. Define políticas de reinício (`autorestart: true`) e limites de memória (`max_memory_restart`) para evitar vazamentos. |
+| **`package.json`** | **Manifesto de Dependências** | Declara a árvore de dependências da V12. Bibliotecas chave: `@whiskeysockets/baileys` (Protocolo), `ioredis` (Cache), `prisma` (ORM). Define scripts de build e entry points. |
+| **`.env`** | **Cofre de Segurança** | **(Gitignored)** Armazena variáveis de ambiente críticas: `DATABASE_URL`, `REDIS_HOST`, `JWT_SECRET` e `PORT`. Impede que credenciais sensíveis vazem para o repositório público. |
+| **`cloudflared.exe`** | **Agente de Tunelamento** | Um binário que cria um túnel seguro e criptografado do `localhost:3000` para a Rede Edge da Cloudflare. Expõe o servidor local para a internet pública via HTTPS sem necessidade de abrir portas no firewall/roteador. |
+| **`limpar.js`** | **Script de Manutenção** | Utilitário de Garbage Collection. Escaneia as pastas `/public/uploads` e `/logs` para purgar arquivos temporários com mais de X dias, prevenindo saturação de disco (Disk I/O Wait). |
+| **`zerar_tudo.js`** | **Reset Nuclear** | **APENAS DESENVOLVIMENTO.** Um script perigoso que trunca todas as tabelas do banco de dados e executa `FLUSHALL` no Redis. Usado para resetar o ambiente para o estado de fábrica. |
+| **`teste_debug.js`** | **Sandbox** | Ambiente isolado para testar funções específicas (Regex, Similaridade de Strings) sem a necessidade de inicializar o kernel completo. |
+
+### 🟡 `/modulos` (Intelligence Layer)
+
+Este diretório contém a lógica de negócios e unidades de processamento de IA.
+
+| Arquivo | Lógica | Detalhes Técnicos |
+| --- | --- | --- |
+| **`engine.js`** | **O Cérebro** | Implementa a **Máquina de Estados Finita**. Recebe dados brutos (`messages.upsert`), normaliza o texto (sanitização UTF-8), verifica flags de "Intervenção Humana" no Redis e roteia o usuário para o Nó de Fluxo correto. |
+| **`whatsapp.js`** | **Adaptador de Protocolo** | Wrapper para a biblioteca Baileys. Gerencia o ciclo de vida do WebSocket (Connect -> Handshake -> Decrypt -> Keep-Alive). Lida com a geração de QR Code e descriptografia de mídia (Images/Audio). |
+| **`interpretador.js`** | **Parser de Fluxo** | O tradutor do Editor Visual. Deserializa o JSON gerado pelo Drawflow, percorre recursivamente as conexões dos nós (`input` -> `output`) e executa a lógica associada (Enviar Texto, Enviar Áudio, Webhook). |
+| **`redis.js`** | **Conector DB** | Inicializa o cliente `ioredis`. Gerencia a conexão TCP/IP para `127.0.0.1:6379`. Implementa lógica de retentativa (retry strategy) e propagação de erros de conexão. |
+| **`sessions.js`** | **Gerente de Sessão** | Abstrai a complexidade do gerenciamento de estado. Fornece métodos como `getStep()` e `setStep()`. Decide heuristicamente se o dado deve ser trocado rapidamente no Redis ou persistido no Postgres. |
+| **`timeout.js`** | **Watchdog (Vigia)** | Um cron job em background. Polling de sessões ativas a cada 5 segundos. Se `TempoAtual > TempoSessao`, dispara um evento de "Sessão Expirada" para limpar a memória e notificar o usuário. |
+
+### 🔵 `/prisma` (Persistence Layer)
+
+| Arquivo | Função |
+| --- | --- |
+| **`schema.prisma`** | **O Contrato.** Utiliza a DSL do Prisma para definir o esquema do banco de dados. Contém modelos para `User` (Admin SaaS), `Cliente` (Instância WhatsApp) e `Mensagem` (Logs). Força integridade referencial (Cascading Deletes) para evitar orfãos de dados. |
+
+### 🟠 `/views` (Presentation Layer - SSR)
+
+O sistema utiliza **EJS (Server-Side Rendering)** para renderizar HTML no servidor, garantindo segurança e performance.
+
+| Arquivo | Função Visual & UX |
+| --- | --- |
+| **`dashboard.ejs`** | O Painel de Controle (Cockpit). Exibe cards de bots, status (Online/Offline) e switches de controle. Conecta-se via `Socket.io` para receber atualizações de estado em tempo real. |
+| **`editor.ejs`** | A tela de construção de fluxo (Drawflow). Contém o canvas infinito e a lógica JS para manipulação de nós via Drag-and-Drop. |
+| **`landing.ejs`** | A página de apresentação (V10 Neural Update). Estética Cyberpunk/Glassmorphism focada em conversão. |
+| **`login.ejs`** | Tela de autenticação com proteção CSRF e Rate Limiting. |
+| **`admin.ejs`** | **Admin Zone (V12).** Painel exclusivo para o Super Admin gerenciar usuários, planos e faturamento. |
+
+---
+
+## 🛠️ 3. Protocolo de Instalação (Zero to Hero)
+
+Procedimento padrão para provisionamento em um **Windows Server** limpo.
+
+### ✅ Pré-requisitos de Sistema
+
+* **Runtime:** Node.js v20.10.0+ (LTS)
+* **Shell:** Git Bash ou PowerShell Admin
+* **Database:** Redis Server (Binário ou Serviço)
+
+### 👣 Sequência de Deploy
+
+1. **Clonagem e Preparação**
+```powershell
+# Navegue para a raiz do disco
+cd C:\
+# Clone o repositório mestre
+git clone [https://github.com/SEU_USER/calixto-omnisystem-v12.git](https://github.com/SEU_USER/calixto-omnisystem-v12.git)
+cd calixto-omnisystem-v12
+
+```
+
+
+2. **Instalação de Dependências e Ferramentas Globais**
+```powershell
+npm install
+# Instala o Gerenciador de Processos e o ORM globalmente
+npm install pm2 -g
+npm install prisma -g
+npm install pm2-windows-startup -g
+
+```
+
+
+3. **Hidratação do Banco de Dados**
+```powershell
+# Cria as tabelas baseadas no schema.prisma
+npx prisma db push
+# Gera a tipagem estática do cliente Prisma
+npx prisma generate
+
+```
+
+
+4. **Inicialização do Ecossistema (PM2 Cluster)**
+Este comando inicia o Redis e o Bot simultaneamente, gerenciados pelo script de orquestração.
+```powershell
+npx pm2 start ecosystem.config.js
+
+```
+
+
+5. **Persistência de Boot (Imortalidade)**
+Garante que o sistema reinicie automaticamente após falhas de energia ou reboot do Windows.
+```powershell
+npx pm2 save
+pm2-startup install
+
+```
+
+
+
+---
+
+## 🚨 4. Análise de Modos de Falha e Efeitos (FMEA)
+
+Guia de engenharia para resolução de erros críticos observados nos logs (`npx pm2 logs`).
+
+| Código de Erro | Diagnóstico Técnico | Protocolo de Solução |
+| --- | --- | --- |
+| **Error 515 (Stream Errored)** | Dessincronização de chaves criptográficas (Noise Keys) com o servidor Meta. | **1.** `npx pm2 stop all`. **2.** Deletar pasta `/sessions/nome-do-cliente`. **3.** `npx pm2 restart all` e parear novamente. |
+| **ECONNREFUSED 127.0.0.1:6379** | O daemon do Redis não está respondendo ou não iniciou. | Verifique se o processo `redis-server` está listado em `npx pm2 list`. Se não, inicie manualmente via `ecosystem.config.js`. |
+| **EADDRINUSE :::3000** | A porta 3000 está bloqueada por um processo "Zumbi" do Node.js. | Executar `taskkill /F /IM node.exe` no terminal administrativo para matar processos órfãos. |
+| **PrismaClientInitializationError** | O banco de dados PostgreSQL/SQLite está inacessível ou corrompido. | Executar `npx prisma db push` para tentar reparar a estrutura do esquema. |
+| **Heap Out of Memory** | O consumo de RAM excedeu o limite do V8 Engine. | O PM2 reiniciará o processo automaticamente (Política de Self-Healing). Verifique uploads de mídia muito grandes. |
+
+---
+
+## 💎 5. Arquitetura de Monetização & Controle de Planos (SaaS Economy)
+
+A V12 introduz um **Motor de Regras de Negócio** que segrega funcionalidades baseadas no nível de assinatura do cliente (`User.plano`). Diferente de sistemas simples que apenas escondem botões no frontend, o Calixto OmniSystem implementa **Bloqueios Rígidos no Backend** (Middleware Enforcement).
+
+### 5.1 Estrutura de Planos (Tier Definition)
+
+O sistema opera com uma lógica de **Features Flags** ativadas pelo plano.
+
+| Feature / Recurso | 🛡️ Plano ESSENTIAL | 🚀 Plano ADVANCED | 👑 ADMIN (God Mode) |
+| --- | --- | --- | --- |
+| **Instâncias WhatsApp** | Limite: **1 Bot** | Limite: **5 Bots** | **∞ Ilimitado** |
+| **Inteligência Artificial** | ❌ Bloqueado | ✅ **OpenAI / DeepSeek** | ✅ Acesso Debug |
+| **API Externa** | ❌ Bloqueada | ✅ Webhooks Liberados | ✅ Full Access |
+| **Suporte** | Standard (Fila) | Prioritário (SLA 4h) | N/A |
+| **Multi-Atendentes** | Max 1 (O próprio dono) | Ilimitados | Ilimitados |
+| **Agendamento** | Básico | Avançado (Recorrente) | Avançado |
+
+### 5.2 Mecânica de Upgrade/Downgrade (State Transition)
+
+A mudança de plano não exige reinicialização do servidor. Ela segue um fluxo de **Consistência Eventual** entre o Banco de Dados e o Cache.
+
+#### Fluxo de Alteração de Plano (Engenharia):
+
+1. **Ação do Admin:** O Super Admin acessa a `Admin Zone`, localiza o usuário e altera o seletor de plano (ex: de `ESSENTIAL` para `ADVANCED`).
+2. **Commit no PostgreSQL:** O Prisma atualiza a coluna `plano` na tabela `User`.
+3. **Invalidação de Cache (Cache Busting):**
+* O sistema detecta a mudança e envia um comando `DEL` para a chave Redis `user_session:email_do_usuario`.
+* Isso força o sistema a "reler" as permissões no próximo clique do usuário.
+
+
+4. **Feedback Visual:** O usuário final vê uma notificação *Toast* (via Socket.io): *"Seu plano foi atualizado para Advanced! 🚀"*. A UI destrava os recursos premium (Botões de IA e Slot de Bot Extra) instantaneamente (Hot Update).
+
+### 5.3 Implementação de Segurança (Middleware Logic)
+
+O arquivo `middleware/accessControl.js` atua como um "porteiro" para cada rota crítica.
+
+**Exemplo de Lógica (Pseudo-Código de Engenharia):**
+
+```javascript
+// Middleware: Verifica se pode criar novo bot
+async function checkBotLimit(req, res, next) {
+    const user = req.user; // Carregado da Sessão
+    const currentBots = await prisma.cliente.count({ where: { userId: user.id } });
+
+    // Regra 1: Admin ignora tudo
+    if (user.isAdmin) return next();
+
+    // Regra 2: Plano Essential (Limite 1)
+    if (user.plano === 'ESSENTIAL' && currentBots >= 1) {
+        return res.status(403).json({ error: "Upgrade necessário para criar mais bots." });
     }
-});
-Isso dá a sensação de "App Nativo" e alta responsividade.
 
-7.3 INTERATIVIDADE DO USUÁRIO (API FETCH)
-Quando você clica em um botão, o Frontend precisa conversar com a API do Backend.
-
-O Interruptor (Switch On/Off)
-A função toggleBot controla o ciclo de vida do bot.
-
-Feedback Visual Imediato (Optimistic UI): Antes mesmo do servidor responder, o código muda o status para "Iniciando..." (cor cinza/laranja). Isso acalma o usuário, mostrando que o clique funcionou.
-
-Chamada API:
-
-JavaScript
-
-await fetch('/api/status', {
-    method: 'POST',
-    body: JSON.stringify({ clienteId: ..., status: 'ONLINE' })
-});
-Tratamento de Erro: Se a internet cair ou o servidor travar, o catch reverte o botão para a posição original e avisa o usuário.
-
-O Modal de Criação
-Para evitar criar uma página inteira só para cadastrar um número, usamos um Modal (Janela sobreposta).
-
-CSS: A classe .modal-overlay tem display: none.
-
-JS: A função abrirModalNovo() muda para display: flex.
-
-Simplicidade: É uma solução elegante que mantém o usuário focado no painel.
-
-7.4 ESTILIZAÇÃO E DESIGN (DARK MODE)
-O arquivo contém um bloco <style> robusto.
-
-Paleta de Cores: Fundo #000 (Preto Absoluto) e Cartões #0a0a0a (Cinza Quase Preto) com detalhes em #00d2ff (Azul Neon). Essa paleta "Cyberpunk" é intencional para reduzir o cansaço visual de operadores que monitoram o painel à noite.
-
-Responsividade: A classe .grid usa grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)). Isso significa que em monitores grandes, cabem 4 bots lado a lado. Em celulares, eles se empilham um embaixo do outro automaticamente.
-
-
-**PROMPT PARA IA:**
-
-> "Aja como um Arquiteto de Software do Calixto OmniSystem. Gere um JSON de fluxo para um **Consultório de Dentista**.
-> **Regras V9 (Rígidas):**
-> 1. Use o formato Drawflow abaixo.
-> 2. **Menus:** Devem ter a propriedade `"timeout-active": true` e `"invalid-active": true`.
-> 3. **Conexões de Menu:** Se o menu tem 2 opções, a saída `output_3` deve ligar ao nó de timeout (ex: mensagem de encerramento) e `output_4` ao nó de erro (ex: mensagem 'não entendi').
-> 4. **Nó Finalizar:** Obrigatório no fim de cada ramo.
-> 
-> 
-> **Modelo JSON Base:**"
-
-```json
-{
-  "drawflow": {
-    "Home": {
-      "data": {
-        "1": {
-          "id": 1,
-          "name": "inicio",
-          "data": {},
-          "class": "inicio",
-          "html": "Início",
-          "typenode": "vue",
-          "inputs": {},
-          "outputs": {
-            "output_1": { "connections": [{ "node": "2", "output": "input_1" }] }
-          },
-          "pos_x": 50, "pos_y": 50
-        },
-        "2": {
-          "id": 2,
-          "name": "menu",
-          "data": {
-            "question": "Olá! Bem-vindo à SorrisoDent. Como posso ajudar?",
-            "opcao1": "Agendar Consulta",
-            "opcao2": "Falar com Atendente",
-            "buttons-active": true,
-            "timeout-active": true,
-            "timeout": "2",
-            "invalid-active": true
-          },
-          "class": "menu",
-          "html": "Menu Principal",
-          "typenode": "vue",
-          "inputs": { "input_1": { "connections": [{ "node": "1", "input": "output_1" }] } },
-          "outputs": {
-            "output_1": { "connections": [{ "node": "5", "output": "input_1" }] }, 
-            "output_2": { "connections": [{ "node": "6", "output": "input_1" }] },
-            "output_3": { "connections": [{ "node": "98", "output": "input_1" }] }, 
-            "output_4": { "connections": [{ "node": "2", "output": "input_1" }] }  
-          },
-          "pos_x": 400, "pos_y": 50
-        },
-        "5": {
-          "id": 5,
-          "name": "mensagem",
-          "data": { "message": "Para agendar, acesse: agendar.sorrisodent.com" },
-          "class": "mensagem",
-          "html": "Link Agenda",
-          "typenode": "vue",
-          "inputs": { "input_1": { "connections": [] } },
-          "outputs": { "output_1": { "connections": [{ "node": "99", "output": "input_1" }] } },
-          "pos_x": 800, "pos_y": -100
-        },
-        "98": {
-          "id": 98,
-          "name": "mensagem",
-          "data": { "message": "Poxa, você não respondeu. Vou encerrar por aqui." },
-          "class": "mensagem",
-          "html": "Msg Timeout",
-          "typenode": "vue",
-          "inputs": { "input_1": { "connections": [] } },
-          "outputs": { "output_1": { "connections": [{ "node": "99", "output": "input_1" }] } },
-          "pos_x": 800, "pos_y": 300
-        },
-        "99": {
-          "id": 99,
-          "name": "finalizar",
-          "data": {},
-          "class": "finalizar",
-          "html": "Fim",
-          "typenode": "vue",
-          "inputs": { "input_1": { "connections": [] } },
-          "outputs": {},
-          "pos_x": 1200, "pos_y": 100
-        }
-      }
+    // Regra 3: Plano Advanced (Limite 5)
+    if (user.plano === 'ADVANCED' && currentBots >= 5) {
+        return res.status(403).json({ error: "Limite do plano Advanced atingido." });
     }
-  }
+
+    next(); // Permite a criação
 }
 
-## 📌 ATUALIZAÇÃO DE VERSÃO: V9.5 (STABLE) - "The Identity Update"
-**Data:** 12/01/2026
-**Status:** Pronto para Produção (Contabo)
+```
 
-### 1. Identificação Inteligente (PushName Hybrid)
-Resolvemos o problema de identificação em contas Multi-Device (iPhone/Web) onde o WhatsApp enviava IDs criptografados (LID) ao invés do número.
-- **Antes:** O sistema exibia apenas o ID (ex: `1825...@lid`), dificultando saber quem era o cliente.
-- **Agora:** O sistema captura o `pushName` (Nome do Perfil) do usuário.
-- **Fallback de Segurança:** Se o nome não vier, o sistema preenche automaticamente com "Cliente" para evitar quebra de código (`undefined`).
+### 5.4 Benefícios Administrativos (Super User Privileges)
 
-### 2. Módulo de Agenda Nativa (Web)
-Eliminamos a necessidade de Webhooks externos (Zapier/Make) para agendamentos.
-- **Rota:** `/agendar/:clienteId` (Interface Visual para o Lead).
-- **API:** `/api/agendar-externo` (Processa e envia confirmação no WhatsApp).
-- **Funcionamento:** O servidor Node.js agora serve páginas HTML estáticas (`views/agenda.ejs`) que se comunicam diretamente com o núcleo do bot.
+O usuário com a flag `isAdmin: true` possui capacidades que transcendem as regras do SaaS.
 
-### 3. Melhoria no Nó "Transferir"
-A notificação para o Admin agora é rica em detalhes e visualmente limpa.
-- **Template:**
-  🔔 *NOVO TRANSBORDO SOLICITADO*
-  👤 *Nome:* João Silva (Capturado automaticamente)
-  📱 *ID Técnico:* +5521999... (Ou LID)
-  📂 *Setor:* Financeiro
-  👉 *Ação:* Instrução clara de #VOLTAR.
-
-### 4. Nó de Espera (Wait Logic)
-Implementada lógica de pausa real no `engine.js`.
-- O bot agora respeita o tempo configurado no nó "Espera" antes de avançar para o próximo passo, utilizando o `setTimeout` controlado pelo `timeout.js`.
-
-📘 MANUAL TÉCNICO CALIXTO OMNISYSTEM V10.0
-CAPÍTULO EXTRA: GESTÃO DE ATIVOS E MÍDIA (ASSETS)
-Este capítulo detalha como integrar os recursos visuais gerados por IA (Veo 3, Nano Bana) dentro da infraestrutura Node.js do Calixto OmniSystem.
-
-E.1 A Arquitetura de Arquivos Estáticos
-Diferente de sites estáticos simples, o Node.js precisa de uma "Zona Pública" declarada para servir arquivos. No nosso index.js, esta linha define a regra:
-
-JavaScript
-
-app.use(express.static('public'));
-Isso significa que tudo que estiver dentro da pasta public é acessível pelo navegador, mas a palavra "public" não entra na URL.
-
-Estrutura de Diretórios Obrigatória:
-
-Plaintext
-
-CalixtoMasterBotV10/
-├── public/
-│   ├── uploads/            <-- O COFRE DE MÍDIA
-│   │   ├── matrix.jpg      (Sua imagem de fundo atual)
-│   │   ├── video-demo-1.mp4
-│   │   └── foto-nano-1.jpg
-│   ├── css/
-│   └── js/
-├── views/
-│   └── landing.ejs         (Onde o código chama a mídia)
-E.2 Procedimento de Injeção de Mídia
-Para colocar os vídeos e fotos gerados pela IA na Landing Page, siga este protocolo:
-
-Transferência: Mova os arquivos gerados para a pasta public/uploads/.
-
-Padronização: Renomeie os arquivos para facilitar a manutenção (ex: demo-veo-8s.mp4, demo-nano.jpg).
-
-Vinculação no Código: Edite o arquivo views/landing.ejs.
-
-Localizando o ponto de injeção: Procure pela seção comentada como ``.
-
-Antes (Código Atual - Placeholder):
-
-HTML
-
-<div class="gallery-item">
-    <div class="placeholder-text">
-        <i class="ri-movie-ai-line"></i> Demo Veo 3 (8s)
-    </div>
-</div>
-Depois (Como deve ficar com o vídeo):
-
-HTML
-
-<div class="gallery-item">
-    <video autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;">
-        <source src="/uploads/demo-veo-8s.mp4" type="video/mp4">
-    </video>
-    
-    <div class="video-overlay">Demo Veo 3</div>
-</div>
-ATUALIZAÇÃO DO CAPÍTULO 7: FRONTEND V10.0 (THE NEURAL UPDATE)
-A versão 10.0 introduz uma reformulação completa da camada de apresentação, focada em Conversão High-End e Estética Cyberpunk.
-
-7.1 Landing Page "Glassmorphism"
-A antiga página estática foi substituída por uma interface fluida baseada em camadas de vidro e neon.
-
-Tecnologia: CSS3 Puro (Sem Frameworks pesados como Bootstrap).
-
-Performance: Removemos bibliotecas 3D (Spline) para garantir carregamento instantâneo (< 1s).
-
-Fundo Dinâmico: Utilizamos uma imagem de alta resolução (illustration-rain-futuristic-city) com uma máscara de opacidade (rgba(5, 5, 10, 0.7)) para garantir leitura perfeita do texto branco.
-
-7.2 O Protocolo "Jarvis Loader"
-Implementamos uma tela de carregamento cinematográfica para aumentar a percepção de valor do software.
-
-Funcionamento Técnico:
-
-Estado Inicial: O navegador carrega um div com z-index: 99999 (acima de tudo) com fundo preto.
-
-Animação CSS: Círculos giram (@keyframes spin-right) simulando processamento de núcleo.
-
-Logs Simulados: Um script JS injeta linhas de texto ("LOADING KERNEL...", "ACCESS GRANTED") a cada 800ms.
-
-Efeito CRT: Ao finalizar, disparamos a animação crtTurnOn, que simula uma TV de tubo ligando, revelando o site.
-
-7.3 Módulo AI Studio (Vitrine de Serviços)
-Uma nova seção comercial foi adicionada para upsell de serviços de IA Generativa.
-
-Grid Responsivo: Utiliza grid-template-columns: repeat(auto-fit) para se adaptar de Celulares a Telas 4K.
-
-Cards "AI-Tier": Estilização exclusiva com bordas Roxas (--neon-purple) para diferenciar dos planos de automação (Rosas/Ciano).
-
-Botões Deep Link: Os botões "Solicitar" abrem diretamente o WhatsApp API já com a mensagem preenchida (ex: text=Quero%20Cinema%20Pro).
-
-📌 ATUALIZAÇÃO DE VERSÃO: V10.0 (STABLE) - "The Neural Update"
-Data: 14/01/2026 Status: Pronto para Produção (VPS Ubuntu/Windows)
-
-1. Novo Core Visual (Landing Page V10)
-Substituição total do frontend.
-
-Estética: Cyberpunk/Noir.
-
-Paleta: Neon Pink (#ff0055), Cyan (#00f3ff) e Purple (#bd00ff).
-
-Tipografia: Família Orbitron (Títulos) e Rajdhani (Corpo).
-
-2. Integração "Neural Studio"
-Capacidade nativa de exibir portfólio de vídeo e imagem sem iframes externos (YouTube/Vimeo), servindo arquivos diretamente do núcleo Node.js para máxima velocidade e privacidade.
-
-3. Loader "Jarvis"
-Implementação de feedback visual de carregamento para mascarar o tempo de conexão inicial do Socket.io, melhorando a experiência do usuário (UX) em conexões lentas.
-
-4. Conectividade Social Nativa
-Adição de barra de navegação superior com links diretos para WhatsApp e Instagram, aumentando a retenção de leads que visitam a página mas não compram de imediato.
-
-Procedimento de Deploy V10.0
-Como houve alteração em arquivos estáticos e views, o procedimento de atualização requer atenção aos arquivos de mídia.
-
-Parar o processo:
-
-PowerShell
-
-npx pm2 stop calixto-omnisystem
-Atualizar Arquivos: Substituir o conteúdo de views/landing.ejs e garantir que a imagem de fundo esteja em public/uploads/.
-
-Limpar Cache (Opcional):
-
-PowerShell
-
-npx pm2 flush
-Reiniciar:
-
-PowerShell
-
-npx pm2 restart calixto-omnisystem
-Status do Sistema: 🟢 ONLINE | Versão: 10.0.1 | Protocolo: SEGURO
-
-Com base no seu `package.json` e nas implementações que fizemos, o sistema é muito mais robusto do que apenas um "Bot de WhatsApp". Ele é uma **Plataforma Omnichannel** preparada para escala.
-
-Notei dependências importantes no seu arquivo (como `bull` para filas, `instagram-private-api` e `telegram-bot-api`) que indicam que seu sistema já está preparado para ser **Multi-Canal**.
-
-Abaixo, a **Documentação Definitiva V11.0**, consolidando a arquitetura de segurança que fizemos com o arsenal tecnológico completo que você possui.
+* **Shadow Login (Acesso Fantasma):** O Admin pode clicar em "Ver como Cliente" e acessar o Dashboard de qualquer usuário sem saber a senha, para prestar suporte técnico.
+* **Force Disconnect:** Capacidade de derrubar conexões de WhatsApp travadas de qualquer cliente remotamente.
+* **Bypass de Faturamento:** O Admin nunca é bloqueado por falta de pagamento ou expiração de licença.
+* **Logs Globais:** Visualização de erros de *todos* os clientes em tempo real (Stream de Logs) para monitoramento de saúde da infraestrutura.
 
 ---
 
-# 📘 MANUAL TÉCNICO CALIXTO OMNISYSTEM V11.0 (MASTER EDITION)
+## 📘 6. Manual Operacional do Usuário
 
-## 📌 VERSÃO: V11.0 (STABLE) - "The Fortress Update"
+### 6.1 Hierarquia de Acesso (RBAC)
 
-**Data:** 14/01/2026
-**Status:** Pronto para Produção (Contabo)
-**Stack:** Node.js v20 | PostgreSQL | Redis | PM2 Cluster
+* **Super Admin:** Acesso total à `Admin Zone`. Pode criar/deletar usuários, alterar planos (Essential/Advanced) e visualizar métricas globais.
+* **Cliente SaaS:** Acesso ao `Dashboard`. Pode criar bots (limitado pelo plano), editar fluxos e visualizar relatórios.
 
-## 0. ARQUITETURA DE SISTEMA (OMNICHANNEL)
+### 6.2 Ciclo de Vida do Bot
+
+1. **Criação:** No Dashboard, clique em "Novo Cliente". O sistema aloca um slot no banco de dados.
+2. **Pareamento:** Ative o switch "Ligar". O backend gera uma instância do Baileys. O QR Code é transmitido via WebSocket para a tela.
+3. **Construção de Fluxo:** No "Editor Visual", arraste nós (Texto, Menu, Áudio). Conecte `output` (saída) com `input` (entrada).
+* *Nota:* O sistema salva automaticamente a cada alteração.
 
 
+4. **Monitoramento:** Acompanhe o status (Online/Offline) em tempo real. Se o bot desconectar, o sistema tenta reconexão automática (Exponential Backoff).
 
-```text
-+-----------------------------------------------------------------------------+
-|                       ☁️  CAMADA DE ENTRADA (CHANNELS)                      |
-+-----------------------------------------------------------------------------+
-|   [📱 WhatsApp]       [📸 Instagram]       [✈️ Telegram]      [📧 E-mail]   |
-|    (Baileys)      (Insta Private API)    (Teleg. Bot API)    (Nodemailer)   |
-|        |                   |                    |                  |          |
-+--------|-------------------|--------------------|------------------|----------+
-|        v                   v                    v                  v          |
-|  +-----------------------------------------------------------------------+  |
-|  |  ⚙️  CORE ENGINE (Node.js + Express v5)                               |  |
-|  |                                                                       |  |
-|  |   [🔐 Auth/Session] <---> [🧠 Interpretador de Fluxo] <---> [bull 🐂] |  |
-|  |     (Security V11)            (Drawflow JSON)           (Filas/Jobs)|  |
-|  +-----------------------------------------------------------------------+  |
-|            |                                                      ^           |
-|            v                                                      |           |
-|  +------------------+             +--------------------------+    |           |
-|  | ⚡ REDIS DB      |             | 🐘 POSTGRESQL (Prisma)   |    |           |
-|  | (Cache/Sessão)   |             | (Dados Persistentes)     |----+           |
-|  +------------------+             +--------------------------+                |
-+-----------------------------------------------------------------------------+
+---
+
+> **Copyright © 2026 CalixtoDev Engineering.**
+> *Documentação gerada para conformidade com padrões Enterprise SaaS (Nível NASA/JPL).*
 
 ```
 
-O Calixto OmniSystem V11 é uma plataforma SaaS (Software as a Service) focada na orquestração de múltiplas instâncias de WhatsApp. Sua arquitetura centraliza o processamento de mensagens em um núcleo de alta performance, permitindo que um único servidor gerencie dezenas de conexões simultâneas com estabilidade garantida.
-
-## CAPÍTULO 1: ARSENAL TECNOLÓGICO (FULL STACK)
-
-Análise detalhada das tecnologias listadas no `package.json` e suas funções no ecossistema.
-
-### 1.1 O Núcleo (Core)
-
-* **`express` (^5.2.1):** Servidor Web de última geração. A versão 5 traz melhor tratamento de erros assíncronos, vital para a estabilidade do bot.
-* **`ejs` (^3.1.10):** Motor de renderização visual (SSR). Gera o Dashboard e a Landing Page dinamicamente.
-* **`socket.io` (^4.8.3):** Tecnologia de WebSockets para comunicação em tempo real. Responsável por atualizar o QR Code e o Status dos bots sem recarregar a página.
-
-### 1.2 Canais de Comunicação (Omnichannel)
-
-* **`@whiskeysockets/baileys` (^7.0.0-rc.9):** A biblioteca mais avançada para conexão WhatsApp MD (Multi-Device). Permite operar sem celular conectado 24h.
-* **`instagram-private-api` (^1.46.1):** *Recurso Adormecido.* Permite automação de Directs (DM) do Instagram, posts e stories.
-* **`node-telegram-bot-api` (^0.67.0):** *Recurso Adormecido.* Permite criar bots para o Telegram com a mesma lógica de fluxo do WhatsApp.
-* **`nodemailer` (^7.0.12):** Sistema de disparo de e-mails transacionais (Recuperação de senha, notificações de sistema, alertas de fatura).
-
-### 1.3 Dados e Armazenamento
-
-* **`prisma` & `@prisma/client` (^5.10.2):** ORM Moderno. Gerencia o banco de dados PostgreSQL, garantindo segurança contra SQL Injection e tipagem de dados.
-* **`ioredis` (^5.8.2) & `redis` (^5.10.0):** Clientes de conexão para o banco em memória. Usados para sessões de usuário (alta velocidade) e gerenciamento de filas.
-
-### 1.4 Infraestrutura e Performance
-
-* **`bull` (^4.16.5):** *Tecnologia Crítica.* Sistema de filas robusto baseado em Redis. Permite agendar disparos em massa e tarefas pesadas sem travar o bot principal.
-* **`pino` (^10.1.0):** Logger de alta performance (JSON). Substitui o `console.log` para gerar logs que consomem menos CPU e disco.
-* **`node-cron` (^4.2.1):** Agendador de tarefas. Responsável por rotinas de limpeza, backups automáticos e verificação de assinaturas vencidas.
-
-### 1.5 Segurança e Sessão
-
-* **`bcryptjs` (^3.0.3):** Criptografia de senhas (Hashing). Garante que nenhuma senha seja salva em texto puro.
-* **`express-session` (^1.18.2):** Gerenciador de sessões de login no navegador.
-* **`connect-flash` (^0.1.1):** Sistema de mensagens temporárias (ex: "Senha incorreta") que aparecem apenas uma vez na tela.
-
-### 1.6 Utilitários
-
-* **`multer` (^2.0.2) & `express-fileupload`:** Gerenciamento de upload de mídias (áudios, imagens, vídeos) para envio via bot.
-* **`string-similarity` (^4.0.4):** Inteligência Artificial Simples (Fuzzy Logic) para entender erros de digitação dos usuários nos menus.
-* **`moment` (^2.30.1):** Manipulação de datas e horários (agendamentos).
-* **`qrcode-terminal`:** *Legado.* Exibe QR Code no terminal (útil para debug sem interface gráfica).
-
----
-
-## CAPÍTULO 2: CAPACIDADES FUNCIONAIS (O QUE O SISTEMA FAZ?)
-
-### 2.1 Automação e Fluxos
-
-* **Construtor Visual (No-Code):** Criação de fluxos de conversa complexos via interface de arrastar e soltar (Drawflow), sem necessidade de programar.
-* **Multi-Atendimento:** Suporta múltiplos números de WhatsApp (Clientes) rodando simultaneamente no mesmo servidor, isolados uns dos outros.
-* **Menus Dinâmicos:** Criação de menus de opções (Lista ou Botões) que se adaptam à resposta do usuário.
-* **Reconhecimento de Intenção:** Entende erros de digitação (ex: "fincneiro" -> "Financeiro").
-
-### 2.2 Gestão SaaS (Software as a Service)
-
-* **Admin Zone V11:** Painel exclusivo para o Super Admin aprovar novos cadastros e gerenciar a plataforma.
-* **Isolamento de Dados:** Cada cliente vê apenas os seus próprios bots e dados (Multi-Tenancy).
-* **Login Seguro:** Sistema de autenticação com proteção de sessão e criptografia de ponta.
-
-### 2.3 Mídia e Arquivos
-
-* **Envio de Áudio como Gravado:** O sistema envia arquivos de áudio `.mp3` ou `.ogg` simulando gravação em tempo real (aparece o microfone para o cliente final).
-* **Gestão de Uploads:** Interface para subir imagens e vídeos que serão usados nas respostas automáticas.
-
-### 2.4 Resiliência
-
-* **Auto-Reconexão:** Monitoramento constante da conexão com o WhatsApp. Se cair, tenta voltar sozinho.
-* **Filas de Processamento (Bull):** Capacidade de enfileirar milhares de mensagens sem derrubar o servidor.
-
----
-
-## CAPÍTULO 8: SEGURANÇA E GESTÃO DE SESSÃO (V11)
-
-*(Conforme documentação anterior)*
-
-O sistema V11.0 opera com blindagem contra erros de referência (`ReferenceError`).
-
-### 8.1 Correção do "Usuario is not defined"
-
-Implementação de injeção de dependência no `index.js` para garantir que o objeto de sessão esteja sempre disponível nas views.
-
-### 8.2 Protocolo "Admin Zone"
-
-Área segregada no Dashboard visível apenas para o e-mail mestre, com proteção dupla (Frontend via EJS e Backend via API Middleware).
-
-### 8.3 UX de Login
-
-Desativação nativa de autocomplete para evitar cache de credenciais em ambientes de demonstração.
-
----
-
-## CAPÍTULO 9: PROCEDIMENTOS DE DEPLOY V11 (GIT)
-
-Como subir a versão definitiva para a nuvem.
-
-```powershell
-# 1. Adicionar todas as modificações
-git add .
-
-# 2. Commit da Versão Mestre
-git commit -m "V11.0 Master Edition: Full Stack & Security Patch"
-
-# 3. Forçar atualização (Devido a correções de histórico)
-git push -f origin main
-
 ```
-
----
-
-## CAPÍTULO 10: ROTEIRO DE INFRAESTRUTURA (VPS)
-
-### 10.1 A Tríade de Produção
-
-1. **Registro.br:** Domínio.
-2. **Cloudflare:** DNS e Proteção.
-3. **Contabo:** Servidor VPS (Ubuntu 22.04).
-
-### 10.2 Próximos Passos
-
-* [x] Documentação V11 Finalizada.
-* [ ] Compra de Domínio.
-* [ ] Configuração de VPS.
-* [ ] Deploy em Produção.
-
----
-
-### ✅ Instrução Final
-
-Agora que a documentação está completa, **execute os comandos do GIT** (Capítulo 9) no seu terminal.
-
-Assim que você confirmar o `git push`, podemos ir para o navegador comprar o **Domínio** e a **VPS**. Estou no aguardo! 🚀
-
-📘 GUIA RÁPIDO DO USUÁRIO | CALIXTO OMNISYSTEM V11
-Bem-vindo ao Calixto OmniSystem V11. Você agora tem em mãos a ferramenta de automação de WhatsApp mais avançada do mercado. Este guia vai te ensinar a conectar seu número, criar fluxos de conversa e monitorar seus atendimentos.
-
-1️⃣ ACESSO E LOGIN
-Para começar, acesse o painel administrativo através do link fornecido.
-
-Acesse a URL: (Ex: calixtosystem.com.br ou localhost:3000)
-
-Login: Insira seu e-mail e senha cadastrados.
-
-Nota: Seus dados estão protegidos por criptografia de ponta.
-
-Dashboard: Ao entrar, você verá o Painel de Controle com todos os seus robôs.
-
-2️⃣ CRIANDO UM NOVO BOT
-Você pode gerenciar múltiplos números de WhatsApp no mesmo lugar.
-
-No canto superior direito, clique no botão azul + Novo Cliente.
-
-Preencha os dados:
-
-Nome: Um nome para identificar (Ex: "Vendas", "Suporte", "Clínica").
-
-Número: Digite apenas números com DDD (Ex: 5521999999999).
-
-Clique em Salvar. Um novo "Card" (cartão) aparecerá na sua tela.
-
-3️⃣ CONECTANDO O WHATSAPP (QR CODE)
-Agora vamos conectar o cérebro do sistema ao seu celular.
-
-No cartão do bot que você acabou de criar, localize a chavinha (Switch).
-
-Ligue a chave (Clique nela).
-
-O status mudará para 🟡 INICIANDO....
-
-Aguarde alguns segundos. Uma caixa preta aparecerá na tela com um Código de Pareamento ou QR Code.
-
-No seu Celular:
-
-Abra o WhatsApp > Configurações > Aparelhos Conectados > Conectar um Aparelho.
-
-Escaneie o QR Code ou digite o código mostrado.
-
-Pronto! A bolinha ficará 🟢 ONLINE e verde. Seu bot está vivo!
-
-4️⃣ O EDITOR DE FLUXOS (CÉREBRO)
-É aqui que a mágica acontece. Você vai desenhar como o robô deve conversar.
-
-No cartão do bot, clique no botão azul escuro Editar Fluxo.
-
-Você verá uma tela quadriculada. Isso é a sua área de desenho.
-
-Os Blocos (Nós):
-Mensagem: Envia texto simples.
-
-Menu: Cria botões ou listas de opções para o cliente escolher.
-
-Áudio: Envia um áudio como se estivesse gravando na hora (Microfone azul).
-
-Dica: Basta subir o arquivo .mp3 ou .ogg. O sistema faz a conversão automática.
-
-Imagem/Vídeo: Envia mídias visuais.
-
-Como Conectar:
-Clique na bolinha de saída de um bloco e arraste até a entrada do outro.
-
-Exemplo: A saída do bloco "Boas Vindas" liga na entrada do "Menu Principal".
-
-Salvando:
-Sempre clique no ícone de Disquete (Salvar) no canto superior direito após fazer alterações. A atualização é instantânea.
-
-5️⃣ REGRAS DE OURO (BOAS PRÁTICAS)
-Para garantir que seu bot venda muito e não seja bloqueado:
-
-✅ Humanize: Use tempos de espera (delay) entre as mensagens. Não mande 10 mensagens em 1 segundo.
-
-✅ Áudio PTT: Use o recurso de áudio. Ele aumenta a confiança do cliente.
-
-✅ Menus Simples: Evite menus com mais de 3 opções se quiser usar botões. Se tiver mais, o sistema converte para lista numerada automaticamente.
-
-✅ Teste: Sempre teste o fluxo no seu próprio WhatsApp antes de divulgar para os clientes.
-
-❓ SOLUÇÃO DE PROBLEMAS (TROUBLESHOOTING)
-🔴 O Bot ficou Offline (Bolinha Vermelha)
-
-Verifique se o celular principal tem internet e bateria.
-
-No painel, desligue a chavinha, espere 5 segundos e ligue novamente.
-
-🟡 O Botão "Editar" não funciona
-
-Atualize a página (F5). Se persistir, contate o suporte.
-
-🟣 Sou Admin, mas não vejo a "Admin Zone"
-
-Verifique se você está logado com o e-mail mestre (vitorpedrocalixto@gmail.com). Apenas este e-mail tem a visão de Deus do sistema.
-
-Calixto OmniSystem V11 Automação com Inteligência. Vendas com Escala.

@@ -1,20 +1,20 @@
 // ============================================================
-// ARQUIVO: modulos/engine.js (V9.3 - FINAL)
+// ARQUIVO: modulos/engine.js (V18.0 - FINAL CORRIGIDO)
 // ============================================================
 const sessions = require('./sessions');
 const path = require('path');
 const fs = require('fs');
 
-// Função auxiliar para pausa (delay visual)
+// Função auxiliar para pausa (delay visual simulando digitação)
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Normalização de texto (Fuzzy Match) - Remove acentos e deixa minúsculo
+// Normalização de texto (Remove acentos e deixa minúsculo)
 function normalizar(texto) {
     if (!texto) return "";
     return texto.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
-// Calcula tempo de digitação baseado no tamanho do texto
+// Calcula tempo de "Digitando..."
 function calcularTempo(texto) {
     if (!texto) return 1000;
     return Math.min(1000 + (texto.length * 50), 5000);
@@ -30,25 +30,23 @@ function getNextNodeId(node, outputName = 'output_1') {
     return null;
 }
 
-// Detecta tipo de arquivo para envio
+// Detecta tipo de arquivo
 function getMimeType(ext) {
     const types = {
         '.pdf': 'application/pdf', '.txt': 'text/plain', '.doc': 'application/msword',
         '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         '.xls': 'application/vnd.ms-excel', '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         '.ppt': 'application/vnd.ms-powerpoint', '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        '.csv': 'text/csv'
+        '.csv': 'text/csv', '.mp4': 'video/mp4', '.jpeg': 'image/jpeg', '.jpg': 'image/jpeg', '.png': 'image/png'
     };
     return types[ext] || 'application/octet-stream';
 }
 
-// Calcula tempo de vida da sessão (TTL) baseado no nó atual
+// Calcula tempo de vida da sessão
 function getTTL(node) {
-    // Se for nó de ESPERA, o TTL é o tempo configurado nele
     if (node.name === 'espera') {
         return parseInt(node.data.time) || 60; 
     }
-    // Se for MENU com timeout ativo
     if (node.data && node.data['timeout-active'] && node.data.timeout) {
         const parsed = parseInt(node.data.timeout);
         if (!isNaN(parsed) && parsed > 0) return parsed * 60; 
@@ -57,37 +55,40 @@ function getTTL(node) {
 }
 
 // ============================================================
-// 1. PROCESSADOR DE MENSAGENS (A PORTA DE ENTRADA)
+// 1. PROCESSADOR DE MENSAGENS
 // ============================================================
 async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, nomePerfil = "Cliente") {
     const userNum = remoteJid.replace(/\D/g, ''); 
 
-    // --- COMANDOS ESPECIAIS ---
+    // --- 1. BUSCA O CLIENTE NO BANCO ---
+    const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
+    
+    // SE NÃO EXISTIR OU ESTIVER "OFFLINE", O BOT FINGE DE MORTO
+    if (!cliente || cliente.status !== 'ONLINE') {
+        return; 
+    }
 
-    // 1. Reiniciar tudo (#RESET)
+    // --- COMANDOS ESPECIAIS ---
     if (textoMsg.trim().toUpperCase() === '#RESET') {
         await sessions.limparSessao(userNum);
         await sock.sendMessage(remoteJid, { text: "🔄 Sessão reiniciada!" });
         return;
     }
 
-    // 2. Sair do modo humano (#VOLTAR)
     if (textoMsg.trim().toUpperCase() === '#VOLTAR' || textoMsg.trim().toUpperCase() === '#BOT') {
-        await sessions.setPausado(userNum, false); // Destrava o Redis
-        await sessions.limparSessao(userNum);      // Limpa para começar do zero
+        await sessions.setPausado(userNum, false); 
+        await sessions.limparSessao(userNum);      
         await sock.sendMessage(remoteJid, { text: "🤖 *O Bot assumiu novamente!* \nEnvie 'Oi' para ver o menu." });
         return;
     }
 
-    // 3. Verifica se está em atendimento humano
     if (await sessions.isPausado(userNum)) {
-        return; // Se estiver pausado, o código PARA aqui. O humano responde.
+        return; 
     }
 
     // --- LÓGICA DO ROBÔ ---
-
-    const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
-    if (!cliente || !cliente.fluxoJson) return;
+    // Cliente já foi buscado acima, verifica fluxo
+    if (!cliente.fluxoJson) return;
 
     const fluxoData = cliente.fluxoJson.drawflow?.Home?.data;
     if (!fluxoData) return;
@@ -95,35 +96,28 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, n
     let estadoAtualId = await sessions.getEtapaUsuario(userNum);
     let proximoId = null;
 
-    // A. Cliente Novo (Sem sessão)
     if (!estadoAtualId) {
         const startNode = Object.values(fluxoData).find(n => n.name === 'inicio');
         if (startNode) proximoId = getNextNodeId(startNode);
     } 
-    // B. Cliente Antigo (Com sessão)
     else {
         const noAtual = fluxoData[estadoAtualId];
         if (!noAtual) {
             await sessions.limparSessao(userNum);
-            return processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma);
+            return processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, nomePerfil);
         }
 
-        // Se estava em ESPERA e falou, avança o fluxo
         if (noAtual.name === 'espera') {
              proximoId = getNextNodeId(noAtual);
         }
-
-        // Se estava em MENU, verifica as opções
         else if (noAtual.name === 'menu') {
             const entradaRaw = textoMsg.trim(); 
             const entradaNorm = normalizar(entradaRaw);
             let connectionKey = null;
             
-            // Verifica se digitou número (1, 2, 3)
             if (!isNaN(entradaRaw) && parseInt(entradaRaw) > 0) {
                 connectionKey = `output_${entradaRaw}`;
             } else {
-                // Verifica se digitou texto ("Financeiro") - Fuzzy Match
                 Object.keys(noAtual.data).forEach(key => {
                     if (key.startsWith('opcao')) {
                         const textoOpcaoNorm = normalizar(noAtual.data[key]);
@@ -139,7 +133,6 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, n
             if (target) {
                 proximoId = target;
             } else if (noAtual.data['invalid-active']) {
-                // Rota de Erro (Não Entendi)
                 let totalOpcoes = 0;
                 Object.keys(noAtual.data).forEach(k => { if (k.startsWith('opcao')) totalOpcoes++; });
                 
@@ -155,7 +148,6 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, n
                 }
             } else { return; }
         } else {
-            // Outros nós (Mensagem, etc) apenas avançam
             proximoId = getNextNodeId(noAtual);
         }
     }
@@ -166,7 +158,7 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, n
 }
 
 // ============================================================
-// 2. EXECUTOR DE NÓS (O QUE O BOT FAZ)
+// 2. EXECUTOR DE NÓS
 // ============================================================
 async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum, clienteId) {
     const node = fluxoData[nodeId];
@@ -174,19 +166,18 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum, clienteId
 
     console.log(`[ENGINE] 🚀 Executando: ${node.name} (${nodeId})`);
     
-    // Salva onde o usuário está no Redis
     const ttl = getTTL(node);
     await sessions.setEtapaUsuario(userNum, nodeId, ttl, clienteId, remoteJid);
 
-    // --- TIPO: ESPERA (DELAY) ---
+    // --- TIPO: ESPERA ---
     if (node.name === 'espera') {
         const tempo = parseInt(node.data.time) || 60;
         console.log(`[ENGINE] ⏳ Pausando fluxo por ${tempo} segundos...`);
-        return; // IMPORTANTE: O código para aqui! O timeout.js vai retomar depois.
+        return;
     }
 
     // --- TIPO: MENSAGEM ---
-    if (node.name === 'mensagem') {
+    else if (node.name === 'mensagem') {
         const texto = node.data.message;
         if (texto) {
             await sock.sendPresenceUpdate('composing', remoteJid);
@@ -198,39 +189,58 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum, clienteId
         if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId);
     }
 
-    // --- TIPO: MÍDIA ---
+    // --- TIPO: MÍDIA / ÁUDIO (CORREÇÃO DE CAMINHO) ---
     else if (node.name === 'midia' || node.name === 'audio') {
-        const url = node.data.url;
-        if (url) {
-            const cleanUrl = url.startsWith('/') ? url.slice(1) : url;
-            const filePath = path.resolve(__dirname, '..', 'public', cleanUrl);
+        try {
+            const urlRaw = node.data.url; 
+            console.log(`[DEBUG MÍDIA] URL do Fluxo: ${urlRaw}`);
 
-            if (fs.existsSync(filePath)) {
-                if (node.name === 'audio') {
-                    await sock.sendPresenceUpdate('recording', remoteJid);
-                    await delay(3000); 
-                    await sock.sendMessage(remoteJid, { audio: { url: filePath }, mimetype: 'audio/mp4', ptt: node.data.ptt !== false });
+            if (urlRaw) {
+                // Remove o domínio para pegar apenas o nome do arquivo
+                let fileName = "";
+                if (urlRaw.includes('uploads/')) {
+                    fileName = urlRaw.split('uploads/')[1]; 
                 } else {
-                    const ext = path.extname(filePath).toLowerCase();
-                    const isVideo = ['.mp4', '.avi'].includes(ext);
-                    const isImage = ['.jpg', '.jpeg', '.png'].includes(ext);
-                    
-                    await sock.sendPresenceUpdate('composing', remoteJid);
-                    await delay(1500);
+                    fileName = path.basename(urlRaw);
+                }
 
-                    if (isVideo) {
-                        await sock.sendMessage(remoteJid, { video: { url: filePath }, caption: node.data.caption || '', gifPlayback: false });
-                    } else if (isImage) {
-                        await sock.sendMessage(remoteJid, { image: { url: filePath }, caption: node.data.caption || '' });
-                    } else {
-                        const mimetype = getMimeType(ext);
-                        await sock.sendMessage(remoteJid, { document: { url: filePath }, mimetype: mimetype, fileName: path.basename(filePath), caption: node.data.caption || '' });
+                // Caminho absoluto para a pasta public/uploads
+                // Ajuste '../public' conforme a estrutura do seu projeto se necessário
+                const filePath = path.resolve(__dirname, '..', 'public', 'uploads', fileName);
+                console.log(`[DEBUG MÍDIA] Caminho Físico: ${filePath}`);
+
+                if (fs.existsSync(filePath)) {
+                    const fileBuffer = fs.readFileSync(filePath);
+                    const ext = path.extname(filePath).toLowerCase();
+
+                    if (node.name === 'audio') {
+                        await sock.sendMessage(remoteJid, { 
+                            audio: fileBuffer, 
+                            mimetype: 'audio/mp4', 
+                            ptt: node.data.ptt !== false 
+                        });
+                    } 
+                    else {
+                        if (['.mp4', '.avi', '.mov'].includes(ext)) {
+                            await sock.sendMessage(remoteJid, { video: fileBuffer, caption: node.data.caption || '', gifPlayback: false });
+                        } else if (['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
+                            await sock.sendMessage(remoteJid, { image: fileBuffer, caption: node.data.caption || '' });
+                        } else {
+                            await sock.sendMessage(remoteJid, { document: fileBuffer, mimetype: getMimeType(ext), fileName: fileName, caption: node.data.caption || '' });
+                        }
                     }
+                    console.log('[DEBUG MÍDIA] ✅ Enviado!');
+                } else {
+                    console.error(`[ERRO MÍDIA] ❌ Arquivo não existe: ${filePath}`);
+                    await sock.sendMessage(remoteJid, { text: '⚠️ Erro: Mídia não encontrada no servidor.' });
                 }
             } else {
-                console.error(`[ENGINE] ❌ Arquivo não existe: ${filePath}`);
+                console.error('[ERRO MÍDIA] URL vazia no fluxo.');
             }
+        } catch (error) {
+            console.error('[ERRO CRÍTICO MÍDIA]', error);
         }
+        
         const next = getNextNodeId(node);
         if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId);
     }
@@ -250,7 +260,6 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum, clienteId
         const rawButton = node.data.buttons || node.data['buttons-active'];
         const usaBotao = (rawButton === true || rawButton === "true");
 
-        // Envia botões se tiver poucas opções
         if (usaBotao && opcoes.length <= 3) {
             const buttons = opcoes.map(op => ({
                 name: "quick_reply",
@@ -287,50 +296,35 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum, clienteId
         const fim = h2 * 60 + m2;
         const aberto = minutosAtuais >= inicio && minutosAtuais < fim;
         
-        const saida = aberto ? 'output_1' : 'output_2';
+        const saida = aberto ? 'output_1' : 'output_2'; 
         const next = getNextNodeId(node, saida);
         
         if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId);
     }
 
-    // --- TIPO: TRANSFERIR (HUMANO) ---
+    // --- TIPO: TRANSFERIR ---
     else if (node.name === 'transferir') {
         const setor = node.data.fila || "Geral";
         console.log(`[ENGINE] 👤 Transferindo ${userNum} para HUMANO.`);
 
-        // 1. Avisa o cliente
         await sock.sendMessage(remoteJid, { 
             text: `⏳ *Aguarde um momento.*\n\nEstamos transferindo seu atendimento para o setor *${setor}*.\nUm atendente falará com você em breve.` 
         });
 
-        // 2. Trava o Bot no Redis
         await sessions.setPausado(userNum, true);
 
-        // 3. Notificação Dinâmica (Lê número do fluxo)
         const numeroAdminRaw = node.data.notificacao;
-
         if (numeroAdminRaw && numeroAdminRaw.length > 10) {
             try {
                 const numeroLimpo = numeroAdminRaw.replace(/\D/g, '');
                 const adminJid = numeroLimpo.includes('@') ? numeroLimpo : numeroLimpo + '@s.whatsapp.net';
-                
-                // MENSAGEM SEGURA COM NOME E ID
-                const textoNotificacao = `🔔 *NOVO TRANSBORDO SOLICITADO*\n\n` +
-                                         `👤 *Nome:* ${nomePerfil}\n` +
-                                         `📱 *ID Técnico:* +${userNum}\n` +
-                                         `📂 *Setor:* ${setor}\n` +
-                                         `📅 *Data:* ${new Date().toLocaleTimeString('pt-BR')}\n\n` +
-                                         `👉 *Ação:* Vá até o chat deste cliente e digite #VOLTAR para reativar o robô.`;
-
+                const textoNotificacao = `🔔 *NOVO TRANSBORDO*\n📱 Cliente: +${userNum}\n📂 Setor: ${setor}\n👉 Digite #VOLTAR no chat do cliente para reativar o robô.`;
                 await sock.sendMessage(adminJid, { text: textoNotificacao });
-                console.log(`[ENGINE] 🔔 Notificação enviada para: ${adminJid}`);
-                
             } catch (erro) {
                 console.error(`[ENGINE] ❌ Erro notificação:`, erro.message);
             }
         }
-        
-        return; // Bot para aqui.
+        return; 
     }
 
     // --- TIPO: FINALIZAR ---
@@ -341,10 +335,10 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum, clienteId
 }
 
 // ============================================================
-// 3. EXECUTOR DE TIMEOUT (DESPERTADOR)
+// 3. EXECUTOR DE TIMEOUT
 // ============================================================
 async function executarTimeout(userNum, clienteId, remoteJid, nodeId, prisma, sock) {
-    console.log(`[TIMEOUT] ⏰ Evento disparado: ${userNum}`);
+    console.log(`[TIMEOUT] ⏰ Disparado para: ${userNum}`);
     
     const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
     if (!cliente || !cliente.fluxoJson) return;
@@ -356,22 +350,19 @@ async function executarTimeout(userNum, clienteId, remoteJid, nodeId, prisma, so
         return;
     }
 
-    // CASO 1: FIM DA ESPERA (RETOMAR FLUXO)
     if (node.name === 'espera') {
-        console.log(`[TIMEOUT] ✅ Espera concluída. Retomando fluxo...`);
+        console.log(`[TIMEOUT] ✅ Retomando após espera...`);
         const nextId = getNextNodeId(node, 'output_1');
         if (nextId) await executarNo(nextId, fluxoData, sock, remoteJid, userNum, clienteId);
         else await sessions.limparSessao(userNum);
         return;
     }
 
-    // CASO 2: ABANDONO DE MENU
     if (!node.data['timeout-active']) {
         await sessions.limparSessao(userNum);
         return;
     }
 
-    // Calcula qual saída é a do Timeout
     let totalOpcoes = 0;
     if (node.name === 'menu') {
         Object.keys(node.data).forEach(k => { if (k.startsWith('opcao')) totalOpcoes++; });
