@@ -1,5 +1,5 @@
 // ============================================================
-// ARQUIVO: index.js (V10.0 - SAAS + LANDING PAGE) - CORRIGIDO
+// ARQUIVO: index.js (V11.1 - COM EDIÇÃO E ADMIN ESTILOSO)
 // ============================================================
 require('dotenv').config();
 const express = require('express');
@@ -213,6 +213,7 @@ app.get('/editor/:id', isAuth, async (req, res) => {
 // 3. API SEGURA
 // ============================================================
 
+// CRIAR CLIENTE
 app.post('/api/clientes', isAuth, async (req, res) => {
     try {
         await prisma.cliente.create({ 
@@ -224,6 +225,31 @@ app.post('/api/clientes', isAuth, async (req, res) => {
         });
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: "Erro ao criar" }); }
+});
+
+// EDITAR CLIENTE (NOVO - V11.1)
+app.put('/api/clientes/:id', isAuth, async (req, res) => {
+    const { id } = req.params;
+    const { nome, numero } = req.body;
+    
+    try {
+        // Verifica permissão antes de editar
+        const cliente = await prisma.cliente.findUnique({ where: { id } });
+        if (!cliente) return res.status(404).json({ error: 'Cliente não encontrado' });
+        
+        if (req.session.role !== 'ADMIN' && cliente.donoId !== req.session.userId) {
+            return res.status(403).json({ error: 'Sem permissão.' });
+        }
+
+        await prisma.cliente.update({
+            where: { id },
+            data: { nome, numero }
+        });
+        res.json({ status: 'ok' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Erro ao atualizar.' });
+    }
 });
 
 // Função auxiliar
@@ -297,7 +323,7 @@ app.post('/upload', isAuth, upload.single('file'), (req, res) => {
 // ============================================================
 
 app.get('/api/admin/pendentes', async (req, res) => {
-    // TROQUE O E-MAIL ABAIXO PELO SEU
+    // TROQUE O E-MAIL ABAIXO PELO SEU SE PRECISAR MUDAR
     const MEU_EMAIL = 'vitorpedrocalixto@gmail.com'; 
 
     if (!req.session.usuario || req.session.usuario.email !== MEU_EMAIL) { 
@@ -344,6 +370,4 @@ server.listen(PORT, async () => {
         whatsapp.iniciarWhatsApp(cliente, io);
         await new Promise(r => setTimeout(r, 2000));
     }
-
-    
 });

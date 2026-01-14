@@ -1239,7 +1239,280 @@ PowerShell
 npx pm2 restart calixto-omnisystem
 Status do Sistema: 🟢 ONLINE | Versão: 10.0.1 | Protocolo: SEGURO
 
+Com base no seu `package.json` e nas implementações que fizemos, o sistema é muito mais robusto do que apenas um "Bot de WhatsApp". Ele é uma **Plataforma Omnichannel** preparada para escala.
+
+Notei dependências importantes no seu arquivo (como `bull` para filas, `instagram-private-api` e `telegram-bot-api`) que indicam que seu sistema já está preparado para ser **Multi-Canal**.
+
+Abaixo, a **Documentação Definitiva V11.0**, consolidando a arquitetura de segurança que fizemos com o arsenal tecnológico completo que você possui.
+
+---
+
+# 📘 MANUAL TÉCNICO CALIXTO OMNISYSTEM V11.0 (MASTER EDITION)
+
+## 📌 VERSÃO: V11.0 (STABLE) - "The Fortress Update"
+
+**Data:** 14/01/2026
+**Status:** Pronto para Produção (Contabo)
+**Stack:** Node.js v20 | PostgreSQL | Redis | PM2 Cluster
+
+## 0. ARQUITETURA DE SISTEMA (OMNICHANNEL)
 
 
 
+```text
++-----------------------------------------------------------------------------+
+|                       ☁️  CAMADA DE ENTRADA (CHANNELS)                      |
++-----------------------------------------------------------------------------+
+|   [📱 WhatsApp]       [📸 Instagram]       [✈️ Telegram]      [📧 E-mail]   |
+|    (Baileys)      (Insta Private API)    (Teleg. Bot API)    (Nodemailer)   |
+|        |                   |                    |                  |          |
++--------|-------------------|--------------------|------------------|----------+
+|        v                   v                    v                  v          |
+|  +-----------------------------------------------------------------------+  |
+|  |  ⚙️  CORE ENGINE (Node.js + Express v5)                               |  |
+|  |                                                                       |  |
+|  |   [🔐 Auth/Session] <---> [🧠 Interpretador de Fluxo] <---> [bull 🐂] |  |
+|  |     (Security V11)            (Drawflow JSON)           (Filas/Jobs)|  |
+|  +-----------------------------------------------------------------------+  |
+|            |                                                      ^           |
+|            v                                                      |           |
+|  +------------------+             +--------------------------+    |           |
+|  | ⚡ REDIS DB      |             | 🐘 POSTGRESQL (Prisma)   |    |           |
+|  | (Cache/Sessão)   |             | (Dados Persistentes)     |----+           |
+|  +------------------+             +--------------------------+                |
++-----------------------------------------------------------------------------+
 
+```
+
+O Calixto OmniSystem V11 é uma plataforma SaaS (Software as a Service) focada na orquestração de múltiplas instâncias de WhatsApp. Sua arquitetura centraliza o processamento de mensagens em um núcleo de alta performance, permitindo que um único servidor gerencie dezenas de conexões simultâneas com estabilidade garantida.
+
+## CAPÍTULO 1: ARSENAL TECNOLÓGICO (FULL STACK)
+
+Análise detalhada das tecnologias listadas no `package.json` e suas funções no ecossistema.
+
+### 1.1 O Núcleo (Core)
+
+* **`express` (^5.2.1):** Servidor Web de última geração. A versão 5 traz melhor tratamento de erros assíncronos, vital para a estabilidade do bot.
+* **`ejs` (^3.1.10):** Motor de renderização visual (SSR). Gera o Dashboard e a Landing Page dinamicamente.
+* **`socket.io` (^4.8.3):** Tecnologia de WebSockets para comunicação em tempo real. Responsável por atualizar o QR Code e o Status dos bots sem recarregar a página.
+
+### 1.2 Canais de Comunicação (Omnichannel)
+
+* **`@whiskeysockets/baileys` (^7.0.0-rc.9):** A biblioteca mais avançada para conexão WhatsApp MD (Multi-Device). Permite operar sem celular conectado 24h.
+* **`instagram-private-api` (^1.46.1):** *Recurso Adormecido.* Permite automação de Directs (DM) do Instagram, posts e stories.
+* **`node-telegram-bot-api` (^0.67.0):** *Recurso Adormecido.* Permite criar bots para o Telegram com a mesma lógica de fluxo do WhatsApp.
+* **`nodemailer` (^7.0.12):** Sistema de disparo de e-mails transacionais (Recuperação de senha, notificações de sistema, alertas de fatura).
+
+### 1.3 Dados e Armazenamento
+
+* **`prisma` & `@prisma/client` (^5.10.2):** ORM Moderno. Gerencia o banco de dados PostgreSQL, garantindo segurança contra SQL Injection e tipagem de dados.
+* **`ioredis` (^5.8.2) & `redis` (^5.10.0):** Clientes de conexão para o banco em memória. Usados para sessões de usuário (alta velocidade) e gerenciamento de filas.
+
+### 1.4 Infraestrutura e Performance
+
+* **`bull` (^4.16.5):** *Tecnologia Crítica.* Sistema de filas robusto baseado em Redis. Permite agendar disparos em massa e tarefas pesadas sem travar o bot principal.
+* **`pino` (^10.1.0):** Logger de alta performance (JSON). Substitui o `console.log` para gerar logs que consomem menos CPU e disco.
+* **`node-cron` (^4.2.1):** Agendador de tarefas. Responsável por rotinas de limpeza, backups automáticos e verificação de assinaturas vencidas.
+
+### 1.5 Segurança e Sessão
+
+* **`bcryptjs` (^3.0.3):** Criptografia de senhas (Hashing). Garante que nenhuma senha seja salva em texto puro.
+* **`express-session` (^1.18.2):** Gerenciador de sessões de login no navegador.
+* **`connect-flash` (^0.1.1):** Sistema de mensagens temporárias (ex: "Senha incorreta") que aparecem apenas uma vez na tela.
+
+### 1.6 Utilitários
+
+* **`multer` (^2.0.2) & `express-fileupload`:** Gerenciamento de upload de mídias (áudios, imagens, vídeos) para envio via bot.
+* **`string-similarity` (^4.0.4):** Inteligência Artificial Simples (Fuzzy Logic) para entender erros de digitação dos usuários nos menus.
+* **`moment` (^2.30.1):** Manipulação de datas e horários (agendamentos).
+* **`qrcode-terminal`:** *Legado.* Exibe QR Code no terminal (útil para debug sem interface gráfica).
+
+---
+
+## CAPÍTULO 2: CAPACIDADES FUNCIONAIS (O QUE O SISTEMA FAZ?)
+
+### 2.1 Automação e Fluxos
+
+* **Construtor Visual (No-Code):** Criação de fluxos de conversa complexos via interface de arrastar e soltar (Drawflow), sem necessidade de programar.
+* **Multi-Atendimento:** Suporta múltiplos números de WhatsApp (Clientes) rodando simultaneamente no mesmo servidor, isolados uns dos outros.
+* **Menus Dinâmicos:** Criação de menus de opções (Lista ou Botões) que se adaptam à resposta do usuário.
+* **Reconhecimento de Intenção:** Entende erros de digitação (ex: "fincneiro" -> "Financeiro").
+
+### 2.2 Gestão SaaS (Software as a Service)
+
+* **Admin Zone V11:** Painel exclusivo para o Super Admin aprovar novos cadastros e gerenciar a plataforma.
+* **Isolamento de Dados:** Cada cliente vê apenas os seus próprios bots e dados (Multi-Tenancy).
+* **Login Seguro:** Sistema de autenticação com proteção de sessão e criptografia de ponta.
+
+### 2.3 Mídia e Arquivos
+
+* **Envio de Áudio como Gravado:** O sistema envia arquivos de áudio `.mp3` ou `.ogg` simulando gravação em tempo real (aparece o microfone para o cliente final).
+* **Gestão de Uploads:** Interface para subir imagens e vídeos que serão usados nas respostas automáticas.
+
+### 2.4 Resiliência
+
+* **Auto-Reconexão:** Monitoramento constante da conexão com o WhatsApp. Se cair, tenta voltar sozinho.
+* **Filas de Processamento (Bull):** Capacidade de enfileirar milhares de mensagens sem derrubar o servidor.
+
+---
+
+## CAPÍTULO 8: SEGURANÇA E GESTÃO DE SESSÃO (V11)
+
+*(Conforme documentação anterior)*
+
+O sistema V11.0 opera com blindagem contra erros de referência (`ReferenceError`).
+
+### 8.1 Correção do "Usuario is not defined"
+
+Implementação de injeção de dependência no `index.js` para garantir que o objeto de sessão esteja sempre disponível nas views.
+
+### 8.2 Protocolo "Admin Zone"
+
+Área segregada no Dashboard visível apenas para o e-mail mestre, com proteção dupla (Frontend via EJS e Backend via API Middleware).
+
+### 8.3 UX de Login
+
+Desativação nativa de autocomplete para evitar cache de credenciais em ambientes de demonstração.
+
+---
+
+## CAPÍTULO 9: PROCEDIMENTOS DE DEPLOY V11 (GIT)
+
+Como subir a versão definitiva para a nuvem.
+
+```powershell
+# 1. Adicionar todas as modificações
+git add .
+
+# 2. Commit da Versão Mestre
+git commit -m "V11.0 Master Edition: Full Stack & Security Patch"
+
+# 3. Forçar atualização (Devido a correções de histórico)
+git push -f origin main
+
+```
+
+---
+
+## CAPÍTULO 10: ROTEIRO DE INFRAESTRUTURA (VPS)
+
+### 10.1 A Tríade de Produção
+
+1. **Registro.br:** Domínio.
+2. **Cloudflare:** DNS e Proteção.
+3. **Contabo:** Servidor VPS (Ubuntu 22.04).
+
+### 10.2 Próximos Passos
+
+* [x] Documentação V11 Finalizada.
+* [ ] Compra de Domínio.
+* [ ] Configuração de VPS.
+* [ ] Deploy em Produção.
+
+---
+
+### ✅ Instrução Final
+
+Agora que a documentação está completa, **execute os comandos do GIT** (Capítulo 9) no seu terminal.
+
+Assim que você confirmar o `git push`, podemos ir para o navegador comprar o **Domínio** e a **VPS**. Estou no aguardo! 🚀
+
+📘 GUIA RÁPIDO DO USUÁRIO | CALIXTO OMNISYSTEM V11
+Bem-vindo ao Calixto OmniSystem V11. Você agora tem em mãos a ferramenta de automação de WhatsApp mais avançada do mercado. Este guia vai te ensinar a conectar seu número, criar fluxos de conversa e monitorar seus atendimentos.
+
+1️⃣ ACESSO E LOGIN
+Para começar, acesse o painel administrativo através do link fornecido.
+
+Acesse a URL: (Ex: calixtosystem.com.br ou localhost:3000)
+
+Login: Insira seu e-mail e senha cadastrados.
+
+Nota: Seus dados estão protegidos por criptografia de ponta.
+
+Dashboard: Ao entrar, você verá o Painel de Controle com todos os seus robôs.
+
+2️⃣ CRIANDO UM NOVO BOT
+Você pode gerenciar múltiplos números de WhatsApp no mesmo lugar.
+
+No canto superior direito, clique no botão azul + Novo Cliente.
+
+Preencha os dados:
+
+Nome: Um nome para identificar (Ex: "Vendas", "Suporte", "Clínica").
+
+Número: Digite apenas números com DDD (Ex: 5521999999999).
+
+Clique em Salvar. Um novo "Card" (cartão) aparecerá na sua tela.
+
+3️⃣ CONECTANDO O WHATSAPP (QR CODE)
+Agora vamos conectar o cérebro do sistema ao seu celular.
+
+No cartão do bot que você acabou de criar, localize a chavinha (Switch).
+
+Ligue a chave (Clique nela).
+
+O status mudará para 🟡 INICIANDO....
+
+Aguarde alguns segundos. Uma caixa preta aparecerá na tela com um Código de Pareamento ou QR Code.
+
+No seu Celular:
+
+Abra o WhatsApp > Configurações > Aparelhos Conectados > Conectar um Aparelho.
+
+Escaneie o QR Code ou digite o código mostrado.
+
+Pronto! A bolinha ficará 🟢 ONLINE e verde. Seu bot está vivo!
+
+4️⃣ O EDITOR DE FLUXOS (CÉREBRO)
+É aqui que a mágica acontece. Você vai desenhar como o robô deve conversar.
+
+No cartão do bot, clique no botão azul escuro Editar Fluxo.
+
+Você verá uma tela quadriculada. Isso é a sua área de desenho.
+
+Os Blocos (Nós):
+Mensagem: Envia texto simples.
+
+Menu: Cria botões ou listas de opções para o cliente escolher.
+
+Áudio: Envia um áudio como se estivesse gravando na hora (Microfone azul).
+
+Dica: Basta subir o arquivo .mp3 ou .ogg. O sistema faz a conversão automática.
+
+Imagem/Vídeo: Envia mídias visuais.
+
+Como Conectar:
+Clique na bolinha de saída de um bloco e arraste até a entrada do outro.
+
+Exemplo: A saída do bloco "Boas Vindas" liga na entrada do "Menu Principal".
+
+Salvando:
+Sempre clique no ícone de Disquete (Salvar) no canto superior direito após fazer alterações. A atualização é instantânea.
+
+5️⃣ REGRAS DE OURO (BOAS PRÁTICAS)
+Para garantir que seu bot venda muito e não seja bloqueado:
+
+✅ Humanize: Use tempos de espera (delay) entre as mensagens. Não mande 10 mensagens em 1 segundo.
+
+✅ Áudio PTT: Use o recurso de áudio. Ele aumenta a confiança do cliente.
+
+✅ Menus Simples: Evite menus com mais de 3 opções se quiser usar botões. Se tiver mais, o sistema converte para lista numerada automaticamente.
+
+✅ Teste: Sempre teste o fluxo no seu próprio WhatsApp antes de divulgar para os clientes.
+
+❓ SOLUÇÃO DE PROBLEMAS (TROUBLESHOOTING)
+🔴 O Bot ficou Offline (Bolinha Vermelha)
+
+Verifique se o celular principal tem internet e bateria.
+
+No painel, desligue a chavinha, espere 5 segundos e ligue novamente.
+
+🟡 O Botão "Editar" não funciona
+
+Atualize a página (F5). Se persistir, contate o suporte.
+
+🟣 Sou Admin, mas não vejo a "Admin Zone"
+
+Verifique se você está logado com o e-mail mestre (vitorpedrocalixto@gmail.com). Apenas este e-mail tem a visão de Deus do sistema.
+
+Calixto OmniSystem V11 Automação com Inteligência. Vendas com Escala.

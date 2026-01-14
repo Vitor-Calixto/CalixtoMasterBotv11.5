@@ -177,6 +177,38 @@
         }
         .btn-trash:hover { background: #331111; color: #ff4444; }
 
+        /* ADMIN ZONE ESTILOSA (NOVO) */
+        .admin-zone {
+            margin: 60px auto 20px auto;
+            max-width: 500px; /* Impede que estique */
+            padding: 25px;
+            border: 1px solid var(--neon-purple);
+            border-radius: 12px;
+            background: linear-gradient(145deg, #120024 0%, #000 100%);
+            box-shadow: 0 0 15px rgba(189, 0, 255, 0.1);
+            text-align: center;
+        }
+
+        .admin-btn {
+            background: transparent;
+            border: 1px solid var(--neon-purple);
+            color: var(--neon-purple);
+            padding: 12px 25px;
+            border-radius: 50px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .admin-btn:hover {
+            background: var(--neon-purple);
+            color: #fff;
+            box-shadow: 0 0 15px var(--neon-purple);
+        }
+
         /* Estilo da Lista Admin (SweetAlert) */
         .admin-list-item {
             display: flex; 
@@ -210,8 +242,16 @@
                 <div class="card">
                     <div class="card-header">
                         <div>
-                            <div class="bot-name"><%= cliente.nome %></div>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div class="bot-name"><%= cliente.nome %></div>
+                                <button onclick="editarBot('<%= cliente.id %>', '<%= cliente.nome %>', '<%= cliente.numero %>')" 
+                                        style="background: none; border: none; cursor: pointer; color: #666; font-size: 14px;" 
+                                        title="Editar nome/número">
+                                    ✏️
+                                </button>
+                            </div>
                             <div class="bot-id">ID: <%= cliente.id.substring(0,8) %>...</div>
+                            <small style="color:#666; font-size:11px;">Tel: <%= cliente.numero %></small>
                         </div>
                         <div class="status-badge <%= cliente.status === 'ONLINE' ? 'online' : 'offline' %>">
                             <div class="dot"></div>
@@ -230,7 +270,7 @@
                     </div>
 
                     <div class="card-actions">
-                        <button class="btn-edit" onclick="alert('Funcionalidade de editar em breve!')">Editar Fluxo</button>
+                        <button class="btn-edit" onclick="window.location.href='/editor/<%= cliente.id %>'">Editar Fluxo</button>
                         <button class="btn-trash" onclick="excluirBot('<%= cliente.id %>')">🗑️</button>
                     </div>
                 </div>
@@ -241,20 +281,20 @@
     </div>
 
     <% if (usuario && usuario.email === 'vitorpedrocalixto@gmail.com') { %> 
-        <div id="admin-zone" style="margin-top: 60px; padding: 20px; border: 1px solid var(--neon-purple); border-radius: 8px; background: rgba(20,0,40,0.5);">
-            <h4 style="color: var(--neon-purple); margin: 0 0 15px 0;">👑 Admin Zone (Aprovação)</h4>
-            <button onclick="verPendentes()" class="btn-new" style="background: transparent; border: 1px solid var(--neon-purple); width: 100%; justify-content: center;">
-                Ver Usuários Pendentes
+        <div class="admin-zone">
+            <h4 style="color: var(--neon-purple); margin: 0 0 15px 0;">👑 Admin Command Center</h4>
+            <p style="color: #666; font-size: 12px; margin-bottom: 20px;">Gerencie aprovações de novos usuários.</p>
+            <button onclick="verPendentes()" class="admin-btn">
+                Ver Solicitações Pendentes
             </button>
         </div>
     <% } %>
 
 
     <script>
-        // --- FUNÇÕES DE CLIENTES (EXISTENTES) ---
+        // --- FUNÇÕES DE CLIENTES ---
 
         async function novoBot() {
-            // Usando SweetAlert para input
             const { value: formValues } = await Swal.fire({
                 title: 'Novo Cliente',
                 html:
@@ -287,6 +327,47 @@
             }
         }
 
+        // --- FUNÇÃO DE EDIÇÃO (NOVA) ---
+        async function editarBot(id, nomeAtual, numeroAtual) {
+            const { value: formValues } = await Swal.fire({
+                title: 'Editar Cliente',
+                html:
+                    `<div style="text-align:left; color:#ccc; margin-bottom:5px;">Nome:</div>` +
+                    `<input id="edit-nome" class="swal2-input" value="${nomeAtual}">` +
+                    `<div style="text-align:left; color:#ccc; margin-bottom:5px; margin-top:10px;">Número:</div>` +
+                    `<input id="edit-numero" class="swal2-input" value="${numeroAtual}">`,
+                focusConfirm: false,
+                showCancelButton: true,
+                confirmButtonColor: '#0066cc',
+                cancelButtonColor: '#d33',
+                background: '#111', 
+                color: '#fff',
+                preConfirm: () => {
+                    return [
+                        document.getElementById('edit-nome').value,
+                        document.getElementById('edit-numero').value
+                    ]
+                }
+            });
+
+            if (formValues) {
+                const [novoNome, novoNumero] = formValues;
+                
+                const res = await fetch(`/api/clientes/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ nome: novoNome, numero: novoNumero })
+                });
+
+                if (res.ok) {
+                    Swal.fire('Atualizado!', 'Dados alterados com sucesso.', 'success')
+                        .then(() => window.location.reload());
+                } else {
+                    Swal.fire('Erro!', 'Não foi possível atualizar.', 'error');
+                }
+            }
+        }
+
         async function toggleBot(id, statusAtual) {
             const novoStatus = statusAtual === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
             const res = await fetch('/api/status', {
@@ -315,7 +396,7 @@
             }
         }
 
-        // --- FUNÇÕES DE ADMIN (NOVAS) ---
+        // --- FUNÇÕES DE ADMIN ---
         
         async function verPendentes() {
             try {
@@ -334,7 +415,6 @@
                     });
                 }
 
-                // Monta o HTML da lista
                 let htmlContent = lista.map(u => `
                     <div class="admin-list-item">
                         <div style="text-align:left;">
@@ -377,7 +457,7 @@
                         icon: 'success',
                         background: '#000', color: '#fff'
                     }).then(() => {
-                        verPendentes(); // Reabre a lista atualizada
+                        verPendentes(); 
                     });
                 } else {
                     Swal.fire('Erro', 'Não foi possível aprovar.', 'error');
