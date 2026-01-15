@@ -1,5 +1,5 @@
 // ============================================================
-// ARQUIVO: index.js (V14.3 - CRIAÇÃO OFFLINE)
+// ARQUIVO: index.js (V14.5 - CORREÇÃO DO TIMEOUT)
 // ============================================================
 
 // 1. REGRAS DOS PLANOS
@@ -31,7 +31,9 @@ const bcrypt = require('bcryptjs');
 const session = require('express-session'); 
 const flash = require('connect-flash'); 
 
+// --- MÓDULOS INTERNOS ---
 const whatsapp = require('./modulos/whatsapp');
+const timeout = require('./modulos/timeout'); // <--- [CORREÇÃO] IMPORTAR O MÓDULO
 
 const app = express();
 const server = http.createServer(app);
@@ -110,14 +112,13 @@ app.get('/dashboard', isAuth, async (req, res) => {
     } catch (error) { res.status(500).send("Erro no dashboard"); }
 });
 
-// --- API: CLIENTES (MODIFICADO: CRIA OFFLINE) ---
+// --- API: CLIENTES ---
 app.post('/api/clientes', isAuth, async (req, res) => {
     try {
         const user = await prisma.usuario.findUnique({ where: { id: req.session.userId }, include: { clientes: true } });
         const regras = PLANOS[user.plano] || PLANOS['ESSENTIAL'];
         if (user.role !== 'ADMIN' && user.clientes.length >= regras.maxBots) return res.status(403).json({ error: `Limite do plano atingido.` });
 
-        // CRIA COMO OFFLINE (O BOT NÃO INICIA AINDA)
         await prisma.cliente.create({ 
             data: { 
                 nome: req.body.nome, 
@@ -126,9 +127,6 @@ app.post('/api/clientes', isAuth, async (req, res) => {
                 status: 'OFFLINE' 
             } 
         });
-        
-        // NÃO CHAMAMOS O WHATSAPP AQUI. 
-        // O USUÁRIO DEVE LIGAR NO DASHBOARD PARA INICIAR.
         
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: "Erro ao criar" }); }
@@ -185,15 +183,12 @@ app.post('/api/status', isAuth, async (req, res) => {
         console.log(`[SISTEMA] 🔄 Status ${cliente.nome}: ${status}`);
         io.emit('status', { clienteId, status });
 
-        // SE O USUÁRIO LIGOU ('ONLINE'), INICIAMOS O WHATSAPP SE ELE NÃO ESTIVER RODANDO
         const session = whatsapp.sessoes.get(clienteId);
         if (status === 'ONLINE') {
-            // Se não tem sessão ativa, inicia do zero
             if (!session) {
                 const clienteAtualizado = await prisma.cliente.findUnique({ where: { id: clienteId } });
                 whatsapp.iniciarWhatsApp(clienteAtualizado, io);
             }
-            // Se já tem sessão, o engine.js apenas libera o tráfego (Mute desligado)
         }
         
         res.json({ success: true });
@@ -231,30 +226,54 @@ app.post('/api/admin/aprovar', isAuth, async (req, res) => {
     res.json({ status: 'ok' });
 });
 
-// INICIALIZAÇÃO (CARREGA APENAS BOTS QUE JÁ ESTAVAM ONLINE)
 // ============================================================
-// FINAL DO ARQUIVO index.js (V14.4 - FORÇA OFFLINE NO BOOT)
+// INICIALIZAÇÃO DO SERVIDOR (AUTO-START INTELIGENTE V12)
 // ============================================================
 
 server.listen(PORT, async () => {
-    console.log(`🚀 CALIXTO SYSTEM V14 ONLINE NA PORTA ${PORT}`);
+    console.log(`🚀 CALIXTO SYSTEM V14.5 ONLINE NA PORTA ${PORT}`);
 
-    // --- MODO DE SEGURANÇA MÁXIMA ---
-    // 1. Apaga qualquer status "ONLINE" mentiroso do banco de dados.
-    // Assim, quando o sistema iniciar, TODOS os bots estarão OFFLINE.
+    // 1. INICIA O MONITOR DE TIMEOUT
+    console.log('[BOOT] 🕒 Iniciando serviço de Timeout...');
+    timeout.iniciar(); 
+
+    // 2. AUTO-START (COM SEGURANÇA)
     try {
-        await prisma.cliente.updateMany({
-            data: { status: 'OFFLINE' }
+        // Busca apenas quem deveria estar online
+        const clientesParaIniciar = await prisma.cliente.findMany({
+            where: { status: 'ONLINE' }
         });
-        console.log('[BOOT] 🛡️ Todos os bots foram resetados para OFFLINE. Aguardando comando manual.');
-    } catch (e) {
-        console.error('[BOOT] Erro ao resetar status:', e);
-    }
 
-    // 2. (Opcional) Se quiser apagar as pastas de sessão automaticamente ao iniciar, descomente abaixo:
-    // const sessionsDir = path.join(__dirname, 'sessions');
-    // if (fs.existsSync(sessionsDir)) {
-    //     fs.rmSync(sessionsDir, { recursive: true, force: true });
-    //     console.log('[BOOT] 🧹 Pasta de sessões limpa.');
-    // }
+        if (clientesParaIniciar.length > 0) {
+            console.log(`[BOOT] 🔄 Encontrados ${clientesParaIniciar.length} bots para reconexão automática.`);
+            
+            // Loop para iniciar um por um (evita pico de CPU)
+            for (const cliente of clientesParaIniciar) {
+                try {
+                    console.log(`[BOOT] 🔌 Iniciando: ${cliente.nome}...`);
+                    
+                    // Inicia a sessão
+                    await whatsapp.iniciarWhatsApp(cliente, io);
+                    
+                    // Pequeno delay de 2 segundos para estabilizar a conexão antes do próximo
+                    await new Promise(r => setTimeout(r, 2000));
+
+                } catch (erroBot) {
+                    console.error(`[BOOT] ❌ Falha ao iniciar ${cliente.nome}. Marcando como OFFLINE.`);
+                    
+                    // SEGURANÇA: Se falhou no boot, marca como OFFLINE para não enganar o usuário
+                    await prisma.cliente.update({
+                        where: { id: cliente.id },
+                        data: { status: 'OFFLINE' }
+                    });
+                }
+            }
+            console.log('[BOOT] ✅ Processo de Auto-Start concluído.');
+        } else {
+            console.log('[BOOT] 💤 Nenhum bot estava online. Sistema aguardando comando.');
+        }
+
+    } catch (e) {
+        console.error('[BOOT] ❌ Erro crítico no Auto-Start:', e);
+    }
 });
