@@ -11,7 +11,7 @@
     <script src="/socket.io/socket.io.js"></script>
     
     <style>
-        /* --- TEMA AZUL E PRETO (CLEAN DARK) --- */
+        /* --- TEMA DARK NEON --- */
         :root {
             --bg-color: #050505;
             --card-bg: #0f0f0f;
@@ -22,6 +22,7 @@
             --text-muted: #888;
             --danger: #ff3333;
             --success: #00e054;
+            --warning: #ff9900;
         }
 
         body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; margin: 0; padding: 40px; }
@@ -48,15 +49,10 @@
         .edit-icon { color: #666; cursor: pointer; font-size: 14px; transition: 0.2s; }
         .edit-icon:hover { color: #fff; }
 
-        /* BOTÃO DE AJUDA (?) */
-        .help-btn { 
-            background: transparent; border: 1px solid #333; color: #666; width: 24px; height: 24px; 
-            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-            font-size: 12px; cursor: pointer; transition: 0.2s; margin-right: 10px;
-        }
-        .help-btn:hover { border-color: var(--primary-blue); color: var(--primary-blue); background: rgba(0, 102, 255, 0.1); }
-
-        .header-controls { display: flex; align-items: center; }
+        /* HEADER CONTROLS (Icone Ajuda + Switch) */
+        .header-controls { display: flex; align-items: center; gap: 15px; }
+        .help-btn { background: transparent; border: 1px solid #333; color: #666; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; transition: 0.2s; }
+        .help-btn:hover { border-color: var(--primary-blue); color: var(--primary-blue); }
 
         .bot-number { background: #000; border: 1px solid #222; padding: 10px; border-radius: 6px; color: #888; font-family: monospace; font-size: 13px; display: flex; align-items: center; gap: 8px; }
 
@@ -67,7 +63,7 @@
         .btn-lixo { width: 45px; background-color: #1a1a1a; border: 1px solid #333; color: #666; border-radius: 6px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
         .btn-lixo:hover { background-color: #220000; border-color: #550000; color: #ff4444; }
 
-        /* SWITCH COM TEXTO */
+        /* SWITCH */
         .switch { position: relative; display: inline-block; width: 60px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #222; transition: .4s; border-radius: 4px; }
@@ -78,9 +74,9 @@
         input:checked + .slider:after { content: 'ON'; left: 8px; right: auto; color: var(--success); }
         input:disabled + .slider { opacity: 0.5; cursor: not-allowed; }
 
-        /* Pairing */
+        /* Pairing & Help */
         .pairing-box { background: #000; padding: 15px; border: 1px dashed var(--primary-blue); color: var(--primary-blue); font-family: monospace; text-align: center; font-size: 20px; letter-spacing: 3px; display: none; margin-top: 10px; border-radius: 6px; }
-        .pairing-steps { font-size: 11px; color: #555; text-align: center; margin-top: 5px; display: none; }
+        .help-text { font-size: 11px; color: #555; text-align: center; margin-top: 5px; display: none; }
 
         /* ADMIN AREA */
         .admin-section { margin-top: 80px; padding: 0; border-top: 1px solid #222; padding-top: 40px; }
@@ -94,11 +90,14 @@
         .st-ativo { color: var(--success); }
         .st-pendente { color: var(--danger); }
 
+        /* BOTÕES DA TABELA (RESTAURADOS) */
         .btn-action-admin { padding: 6px 12px; border-radius: 4px; font-weight: 700; font-size: 10px; cursor: pointer; text-transform: uppercase; border: none; }
-        .bg-orange { background: #ff9100; color: #000; }
-        .bg-green { background: var(--success); color: #000; }
-        .bg-outline { background: transparent; border: 1px solid #333; color: #666; }
+        .bg-orange { background: #ff9900; color: #000; } /* Laranja Bloquear */
+        .bg-green { background: #00e054; color: #000; } /* Verde Aprovar */
+        .bg-outline { background: transparent; border: 1px solid #333; color: #666; width: 30px; display: flex; align-items: center; justify-content: center; }
+        .bg-outline:hover { border-color: #ff3333; color: #ff3333; }
         
+        /* Botões de Renovação */
         .btn-renova { background: #111; border: 1px solid #333; color: #fff; padding: 6px 12px; cursor: pointer; font-size: 11px; border-radius: 4px; transition: 0.2s; }
         .btn-renova:hover { border-color: var(--primary-blue); color: var(--primary-blue); }
 
@@ -108,6 +107,7 @@
         .bot-tooltip-content { visibility: hidden; position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%); background: #000; border: 1px solid #333; padding: 10px; border-radius: 6px; width: max-content; min-width: 150px; z-index: 10; opacity: 0; transition: 0.2s; box-shadow: 0 10px 30px rgba(0,0,0,0.8); pointer-events: none; }
         .bot-badge-container:hover .bot-tooltip-content { visibility: visible; opacity: 1; bottom: 130%; }
         .tooltip-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #ccc; margin-bottom: 5px; }
+        .tooltip-row:last-child { margin-bottom: 0; }
         .status-dot { width: 6px; height: 6px; border-radius: 50%; }
         
         .swal2-popup { background: #111 !important; border: 1px solid #333 !important; }
@@ -153,7 +153,7 @@
                     </div>
 
                     <div id="pairing-box-<%= c.id %>" class="pairing-box"></div>
-                    <div id="help-text-<%= c.id %>" class="pairing-steps">No WhatsApp > Configurações > Aparelhos Conectados > Conectar</div>
+                    <div id="help-text-<%= c.id %>" class="help-text">WhatsApp > Aparelhos > Conectar</div>
 
                     <div class="card-actions">
                         <button class="btn-fluxo" onclick="window.location.href='/editor/<%= c.id %>'">
@@ -235,6 +235,16 @@
                             else { dataFormatada += ` <br><span style="color:#00e054; font-size:10px;">(${dias} dias)</span>`; }
                         }
 
+                        // --- AQUI: BOTÕES RESTAURADOS NA LINHA PRINCIPAL ---
+                        let btnStatus = '';
+                        if (!u.ativo) {
+                            btnStatus = `<button class="btn-action-admin bg-green" onclick="aprovar('${u.id}')">APROVAR</button>`;
+                        } else {
+                            btnStatus = `<button class="btn-action-admin bg-orange" onclick="bloquear('${u.id}', ${!u.bloqueado})">
+                                ${u.bloqueado ? 'LIBERAR' : 'BLOQUEAR'}
+                            </button>`;
+                        }
+
                         html += `<tr style="border-bottom:1px solid #1a1a1a;">
                             <td onclick="toggleDetalhes('${u.id}')" style="cursor:pointer;">
                                 <div style="color:#fff; font-weight:600; display:flex; align-items:center; gap:5px;">
@@ -248,27 +258,22 @@
                             <td><span class="status-badge ${u.ativo ? 'st-ativo' : 'st-pendente'}">${u.ativo ? 'ATIVO' : 'PENDENTE'}</span></td>
                             <td>
                                 <div style="display:flex; gap:5px;">
-                                    <button class="btn-action-admin bg-outline" onclick="excluirUser('${u.id}')"><i class="ri-delete-bin-line"></i></button>
+                                    ${btnStatus}
+                                    <button class="btn-action-admin bg-outline" onclick="excluirUser('${u.id}')" title="Excluir"><i class="ri-delete-bin-line"></i></button>
                                 </div>
                             </td>
                         </tr>
                         <tr id="detalhe-${u.id}" style="display:none; background:#0a0a0a;">
                             <td colspan="6" style="padding:20px; border-left:2px solid var(--primary-blue);">
-                                <div style="display:flex; justify-content:space-between; align-items:center;">
-                                    <div>
-                                        <h4 style="color:#fff; font-size:11px; margin-bottom:10px;">RENOVAR ACESSO</h4>
-                                        <div style="display:flex; gap:5px;">
-                                            <button class="btn-renova" onclick="renovarAcesso('${u.id}', 30)">+30 Dias</button>
-                                            <button class="btn-renova" onclick="renovarAcesso('${u.id}', 365)">+1 Ano</button>
-                                            <button class="btn-renova" onclick="renovarAcesso('${u.id}', 9999)" style="border-color:#00e054; color:#00e054;">Vitalício</button>
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <h4 style="color:#fff; font-size:11px; margin-bottom:10px;">AÇÕES</h4>
-                                        <button class="btn-action-admin ${u.bloqueado ? 'bg-green' : 'bg-orange'}" onclick="toggleBloqueio('${u.id}', ${!u.bloqueado})">
-                                            ${u.bloqueado ? 'DESBLOQUEAR' : 'BLOQUEAR'}
-                                        </button>
-                                    </div>
+                                <h4 style="color:#fff; font-size:11px; margin-bottom:10px;">RENOVAR ACESSO RÁPIDO</h4>
+                                <div style="display:flex; gap:5px; align-items:center;">
+                                    <button class="btn-renova" onclick="renovarAcesso('${u.id}', 7)">+7d</button>
+                                    <button class="btn-renova" onclick="renovarAcesso('${u.id}', 30)">+30d</button>
+                                    <button class="btn-renova" onclick="renovarAcesso('${u.id}', 365)">+1 Ano</button>
+                                    <button class="btn-renova" onclick="renovarAcesso('${u.id}', 9999)" style="border-color:#00e054; color:#00e054;">Vitalício</button>
+                                    <span style="margin:0 10px; color:#444;">|</span>
+                                    <input type="date" id="date-${u.id}" style="background:#111; border:1px solid #333; color:#fff; padding:4px; border-radius:4px;">
+                                    <button class="btn-renova" onclick="definirData('${u.id}')">OK</button>
                                 </div>
                             </td>
                         </tr>`;
@@ -279,8 +284,14 @@
 
             function toggleDetalhes(id) {
                 const row = document.getElementById(`detalhe-${id}`);
-                if (row.style.display === 'none') row.style.display = 'table-row';
-                else row.style.display = 'none';
+                const icon = document.getElementById(`icon-${id}`);
+                if (row.style.display === 'none') {
+                    row.style.display = 'table-row';
+                    icon.className = 'ri-arrow-down-s-line';
+                } else {
+                    row.style.display = 'none';
+                    icon.className = 'ri-arrow-right-s-line';
+                }
             }
 
             async function renovarAcesso(id, dias) {
@@ -290,9 +301,18 @@
                 Swal.fire({icon:'success', title:'Renovado!', toast:true, position:'top-end', showConfirmButton:false, timer:1500, background:'#111', color:'#fff'});
             }
 
-            async function toggleBloqueio(id, status) {
-                await fetch('/api/admin/usuarios/bloqueio', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ idUsuario: id, bloquear: status }) });
+            async function definirData(id) {
+                const dateInput = document.getElementById(`date-${id}`).value;
+                if (!dateInput) return;
+                await fetch('/api/admin/usuarios/definir-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ idUsuario: id, novaData: dateInput }) });
                 carregarUsuarios();
+            }
+
+            async function aprovar(id) { await fetch('/api/admin/aprovar', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({idUsuario:id})}); carregarUsuarios(); }
+            
+            async function bloquear(id, s) { 
+                await fetch('/api/admin/usuarios/bloqueio', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({idUsuario:id, bloquear:s})}); 
+                carregarUsuarios(); 
             }
 
             async function excluirUser(id) {
@@ -328,39 +348,33 @@
             }
         });
 
-     // POPUP DE AJUDA COM MAIS DICAS (V3.0)
-     function showHelp() {
+        // POPUP DE AJUDA
+        function showHelp() {
             swalDark.fire({
                 title: 'CENTRAL DE AJUDA',
-                width: 600, // Mais largo para caber as dicas
+                width: 600,
                 html: `
                     <div style="text-align:left; font-size:13px; color:#ccc; line-height:1.5;">
-                        
                         <h4 style="color:#0066ff; margin-bottom:10px; text-transform:uppercase;">📶 Problemas de Conexão</h4>
                         <ul style="margin-bottom:15px; padding-left:15px;">
-                            <li><strong>Dica de Ouro:</strong> Desligue o Wi-Fi do celular e use os <strong>Dados Móveis (4G/5G)</strong> para ler o QR Code. Isso troca seu IP e evita erros de conexão.</li>
-                            <li>Verifique no seu WhatsApp em <em>"Aparelhos Conectados"</em>. Se houver muitas sessões antigas, desconecte todas antes de tentar.</li>
+                            <li><strong>Dica de Ouro:</strong> Desligue o Wi-Fi e use <strong>4G/5G</strong> para ler o QR Code (evita bloqueio de IP).</li>
+                            <li>Verifique no WhatsApp em <em>"Aparelhos Conectados"</em> e desconecte sessões antigas.</li>
                         </ul>
-
-                        <h4 style="color:#ffbb00; margin-bottom:10px; text-transform:uppercase;">🛡️ Evite Bloqueios (Anti-Ban)</h4>
+                        <h4 style="color:#ffbb00; margin-bottom:10px; text-transform:uppercase;">🛡️ Evite Bloqueios</h4>
                         <ul style="margin-bottom:15px; padding-left:15px;">
-                            <li>Prefira usar o <strong>WhatsApp Business</strong>.</li>
-                            <li>Se o chip for novo, use-o manualmente por 3 a 5 dias antes de colocar no robô ("Aquecimento").</li>
-                            <li>Nunca envie mensagens em massa para quem não tem seu número salvo.</li>
+                            <li>Use WhatsApp Business.</li>
+                            <li>Se o chip for novo, use manualmente por 3 dias antes de botar no robô.</li>
                         </ul>
-
-                        <hr style="border-color:#333; margin:15px 0;">
-                        
                         <div style="background:rgba(255, 51, 51, 0.1); border:1px solid #ff3333; padding:10px; border-radius:6px;">
                             <p style="color:#ff5555; font-weight:bold; margin:0 0 5px 0;">⚠️ O QR Code piscou ou não conectou?</p>
-                            <p style="margin:0; font-size:12px;">O WhatsApp pode ter te dado um <strong>"Soft Ban"</strong> (bloqueio temporário de API). Isso acontece após muitas tentativas falhas. <br><strong>Solução:</strong> Aguarde 2 a 4 horas sem tentar conectar.</p>
+                            <p style="margin:0; font-size:12px;">Soft Ban detectado. Aguarde 2 a 4 horas sem tentar.</p>
                         </div>
                     </div>
                 `,
-                confirmButtonText: 'Entendi, vou seguir!',
-                confirmButtonColor: '#0066ff'
+                confirmButtonText: 'Entendi!'
             });
         }
+
         async function novoBot() {
             const { value: form } = await swalDark.fire({
                 title: 'Novo Cliente',
@@ -371,7 +385,7 @@
                 const res = await fetch('/api/clientes', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ nome: form[0], numero: form[1] }) });
                 const data = await res.json();
                 if (data.success) {
-                    swalDark.fire({ title: 'Sucesso!', text: 'Deseja configurar agora?', icon: 'success', showCancelButton: true, confirmButtonText: 'Sim' }).then((r) => {
+                    swalDark.fire({ title: 'Sucesso!', text: 'Configurar fluxo?', icon: 'success', showCancelButton: true, confirmButtonText: 'Sim' }).then((r) => {
                         if (r.isConfirmed) window.location.href = '/editor/' + data.id; else window.location.reload();
                     });
                 }
