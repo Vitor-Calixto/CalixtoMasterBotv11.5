@@ -6,25 +6,23 @@
     <title>Calixto OmniSystem | Automação de Elite</title>
     
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;800;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;500;700;800;900&display=swap" rel="stylesheet">
 
     <style>
-        /* ==================== CSS BASE (CYBERPUNK COMMERCIAL) ==================== */
+        /* ==================== CSS BASE ==================== */
         :root {
-            --neon-pink: #ff0055;
+            /* Paleta de cores exata do JARVIS */
             --neon-cyan: #00f3ff;
-            --neon-purple: #bd00ff;
-            --bg-dark: #050505;
-            --text-white: #ffffff;
-            --glass-bg: rgba(10, 15, 20, 0.7);
-            --glass-border: rgba(0, 243, 255, 0.2);
+            --neon-blue: #0066ff;
+            --neon-white: #e0ffff;
+            --bg-dark: #020408;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; }
 
         body {
             background-color: var(--bg-dark);
-            color: var(--text-white);
+            color: var(--neon-white);
             font-family: 'Rajdhani', sans-serif;
             overflow-x: hidden;
             background-image: url('/uploads/illustration-rain-futuristic-city_23-2151406573.avif');
@@ -32,109 +30,163 @@
             background-position: center;
             background-attachment: fixed;
             min-height: 100vh;
-            transition: 0.5s;
         }
 
-        /* Máscara escura */
         body::before {
             content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 5, 10, 0.85); z-index: -1; pointer-events: none;
+            background: rgba(2, 4, 8, 0.92); z-index: -1; pointer-events: none;
         }
 
-        /* Tipografia */
-        h1, h2, h3, .logo, .btn-plan, .section-title, .hero-badge { font-family: 'Orbitron', sans-serif; }
+        /* ==================== JARVIS HUD LOADER (REFINADO) ==================== */
+        #jarvis-loader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(ellipse at center, #0b2e4a 0%, #020408 60%, #000000 100%);
+            z-index: 99999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 1.5s ease-out, visibility 1.5s;
+        }
+        #jarvis-loader.loaded { opacity: 0; visibility: hidden; }
 
+        /* Grade de fundo sutil */
+        #jarvis-loader::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+        }
+
+        /* Wrapper dos anéis (Tamanho Compacto) */
+        .hud-ring-wrapper {
+            position: relative;
+            width: 420px; height: 420px;
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 30px; /* Espaço para o conteúdo abaixo */
+        }
+
+        .hud-svg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            fill: none;
+            overflow: visible;
+            z-index: 1;
+        }
+
+        /* Título Interno (Centralizado no Núcleo) */
+        .hud-title-internal {
+            position: absolute;
+            z-index: 10; /* Acima do SVG */
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 34px; font-weight: 900;
+            letter-spacing: 4px; color: #fff;
+            text-shadow: 0 0 15px var(--neon-cyan), 0 0 35px var(--neon-cyan);
+            margin: 0;
+            white-space: nowrap;
+            animation: text-pulse 3s infinite alternate;
+        }
+
+        /* --- CAMADAS DO REATOR --- */
+        .ring-outer-segments {
+            stroke: var(--neon-cyan); stroke-width: 6; stroke-dasharray: 100 20 50 20 100 20;
+            filter: drop-shadow(0 0 10px var(--neon-cyan)); opacity: 0.8; transform-origin: center; animation: spin-slow 25s linear infinite;
+        }
+        .ring-ticks {
+            stroke: var(--neon-blue); stroke-width: 12; stroke-dasharray: 2 6;
+            opacity: 0.4; transform-origin: center; animation: spin-reverse 40s linear infinite;
+        }
+        .ring-thin-solid {
+            stroke: rgba(224, 255, 255, 0.3); stroke-width: 1; transform-origin: center;
+        }
+        .ring-loader-arc {
+            stroke: var(--neon-white); stroke-width: 3; stroke-dasharray: 60 200;
+            stroke-linecap: round; filter: drop-shadow(0 0 8px #fff); transform-origin: center; animation: spin-fast 4s linear infinite;
+        }
+        .core-circle {
+            stroke: var(--neon-cyan); stroke-width: 2; fill: rgba(0, 243, 255, 0.05);
+            filter: drop-shadow(0 0 25px var(--neon-cyan)); transform-origin: center; animation: pulse 2s ease-in-out infinite alternate;
+        }
+
+        /* --- CONTEÚDO ABAIXO --- */
+        .hud-content-below {
+            position: relative; z-index: 10;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
+        }
+
+        .hud-subtitle {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 14px; color: var(--neon-cyan);
+            letter-spacing: 3px; margin-bottom: 20px;
+            opacity: 0.8; text-transform: uppercase;
+        }
+
+        /* Barra de Loading Fina */
+        .loading-bar-frame {
+            width: 250px; height: 3px;
+            background: rgba(0, 243, 255, 0.15);
+            position: relative; overflow: hidden; border-radius: 4px;
+            box-shadow: 0 0 10px rgba(0, 243, 255, 0.1);
+        }
+        .loading-bar-fill {
+            position: absolute; top: 0; left: 0; height: 100%; width: 100%;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), var(--neon-white), transparent);
+            box-shadow: 0 0 15px var(--neon-cyan);
+            transform: translateX(-100%);
+            animation: loading 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+
+        /* --- ANIMAÇÕES --- */
+        @keyframes spin-slow { 100% { transform: rotate(360deg); } }
+        @keyframes spin-reverse { 100% { transform: rotate(-360deg); } }
+        @keyframes spin-fast { 100% { transform: rotate(360deg); } }
+        @keyframes pulse { 0% { transform: scale(0.97); opacity: 0.8; } 100% { transform: scale(1.03); opacity: 1; } }
+        @keyframes text-pulse { 0% { opacity: 0.9; text-shadow: 0 0 10px var(--neon-cyan); } 100% { opacity: 1; text-shadow: 0 0 25px var(--neon-cyan), 0 0 50px var(--neon-white); } }
+        @keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+        /* ==================== RESTO DO SITE (Mantido) ==================== */
+        h1, h2, h3, .logo, .btn-plan, .section-title, .hero-badge { font-family: 'Orbitron', sans-serif; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
         .section-padding { padding: 100px 0; }
         .text-center { text-align: center; }
 
-        .section-title {
-            font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 10px; text-transform: uppercase;
-            letter-spacing: 2px; text-shadow: 0 0 15px var(--neon-cyan); color: #fff;
-        }
+        .section-title { font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 15px var(--neon-cyan); color: #fff; }
         .section-subtitle { color: #aaa; font-size: 1.2rem; margin-bottom: 60px; max-width: 700px; margin-left: auto; margin-right: auto; }
 
-        /* Botão Neon */
-        .cta-btn {
-            display: inline-block; padding: 18px 45px; 
-            background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple));
-            color: #fff; text-decoration: none; font-weight: 700; border-radius: 5px; 
-            text-transform: uppercase; letter-spacing: 2px; transition: 0.3s; border: 1px solid rgba(255,255,255,0.2);
-            box-shadow: 0 0 20px rgba(255, 0, 85, 0.4); font-family: 'Orbitron'; font-size: 0.9rem;
-        }
+        .cta-btn { display: inline-block; padding: 18px 45px; background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple)); color: #fff; text-decoration: none; font-weight: 700; border-radius: 5px; text-transform: uppercase; letter-spacing: 2px; transition: 0.3s; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 0 20px rgba(255, 0, 85, 0.4); font-family: 'Orbitron'; font-size: 0.9rem; }
         .cta-btn:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255, 0, 85, 0.8); background: #fff; color: #000; }
 
-        /* ==================== NAVBAR ==================== */
-        nav {
-            display: flex; justify-content: space-between; align-items: center; padding: 15px 5%;
-            position: fixed; width: 100%; top: 0; z-index: 1000;
-            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); 
-            border-bottom: 1px solid var(--glass-border);
-        }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; position: fixed; width: 100%; top: 0; z-index: 1000; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid var(--glass-border); }
         .logo { font-size: 1.5rem; font-weight: 900; color: #fff; cursor: pointer; user-select: none; letter-spacing: 2px; }
         .logo span { color: var(--neon-cyan); }
-        
         .nav-right { display: flex; align-items: center; gap: 30px; }
         .social-link { color: #ccc; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.3s; text-transform: uppercase; font-family: 'Orbitron'; letter-spacing: 1px; cursor: pointer; }
         .social-link:hover { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); }
-        
         .btn-login-nav { border: 1px solid var(--neon-cyan); padding: 8px 25px; border-radius: 4px; color: var(--neon-cyan) !important; text-decoration: none; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; transition: 0.3s; font-family: 'Orbitron'; }
         .btn-login-nav:hover { background: var(--neon-cyan); color: #000 !important; box-shadow: 0 0 20px var(--neon-cyan); }
-        
         @media(max-width: 768px) { .nav-right .social-link { display: none; } }
 
-        /* ==================== HERO ==================== */
-        .hero { 
-            min-height: 100vh; display: flex; flex-direction: column; 
-            justify-content: center; align-items: center; text-align: center; 
-            padding: 120px 20px 80px; position: relative; 
-        }
+        .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 120px 20px 80px; position: relative; }
         .hero-content { position: relative; z-index: 1; max-width: 900px; }
         .hero-badge { display: inline-block; background: linear-gradient(90deg, var(--neon-purple), var(--neon-pink)); padding: 5px 15px; font-size: 0.8rem; font-weight: 800; margin-bottom: 30px; transform: skew(-10deg); box-shadow: 0 0 15px rgba(255,0,85,0.5); }
-        
         .hero h1 { font-size: clamp(2.5rem, 8vw, 5rem); line-height: 1.1; margin-bottom: 30px; text-transform: uppercase; text-shadow: 0 0 30px rgba(0,0,0,0.8); }
         .hero h1 .outline { -webkit-text-stroke: 1px #fff; color: transparent; display: block; opacity: 0.7; font-size: 0.6em; margin-bottom: 10px; }
         .hero h1 strong { background: linear-gradient(to bottom, #fff, var(--neon-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px var(--neon-cyan)); }
-        
         #secret-o { cursor: default; transition: 0.3s; }
         #secret-o.activated { text-shadow: 0 0 20px #fff, 0 0 40px var(--neon-cyan); color: #fff !important; -webkit-text-fill-color: #fff !important; }
-
         .hero p { font-size: 1.2rem; color: #ddd; margin-bottom: 50px; text-shadow: 0 2px 4px #000; }
-        
         .hero-btns { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
 
-        /* ==================== AI STUDIO ==================== */
-        .ai-cta-text {
-            font-family: 'Orbitron', sans-serif; color: var(--neon-pink); font-weight: 800; font-size: 1.4rem;
-            margin-top: 40px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px;
-            text-shadow: 0 0 15px var(--neon-pink); animation: pulse-pink 2s infinite alternate;
-        }
+        .ai-cta-text { font-family: 'Orbitron', sans-serif; color: var(--neon-pink); font-weight: 800; font-size: 1.4rem; margin-top: 40px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 15px var(--neon-pink); animation: pulse-pink 2s infinite alternate; }
         @keyframes pulse-pink { from { opacity: 0.8; text-shadow: 0 0 10px var(--neon-pink); } to { opacity: 1; text-shadow: 0 0 30px var(--neon-pink); } }
 
-        .gallery-grid { 
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
-            gap: 30px; margin-top: 30px; 
-        }
-        .gallery-item { 
-            width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid var(--neon-purple); 
-            position: relative; overflow: hidden; border-radius: 10px; 
-            box-shadow: 0 0 15px rgba(189, 0, 255, 0.1); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; margin-top: 30px; }
+        .gallery-item { width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid var(--neon-purple); position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 0 15px rgba(189, 0, 255, 0.1); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         .gallery-item video, .gallery-item img { width: 100%; height: 100%; object-fit: cover; opacity: 0.85; transition: 0.4s; }
-        
         .gallery-item:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 0 30px rgba(189, 0, 255, 0.4); border-color: var(--neon-cyan); }
         .gallery-item:hover video, .gallery-item:hover img { opacity: 1; transform: scale(1.05); }
-
-        .gallery-overlay {
-            position: absolute; bottom: 0; left: 0; width: 100%; padding: 20px 15px;
-            background: linear-gradient(to top, rgba(0,0,0,0.95) 10%, transparent);
-            font-family: 'Share Tech Mono', monospace; color: var(--neon-cyan); font-size: 1rem; font-weight: bold;
-            letter-spacing: 1px; text-shadow: 0 0 5px var(--neon-cyan);
-            transform: translateY(100%); transition: 0.4s;
-        }
+        .gallery-overlay { position: absolute; bottom: 0; left: 0; width: 100%; padding: 20px 15px; background: linear-gradient(to top, rgba(0,0,0,0.95) 10%, transparent); font-family: 'Share Tech Mono', monospace; color: var(--neon-cyan); font-size: 1rem; font-weight: bold; letter-spacing: 1px; text-shadow: 0 0 5px var(--neon-cyan); transform: translateY(100%); transition: 0.4s; }
         .gallery-item:hover .gallery-overlay { transform: translateY(0); }
 
-        /* ==================== COMPARATIVO ==================== */
         .comparison-wrapper { background: rgba(0,0,0,0.6); border: 1px solid var(--neon-cyan); border-radius: 5px; overflow: hidden; max-width: 900px; margin: 0 auto; box-shadow: 0 0 20px rgba(0, 243, 255, 0.1); }
         .comparison-table { display: grid; grid-template-columns: 1fr 1fr; }
         .comp-col { padding: 50px 30px; text-align: center; }
@@ -144,15 +196,10 @@
         .comp-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
         .comp-price { font-size: 2.5rem; font-weight: 700; color: #fff; margin-bottom: 20px; }
         .comp-list li { list-style: none; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; color: #ccc; font-size: 1rem; text-align: left; }
-
         @media(max-width: 768px) { .comparison-table { grid-template-columns: 1fr; } .comp-human { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); } }
 
-        /* ==================== DEPOIMENTOS ==================== */
         .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
-        .testimonial-card { 
-            background: rgba(10, 10, 10, 0.8); border: 1px solid var(--glass-border); 
-            padding: 30px; border-radius: 5px; position: relative; transition: 0.3s;
-        }
+        .testimonial-card { background: rgba(10, 10, 10, 0.8); border: 1px solid var(--glass-border); padding: 30px; border-radius: 5px; position: relative; transition: 0.3s; }
         .testimonial-card:hover { border-color: var(--neon-purple); box-shadow: 0 0 20px rgba(189, 0, 255, 0.2); }
         .test-text { font-style: italic; color: #ddd; margin-bottom: 20px; font-size: 1rem; line-height: 1.6; }
         .test-author { display: flex; align-items: center; gap: 15px; }
@@ -160,16 +207,11 @@
         .test-info h4 { color: #fff; font-weight: 700; font-family: 'Orbitron'; font-size: 0.9rem; }
         .test-info p { font-size: 0.8rem; color: #888; }
 
-        /* ==================== PREÇOS ==================== */
         .pricing-grid { display: flex; justify-content: center; flex-wrap: wrap; gap: 30px; }
-        .price-card { 
-            background: var(--glass-dark); border: 1px solid var(--glass-border); backdrop-filter: blur(20px); 
-            padding: 40px 30px; border-radius: 5px; width: 350px; text-align: center; transition: 0.4s; position: relative; 
-        }
+        .price-card { background: var(--glass-dark); border: 1px solid var(--glass-border); backdrop-filter: blur(20px); padding: 40px 30px; border-radius: 5px; width: 350px; text-align: center; transition: 0.4s; position: relative; }
         .price-card:hover { transform: translateY(-10px); border-color: var(--neon-cyan); box-shadow: 0 0 30px rgba(0, 243, 255, 0.2); }
         .price-card.featured { border: 1px solid var(--neon-pink); background: rgba(20, 0, 10, 0.85); box-shadow: 0 0 20px rgba(255, 0, 85, 0.2); transform: scale(1.05); z-index: 10; }
         .badge-popular { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--neon-pink); color: #fff; padding: 5px 15px; font-size: 0.8rem; font-weight: bold; border-radius: 20px; text-transform: uppercase; font-family: 'Orbitron'; letter-spacing: 1px; }
-        
         .plan-name { font-size: 1.5rem; margin-bottom: 10px; color: #fff; }
         .price { font-size: 3rem; font-weight: 700; color: #fff; display: block; margin: 20px 0; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
         .price span { font-size: 1rem; color: #aaa; font-weight: 400; }
@@ -177,13 +219,11 @@
         .features-list li { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ddd; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
         .features-list li i { color: var(--neon-cyan); font-size: 1.1rem; }
         .featured .features-list li i { color: var(--neon-pink); }
-        
         .btn-plan { display: block; width: 100%; padding: 15px 0; text-decoration: none; color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; font-weight: bold; text-transform: uppercase; transition: 0.3s; cursor: pointer; letter-spacing: 2px; }
         .btn-plan:hover { background: #fff; color: #000; }
         .featured .btn-plan { background: var(--neon-pink); border-color: var(--neon-pink); }
         .featured .btn-plan:hover { background: #ff3377; color: #fff; box-shadow: 0 0 20px var(--neon-pink); }
 
-        /* ==================== FAQ ==================== */
         .faq-grid { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
         .faq-item { background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); border-radius: 5px; overflow: hidden; transition: 0.3s; }
         .faq-question { width: 100%; padding: 20px; text-align: left; background: transparent; border: none; color: #fff; font-family: 'Rajdhani'; font-weight: 700; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
@@ -192,7 +232,6 @@
         .faq-item.active .faq-answer { max-height: 200px; padding-bottom: 20px; }
         .faq-item.active i { transform: rotate(180deg); transition: 0.3s; color: var(--neon-cyan); }
 
-        /* ==================== FOOTER ==================== */
         footer { background: #000; padding: 80px 0 30px; margin-top: 100px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.9rem; color: #888; }
         .footer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; margin-bottom: 60px; }
         .footer-logo { font-size: 1.5rem; font-weight: 900; color: #fff; margin-bottom: 20px; display: block; font-family: 'Orbitron'; letter-spacing: 2px; }
@@ -204,7 +243,6 @@
         .footer-links a:hover { color: var(--neon-cyan); text-shadow: 0 0 5px var(--neon-cyan); }
         .copyright { text-align: center; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); font-family: 'Share Tech Mono'; }
 
-        /* ==================== EASTER EGGS & FX ==================== */
         #god-console { position: fixed; bottom: -300px; left: 0; width: 100%; height: 250px; background: rgba(0, 0, 0, 0.95); border-top: 2px solid #0f0; color: #0f0; font-family: 'Share Tech Mono', monospace; z-index: 1000000; transition: bottom 0.5s; display: flex; flex-direction: column; }
         #god-console.active { bottom: 0; }
         .console-header { background: #0f0; color: #000; padding: 5px 10px; font-weight: bold; font-size: 12px; letter-spacing: 1px; }
@@ -223,12 +261,22 @@
 <body>
 
     <div id="jarvis-loader">
-        <div class="hud-container">
-            <div class="hud-ring ring-1"></div>
-            <div class="hud-ring ring-2"></div>
-            <div class="hud-ring ring-3"></div>
-            <div class="hud-core"></div>
-            <div class="hud-text">CALIXTO SYSTEM<span>INITIALIZING...</span></div>
+        <div class="hud-ring-wrapper">
+            <svg class="hud-svg" viewBox="0 0 600 600">
+                <circle class="ring-thin-solid" cx="300" cy="300" r="280" fill="none" />
+                <circle class="ring-outer-segments" cx="300" cy="300" r="260" fill="none" />
+                <circle class="ring-ticks" cx="300" cy="300" r="230" fill="none" />
+                <circle class="ring-loader-arc" cx="300" cy="300" r="180" fill="none" />
+                <circle class="core-circle" cx="300" cy="300" r="140" />
+            </svg>
+            <h1 class="hud-title-internal">CALIXTO AI</h1>
+        </div>
+
+        <div class="hud-content-below">
+            <p class="hud-subtitle">INICIALIZANDO SISTEMA...</p>
+            <div class="loading-bar-frame">
+                <div class="loading-bar-fill"></div>
+            </div>
         </div>
     </div>
 
@@ -446,8 +494,8 @@
     </footer>
 
     <script>
-        // LOADER
-        window.addEventListener('load', () => setTimeout(() => document.getElementById('jarvis-loader').classList.add('loaded'), 3500));
+        // LOADER (Tempo de 4 segundos para exibir a animação)
+        window.addEventListener('load', () => setTimeout(() => document.getElementById('jarvis-loader').classList.add('loaded'), 4000));
 
         // FAQ
         document.querySelectorAll('.faq-question').forEach(button => {
