@@ -3,113 +3,139 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Criar Conta - Calixto OmniSystem</title>
+    <title>Nova Conta - Calixto OmniSystem</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    
     <style>
-        :root {
-            --bg-color: #050505;
-            --accent-pink: #ff0055; /* Rosa para diferenciar do Login */
-            --text-color: #fff;
-        }
+        /* RESET E BASE (Idêntico ao Login) */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
 
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: 'Segoe UI', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            background-color: #050505;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
             height: 100vh;
-            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
+            /* Gradiente Roxo igual ao Login */
+            background-image: radial-gradient(circle at top center, #1a0b2e 0%, #000000 70%);
         }
 
-        body::before {
-            content: '';
-            position: absolute;
-            width: 150vw; height: 150vw;
-            background: radial-gradient(circle, rgba(255, 0, 85, 0.08), transparent 60%);
-            bottom: -50%; right: -50%;
-            z-index: -1;
-        }
-
-        .login-box {
-            background: rgba(20, 20, 20, 0.6);
-            backdrop-filter: blur(15px);
-            padding: 40px;
+        .login-container {
+            background: rgba(10, 10, 10, 0.8);
+            border: 1px solid #222;
+            padding: 50px 40px;
+            width: 100%;
+            max-width: 400px;
             border-radius: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            width: 350px;
             text-align: center;
-            box-shadow: 0 0 40px rgba(0,0,0,0.5);
+            box-shadow: 0 0 30px rgba(189, 0, 255, 0.05);
+            backdrop-filter: blur(10px);
+            transition: 0.3s;
         }
 
-        h2 { margin-bottom: 10px; letter-spacing: 1px; text-transform: uppercase; font-size: 18px; }
-        p { color: #666; font-size: 13px; margin-bottom: 25px; }
+        .login-container:hover {
+            border-color: rgba(189, 0, 255, 0.3);
+            box-shadow: 0 0 40px rgba(189, 0, 255, 0.15);
+        }
 
+        h2 {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 24px;
+            letter-spacing: 3px;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+        }
+        
+        /* Destaque Roxo Neon */
+        h2 span { color: #bd00ff; text-shadow: 0 0 10px rgba(189, 0, 255, 0.5); }
+
+        /* Inputs Estilizados */
+        .input-group { margin-bottom: 20px; text-align: left; }
+        label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; display: block; font-weight: bold; }
+        
         input {
             width: 100%;
-            padding: 12px;
-            margin: 8px 0;
-            background: rgba(0, 0, 0, 0.3);
+            background: #000;
             border: 1px solid #333;
             color: #fff;
-            border-radius: 5px;
-            box-sizing: border-box;
+            padding: 15px;
+            border-radius: 6px;
+            font-size: 14px;
             outline: none;
             transition: 0.3s;
         }
+        input:focus { border-color: #bd00ff; box-shadow: 0 0 15px rgba(189, 0, 255, 0.2); }
 
-        input:focus { border-color: var(--accent-pink); }
-
+        /* Botão Neon */
         button {
             width: 100%;
-            padding: 12px;
-            background: var(--accent-pink);
-            border: none;
+            padding: 15px;
+            background: #bd00ff;
             color: #fff;
-            font-weight: bold;
-            border-radius: 5px;
-            cursor: pointer;
-            margin-top: 15px;
-            transition: 0.3s;
+            border: none;
+            border-radius: 6px;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
             text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: 0.3s;
+            margin-top: 10px;
         }
+        button:hover { background: #d94eff; box-shadow: 0 0 25px rgba(189, 0, 255, 0.4); transform: translateY(-2px); }
 
-        button:hover { background: #ff4482; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(255, 0, 85, 0.3); }
+        /* Links */
+        .footer { margin-top: 30px; display: flex; justify-content: center; gap: 20px; font-size: 12px; }
+        .footer a { color: #666; text-decoration: none; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; }
+        .footer a:hover { color: #fff; }
 
-        .links { margin-top: 20px; font-size: 12px; }
-        .links a { color: #888; text-decoration: none; }
-        .links a:hover { color: #fff; text-decoration: underline; }
-
-        .error-msg {
-            background: rgba(255, 255, 255, 0.1);
-            color: #ffcccc;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 12px;
-            margin-bottom: 15px;
+        /* Mensagens de Erro */
+        .alert {
+            background: rgba(255, 0, 85, 0.1);
+            border: 1px solid rgba(255, 0, 85, 0.3);
+            color: #ff5e89;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            margin-bottom: 20px;
+            text-align: left;
+            display: flex; align-items: center; gap: 10px;
         }
     </style>
 </head>
 <body>
 
-    <div class="login-box">
-        <h2>Nova Conta</h2>
-        <p>Comece a automatizar hoje.</p>
+    <div class="login-container">
+        <h2>NOVA <span>CONTA</span></h2>
 
-        <% if (message && message.length > 0) { %>
-            <div class="error-msg"><%= message %></div>
+        <% if (locals.message && message.length > 0) { %>
+            <div class="alert">⚠️ <%= message %></div>
         <% } %>
 
-        <form action="/registro" method="POST">
-            <input type="text" name="nome" placeholder="Seu Nome" required>
-            <input type="email" name="email" placeholder="Seu E-mail" required>
-            <input type="password" name="senha" placeholder="Crie uma Senha" required>
-            <button type="submit">REGISTRAR</button>
+        <form action="/registro" method="POST" autocomplete="off">
+            <div class="input-group">
+                <label>Nome Completo</label>
+                <input type="text" name="nome" required placeholder="Ex: João Calixto">
+            </div>
+            
+            <div class="input-group">
+                <label>E-mail</label>
+                <input type="email" name="email" required placeholder="seu@email.com">
+            </div>
+            
+            <div class="input-group">
+                <label>Senha</label>
+                <input type="password" name="senha" required placeholder="Crie uma senha forte">
+            </div>
+            
+            <button type="submit">CADASTRAR</button>
         </form>
 
-        <div class="links">
-            Já tem conta? <a href="/login">Fazer Login</a>
+        <div class="footer">
+            <a href="/login">← Voltar para Login</a>
         </div>
     </div>
 

@@ -3,181 +3,172 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calixto OmniSystem - Dashboard</title>
+    <title>Dashboard - Calixto OmniSystem</title>
     
-    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="/socket.io/socket.io.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="/socket.io/socket.io.js"></script>
     
     <style>
+        /* --- TEMA AZUL E PRETO (CLEAN DARK) --- */
         :root {
-            --bg-color: #000000;
-            --card-bg: #0a0a0a;
+            --bg-color: #050505;
+            --card-bg: #0f0f0f;
             --border-color: #222;
             --primary-blue: #0066ff;
             --primary-hover: #0052cc;
-            --danger-bg: #1a1a1a;
-            --danger-text: #666;
             --text-main: #ffffff;
-            --switch-on: #00e054;
-            --accent: #00d2ff;
+            --text-muted: #888;
+            --danger: #ff3333;
+            --success: #00e054;
         }
 
         body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; margin: 0; padding: 40px; }
 
         /* HEADER */
         .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-        .logo { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; color: #fff; }
-        .plan-badge { font-size: 10px; background: #1a1a1a; border: 1px solid #333; padding: 4px 10px; border-radius: 20px; color: #666; font-weight: 600; margin-left: 10px; }
-        
-        .btn-new-client { background-color: var(--primary-blue); color: #fff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; transition: 0.2s; }
-        .btn-new-client:hover { background-color: var(--primary-hover); }
+        .logo { font-size: 20px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 10px; }
+        .plan-badge { font-size: 11px; background: #1a1a1a; border: 1px solid #333; padding: 3px 10px; border-radius: 4px; color: #666; margin-left: 10px; text-transform: uppercase; letter-spacing: 1px; }
+
+        .btn-new { background-color: var(--primary-blue); color: #fff; border: none; padding: 12px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; transition: 0.2s; font-size: 13px; }
+        .btn-new:hover { background-color: var(--primary-hover); }
         .btn-logout { color: #666; text-decoration: none; font-size: 13px; font-weight: 500; margin-right: 20px; }
         .btn-logout:hover { color: #fff; }
 
         /* GRID */
-        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 25px; }
 
         /* CARD */
-        .card { 
-            background-color: var(--card-bg); border: 1px solid var(--border-color); 
-            border-radius: 12px; padding: 20px; position: relative; transition: transform 0.2s; 
-        }
-        .card:hover { border-color: #333; }
+        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 15px; transition: 0.3s; }
+        .card:hover { border-color: #333; transform: translateY(-2px); }
 
-        .card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
-        .bot-name { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 2px; }
-        .edit-icon { font-size: 12px; color: #444; cursor: pointer; }
+        .card-header { display: flex; justify-content: space-between; align-items: flex-start; }
+        .bot-name { font-weight: 600; font-size: 15px; color: #fff; display: flex; align-items: center; gap: 8px; }
+        .edit-icon { color: #666; cursor: pointer; font-size: 14px; transition: 0.2s; }
         .edit-icon:hover { color: #fff; }
 
-        /* INPUT NÚMERO */
-        .number-display { 
-            background-color: #111; border: 1px solid #222; border-radius: 6px; 
-            padding: 10px 12px; display: flex; align-items: center; gap: 10px; 
-            color: #666; font-size: 13px; font-family: monospace; margin-bottom: 15px;
+        /* BOTÃO DE AJUDA (?) */
+        .help-btn { 
+            background: transparent; border: 1px solid #333; color: #666; width: 24px; height: 24px; 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            font-size: 12px; cursor: pointer; transition: 0.2s; margin-right: 10px;
         }
-        .number-display i { color: #00c853; font-size: 16px; }
+        .help-btn:hover { border-color: var(--primary-blue); color: var(--primary-blue); background: rgba(0, 102, 255, 0.1); }
 
-        /* BOTÕES */
-        .card-actions { display: flex; gap: 8px; }
-        .btn-flow { flex: 1; background-color: var(--primary-blue); color: #fff; border: none; padding: 10px; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; display: flex; justify-content: center; align-items: center; gap: 6px; }
-        .btn-flow:hover { background-color: var(--primary-hover); }
-        .btn-delete { width: 40px; background-color: var(--danger-bg); border: 1px solid #2a2a2a; border-radius: 6px; color: var(--danger-text); cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 16px; }
-        .btn-delete:hover { background-color: #2a1111; color: #ff4444; border-color: #441111; }
+        .header-controls { display: flex; align-items: center; }
 
-        /* SWITCH */
-        .switch { position: relative; display: inline-block; width: 40px; height: 22px; }
+        .bot-number { background: #000; border: 1px solid #222; padding: 10px; border-radius: 6px; color: #888; font-family: monospace; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+
+        /* BOTÕES DO CARD */
+        .card-actions { display: flex; gap: 10px; }
+        .btn-fluxo { flex: 1; background-color: var(--primary-blue); color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-fluxo:hover { background-color: var(--primary-hover); }
+        .btn-lixo { width: 45px; background-color: #1a1a1a; border: 1px solid #333; color: #666; border-radius: 6px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
+        .btn-lixo:hover { background-color: #220000; border-color: #550000; color: #ff4444; }
+
+        /* SWITCH COM TEXTO */
+        .switch { position: relative; display: inline-block; width: 60px; height: 24px; }
         .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #222; transition: .4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 3px; bottom: 3px; background-color: #666; transition: .4s; border-radius: 50%; }
-        input:checked + .slider { background-color: var(--switch-on); }
-        input:checked + .slider:before { transform: translateX(18px); background-color: #fff; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #222; transition: .4s; border-radius: 4px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: #666; transition: .4s; border-radius: 2px; z-index: 2; }
+        .slider:after { content: 'OFF'; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 9px; font-weight: 700; color: #666; font-family: sans-serif; }
+        input:checked + .slider { background-color: rgba(0, 224, 84, 0.15); }
+        input:checked + .slider:before { transform: translateX(36px); background-color: var(--success); }
+        input:checked + .slider:after { content: 'ON'; left: 8px; right: auto; color: var(--success); }
+        input:disabled + .slider { opacity: 0.5; cursor: not-allowed; }
 
-        /* --- DISPLAY DO CÓDIGO (PAIRING CODE) --- */
-        .pairing-container {
-            display: none; /* Invisível por padrão */
-            background: #000;
-            border: 1px dashed var(--accent);
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 15px;
-            text-align: center;
-            animation: slideDown 0.3s ease-out;
-        }
-        .pairing-label { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; }
-        .pairing-code {
-            font-family: 'Courier New', monospace;
-            font-size: 22px; font-weight: 800; color: var(--accent);
-            letter-spacing: 3px; display: block; margin: 5px 0; user-select: all;
-        }
-        .pairing-steps { font-size: 10px; color: #444; margin-top: 5px; }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        /* Pairing */
+        .pairing-box { background: #000; padding: 15px; border: 1px dashed var(--primary-blue); color: var(--primary-blue); font-family: monospace; text-align: center; font-size: 20px; letter-spacing: 3px; display: none; margin-top: 10px; border-radius: 6px; }
+        .pairing-steps { font-size: 11px; color: #555; text-align: center; margin-top: 5px; display: none; }
 
-        /* --- ÁREA ADMIN (ESTILO DARK) --- */
-        .admin-section { 
-            margin-top: 80px; padding: 30px; 
-            border: 1px solid #222; border-radius: 12px; 
-            background-color: #050505; 
-        }
-        .admin-header { display: flex; justify-content: space-between; margin-bottom: 20px; align-items: center; }
-        .admin-title { color: #bd00ff; font-weight: 700; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+        /* ADMIN AREA */
+        .admin-section { margin-top: 80px; padding: 0; border-top: 1px solid #222; padding-top: 40px; }
+        .admin-header { font-size: 14px; font-weight: 700; color: #bd00ff; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; display: flex; justify-content: space-between; align-items: center; }
         
         table { width: 100%; border-collapse: collapse; font-size: 13px; }
-        th { text-align: left; padding: 15px 10px; color: #555; border-bottom: 1px solid #222; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
-        td { padding: 15px 10px; border-bottom: 1px solid #111; color: #ccc; vertical-align: middle; }
+        th { text-align: left; padding: 15px 0; color: #666; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #222; }
+        td { padding: 15px 0; border-bottom: 1px solid #111; color: #ccc; vertical-align: middle; }
         
-        .status-active { color: var(--switch-on); font-weight: bold; font-size: 11px; }
-        .status-pending { color: #ff4444; font-weight: bold; font-size: 11px; }
+        .status-badge { font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 3px; }
+        .st-ativo { color: var(--success); }
+        .st-pendente { color: var(--danger); }
+
+        .btn-action-admin { padding: 6px 12px; border-radius: 4px; font-weight: 700; font-size: 10px; cursor: pointer; text-transform: uppercase; border: none; }
+        .bg-orange { background: #ff9100; color: #000; }
+        .bg-green { background: var(--success); color: #000; }
+        .bg-outline { background: transparent; border: 1px solid #333; color: #666; }
         
-        .plano-select { 
-            background: #000; color: #fff; border: 1px solid #333; 
-            padding: 5px 10px; border-radius: 4px; font-size: 12px; outline: none; cursor: pointer;
-        }
-        .btn-approve { 
-            background: var(--switch-on); color: #000; border: none; 
-            padding: 5px 12px; border-radius: 4px; font-weight: 700; 
-            cursor: pointer; font-size: 11px; text-transform: uppercase;
-        }
-        .btn-refresh {
-            background: transparent; border: 1px solid #333; color: #666;
-            padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;
-        }
-        .btn-refresh:hover { color: #fff; border-color: #555; }
+        .btn-renova { background: #111; border: 1px solid #333; color: #fff; padding: 6px 12px; cursor: pointer; font-size: 11px; border-radius: 4px; transition: 0.2s; }
+        .btn-renova:hover { border-color: var(--primary-blue); color: var(--primary-blue); }
+
+        /* TOOLTIP BOTS */
+        .bot-badge-container { position: relative; display: inline-block; cursor: pointer; }
+        .bot-badge { background: #1a1a1a; color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 11px; border: 1px solid #333; font-weight: 600; display: inline-flex; align-items: center; gap: 5px; }
+        .bot-tooltip-content { visibility: hidden; position: absolute; bottom: 120%; left: 50%; transform: translateX(-50%); background: #000; border: 1px solid #333; padding: 10px; border-radius: 6px; width: max-content; min-width: 150px; z-index: 10; opacity: 0; transition: 0.2s; box-shadow: 0 10px 30px rgba(0,0,0,0.8); pointer-events: none; }
+        .bot-badge-container:hover .bot-tooltip-content { visibility: visible; opacity: 1; bottom: 130%; }
+        .tooltip-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #ccc; margin-bottom: 5px; }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+        
+        .swal2-popup { background: #111 !important; border: 1px solid #333 !important; }
+        .swal2-title, .swal2-html-container { color: #fff !important; }
     </style>
 </head>
 <body>
 
     <div class="header">
         <div class="logo">
-            <i class="ri-rocket-2-fill"></i> Calixto OmniSystem
+            <i class="ri-dashboard-3-line"></i> Calixto OmniSystem 
             <% if (usuario) { %> <span class="plan-badge"><%= usuario.plano %></span> <% } %>
         </div>
         <div>
             <a href="/logout" class="btn-logout">Sair</a>
-            <button class="btn-new-client" onclick="novoBot()">+ Novo Cliente</button>
+            <button class="btn-new" onclick="novoBot()">+ Novo Cliente</button>
         </div>
     </div>
 
     <div class="grid">
-        <% if (clientes && clientes.length > 0) { %>
+        <% if (typeof clientes !== 'undefined' && clientes.length > 0) { %>
             <% clientes.forEach(c => { %>
-                <div class="card" id="card-<%= c.id %>">
-                    
+                <div class="card">
                     <div class="card-header">
-                        <div>
-                            <div class="bot-name"><%= c.nome %> <i class="ri-pencil-fill edit-icon" onclick="editarBot('<%= c.id %>', '<%= c.nome %>', '<%= c.numero %>')"></i></div>
+                        <div class="bot-name">
+                            <%= c.nome %> 
+                            <i class="ri-pencil-fill edit-icon" onclick="editarBot('<%= c.id %>', '<%= c.nome %>', '<%= c.numero %>')"></i>
                         </div>
-                        <label class="switch">
-                            <input type="checkbox" <%= c.status === 'ONLINE' ? 'checked' : '' %> onchange="toggleBot('<%= c.id %>', this)">
-                            <span class="slider"></span>
-                        </label>
+                        
+                        <div class="header-controls">
+                            <div class="help-btn" onclick="showHelp()" title="Ajuda de Conexão"><i class="ri-question-line"></i></div>
+                            
+                            <label class="switch">
+                                <input type="checkbox" id="check-<%= c.id %>" <%= c.status === 'ONLINE' ? 'checked' : '' %> onchange="toggleBot('<%= c.id %>', this)">
+                                <span class="slider"></span>
+                            </label>
+                        </div>
                     </div>
 
-                    <div class="number-display">
-                        <i class="ri-whatsapp-line"></i> <%= c.numero || 'Sem número' %>
+                    <div class="bot-number">
+                        <i class="ri-whatsapp-line" style="color: #00e054;"></i>
+                        <%= c.numero || 'Sem número' %>
                     </div>
+
+                    <div id="pairing-box-<%= c.id %>" class="pairing-box"></div>
+                    <div id="help-text-<%= c.id %>" class="pairing-steps">No WhatsApp > Configurações > Aparelhos Conectados > Conectar</div>
 
                     <div class="card-actions">
-                        <button class="btn-flow" onclick="window.location.href='/editor/<%= c.id %>'">
-                            <i class="ri-node-tree"></i> Editar Fluxo
+                        <button class="btn-fluxo" onclick="window.location.href='/editor/<%= c.id %>'">
+                            <i class="ri-settings-4-line"></i> Editar Fluxo
                         </button>
-                        <button class="btn-delete" onclick="excluirBot('<%= c.id %>')">
+                        <button class="btn-lixo" onclick="excluirBot('<%= c.id %>')">
                             <i class="ri-delete-bin-line"></i>
                         </button>
                     </div>
-
-                    <div class="pairing-container" id="pairing-<%= c.id %>">
-                        <div class="pairing-label">Código de Pareamento</div>
-                        <span class="pairing-code" id="code-<%= c.id %>">...</span>
-                        <div class="pairing-steps">No WhatsApp: Configurações > Aparelhos > Conectar</div>
-                    </div>
-
                 </div>
             <% }) %>
         <% } else { %>
-            <div style="grid-column: 1/-1; text-align: center; color: #333; padding: 50px;">
-                Nenhum bot encontrado.
+            <div style="grid-column: 1/-1; text-align: center; color: #444; padding: 60px; border: 1px dashed #333; border-radius: 8px;">
+                <i class="ri-robot-line" style="font-size: 40px; margin-bottom: 10px;"></i><br>
+                Nenhum bot criado.
             </div>
         <% } %>
     </div>
@@ -185,293 +176,212 @@
     <% if (usuario && usuario.email === 'vitorpedrocalixto@gmail.com') { %> 
         <div class="admin-section">
             <div class="admin-header">
-                <div class="admin-title"><i class="ri-shield-star-line"></i> GESTÃO DE USUÁRIOS & PLANOS</div>
-                <button class="btn-refresh" onclick="carregarUsuarios()"><i class="ri-refresh-line"></i> Atualizar Lista</button>
+                <div><i class="ri-shield-user-line"></i> Gestão de Usuários</div>
+                <button onclick="carregarUsuarios()" style="background:transparent; border:1px solid #333; color:#666; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px;">ATUALIZAR</button>
             </div>
-            <div id="tabela-admin" style="color:#444; font-size:12px;">Carregando dados...</div>
+            <div id="tabela-admin"><p style="color:#444;">Carregando...</p></div>
         </div>
 
         <script>
-            // LÓGICA EXCLUSIVA DO ADMIN - CALIXTO OMNISYSTEM V16
             async function carregarUsuarios() {
                 try {
                     const res = await fetch('/api/admin/usuarios');
-                    if (!res.ok) throw new Error("Falha ao buscar usuários");
+                    if (res.headers.get("content-type").indexOf("json") === -1) { window.location.href = '/login'; return; }
                     const users = await res.json();
-        
-                    let html = `<table>
-                        <thead>
-                            <tr>
-                                <th>Usuário / Email</th>
-                                <th>Plano</th>
-                                <th>Validade</th>
-                                <th>Status</th>
-                                <th>Ações Rápidas</th>
-                            </tr>
-                        </thead>
-                        <tbody>`;
                     
+                    let html = `<table><thead><tr>
+                        <th>Usuário</th>
+                        <th>Plano</th>
+                        <th>Bots</th>
+                        <th>Validade</th>
+                        <th>Status</th>
+                        <th>Ações</th>
+                    </tr></thead><tbody>`;
+
                     users.forEach(u => {
-                        if (u.email === 'vitorpedrocalixto@gmail.com') return; 
-        
-                        let botsCount = u.clientes ? u.clientes.length : 0;
+                        if (u.email === 'vitorpedrocalixto@gmail.com') return;
+
+                        let botsData = u.clientes || u.bots || [];
+                        let botsHtml = `<span style="color:#444; font-size:11px;">Nenhum</span>`;
                         
-                        // Formatação da Data
+                        if (botsData.length > 0) {
+                            let tooltipContent = botsData.map(b => `
+                                <div class="tooltip-row">
+                                    <div class="status-dot" style="background:${b.status==='ONLINE'?'#00e054':'#444'}"></div>
+                                    ${b.nome}
+                                </div>
+                            `).join('');
+
+                            botsHtml = `
+                                <div class="bot-badge-container">
+                                    <span class="bot-badge">
+                                        <i class="ri-robot-2-line"></i> ${botsData.length} Bots
+                                    </span>
+                                    <div class="bot-tooltip-content">
+                                        ${tooltipContent}
+                                    </div>
+                                </div>
+                            `;
+                        }
+
                         let dataFormatada = "Indefinido";
-                        let corData = "#ccc";
+                        let corData = "#666";
                         if (u.expiraEm) {
                             const data = new Date(u.expiraEm);
                             const hoje = new Date();
-                            const diasRestantes = Math.ceil((data - hoje) / (1000 * 60 * 60 * 24));
-                            
+                            const dias = Math.ceil((data - hoje) / (1000 * 60 * 60 * 24));
                             dataFormatada = data.toLocaleDateString('pt-BR');
-                            
-                            if (diasRestantes < 0) {
-                                dataFormatada += ` <br><span style="color:#ff4444; font-weight:bold; font-size:10px;">(VENCIDO)</span>`;
-                                corData = "#ff4444";
-                            } else {
-                                dataFormatada += ` <br><span style="color:#00e054; font-size:10px;">(${diasRestantes} dias)</span>`;
-                            }
+                            if (dias < 0) { dataFormatada += ` <br><span style="color:#ff3333; font-weight:bold; font-size:10px;">(VENCIDO)</span>`; corData = "#ff3333"; } 
+                            else { dataFormatada += ` <br><span style="color:#00e054; font-size:10px;">(${dias} dias)</span>`; }
                         }
-        
-                        // Linha Principal
-                        html += `<tr style="background: #0a0a0a; border-bottom: 1px solid #222;">
+
+                        html += `<tr style="border-bottom:1px solid #1a1a1a;">
                             <td onclick="toggleDetalhes('${u.id}')" style="cursor:pointer;">
                                 <div style="color:#fff; font-weight:600; display:flex; align-items:center; gap:5px;">
                                     <i id="icon-${u.id}" class="ri-arrow-right-s-line"></i> ${u.nome}
                                 </div>
-                                <div style="color:#555; font-size:11px; margin-left:18px;">${u.email}</div>
+                                <div style="color:#666; font-size:11px; margin-left:18px;">${u.email}</div>
                             </td>
-                            <td>
-                                <select class="plano-select" onchange="mudarPlano('${u.id}', this.value)">
-                                    <option value="ESSENTIAL" ${u.plano==='ESSENTIAL'?'selected':''}>ESSENTIAL</option>
-                                    <option value="ADVANCED" ${u.plano==='ADVANCED'?'selected':''}>ADVANCED</option>
-                                    <option value="SIGNATURE" ${u.plano==='SIGNATURE'?'selected':''}>SIGNATURE</option>
-                                </select>
-                            </td>
-                            <td style="color: ${corData}; font-size:12px;">${dataFormatada}</td>
-                            <td>
-                                <span class="${u.bloqueado ? 'status-pending' : 'status-active'}">
-                                    ${u.bloqueado ? 'BLOQUEADO' : 'ATIVO'}
-                                </span>
-                            </td>
+                            <td><span class="plan-badge" style="margin:0;">${u.plano}</span></td>
+                            <td>${botsHtml}</td>
+                            <td style="color:${corData}; font-size:12px;">${dataFormatada}</td>
+                            <td><span class="status-badge ${u.ativo ? 'st-ativo' : 'st-pendente'}">${u.ativo ? 'ATIVO' : 'PENDENTE'}</span></td>
                             <td>
                                 <div style="display:flex; gap:5px;">
-                                     <button class="btn-approve" 
-                                            style="background: ${u.bloqueado ? '#00e054' : '#ff9100'}; color: #000;" 
-                                            onclick="toggleBloqueio('${u.id}', ${!u.bloqueado})">
-                                        ${u.bloqueado ? 'Desbloquear' : 'Bloquear'}
-                                    </button>
-                                    <button class="btn-delete" style="width:30px; height:30px; font-size:14px;" onclick="excluirUsuario('${u.id}')" title="Excluir Usuário">
-                                        <i class="ri-delete-bin-2-line"></i>
-                                    </button>
+                                    <button class="btn-action-admin bg-outline" onclick="excluirUser('${u.id}')"><i class="ri-delete-bin-line"></i></button>
                                 </div>
                             </td>
                         </tr>
-                        
-                        <tr id="detalhe-${u.id}" style="display:none; background:#111;">
-                            <td colspan="5" style="padding: 20px; border-left: 2px solid var(--primary-blue);">
-                                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                                    
-                                    <div style="flex:1;">
-                                        <h4 style="color:#fff; font-size:12px; margin-bottom:10px;">RENOVAR ACESSO</h4>
-                                        <div style="display:flex; gap:5px; flex-wrap:wrap;">
-                                            <button class="btn-refresh" onclick="renovarAcesso('${u.id}', 7)">+7d</button>
-                                            <button class="btn-refresh" onclick="renovarAcesso('${u.id}', 30)">+30d</button>
-                                            <button class="btn-refresh" onclick="renovarAcesso('${u.id}', 365)">+1 Ano</button>
-                                            <button class="btn-refresh" onclick="renovarAcesso('${u.id}', 9999)" style="border-color:#00e054; color:#00e054;">∞ Vitalício</button>
-                                        </div>
-                                        <div style="margin-top:10px;">
-                                            <input type="date" id="date-${u.id}" style="background:#222; border:1px solid #444; color:#fff; padding:5px; border-radius:4px;">
-                                            <button class="btn-approve" style="padding:5px 10px;" onclick="definirData('${u.id}')">Definir Data</button>
+                        <tr id="detalhe-${u.id}" style="display:none; background:#0a0a0a;">
+                            <td colspan="6" style="padding:20px; border-left:2px solid var(--primary-blue);">
+                                <div style="display:flex; justify-content:space-between; align-items:center;">
+                                    <div>
+                                        <h4 style="color:#fff; font-size:11px; margin-bottom:10px;">RENOVAR ACESSO</h4>
+                                        <div style="display:flex; gap:5px;">
+                                            <button class="btn-renova" onclick="renovarAcesso('${u.id}', 30)">+30 Dias</button>
+                                            <button class="btn-renova" onclick="renovarAcesso('${u.id}', 365)">+1 Ano</button>
+                                            <button class="btn-renova" onclick="renovarAcesso('${u.id}', 9999)" style="border-color:#00e054; color:#00e054;">Vitalício</button>
                                         </div>
                                     </div>
-        
-                                    <div style="flex:1; border-left:1px solid #333; padding-left:20px;">
-                                        <h4 style="color:#fff; font-size:12px; margin-bottom:10px;">BOTS ATIVOS (${botsCount})</h4>
-                                        ${u.clientes && u.clientes.length > 0 ? 
-                                            u.clientes.map(b => `
-                                                <div style="margin-bottom:5px; font-size:11px; color:#aaa; display:flex; align-items:center; gap:5px;">
-                                                    <span style="width:8px; height:8px; border-radius:50%; background:${b.status === 'ONLINE' ? '#00e054' : '#ff4444'}; display:inline-block;"></span>
-                                                    ${b.nome}
-                                                </div>
-                                            `).join('') 
-                                            : '<span style="color:#666; font-style:italic;">Nenhum bot criado</span>'
-                                        }
+                                    <div>
+                                        <h4 style="color:#fff; font-size:11px; margin-bottom:10px;">AÇÕES</h4>
+                                        <button class="btn-action-admin ${u.bloqueado ? 'bg-green' : 'bg-orange'}" onclick="toggleBloqueio('${u.id}', ${!u.bloqueado})">
+                                            ${u.bloqueado ? 'DESBLOQUEAR' : 'BLOQUEAR'}
+                                        </button>
                                     </div>
-        
                                 </div>
                             </td>
                         </tr>`;
                     });
-                    
                     document.getElementById('tabela-admin').innerHTML = html + '</tbody></table>';
-                } catch (e) {
-                    console.error(e);
-                    document.getElementById('tabela-admin').innerText = "Erro ao carregar lista.";
-                }
+                } catch(e){}
             }
-        
+
             function toggleDetalhes(id) {
                 const row = document.getElementById(`detalhe-${id}`);
-                const icon = document.getElementById(`icon-${id}`);
-                if (row.style.display === 'none') {
-                    row.style.display = 'table-row';
-                    icon.className = 'ri-arrow-down-s-line';
-                } else {
-                    row.style.display = 'none';
-                    icon.className = 'ri-arrow-right-s-line';
-                }
+                if (row.style.display === 'none') row.style.display = 'table-row';
+                else row.style.display = 'none';
             }
-        
-            // --- AÇÕES DO ADMIN ---
-        
+
             async function renovarAcesso(id, dias) {
-                // Se for 9999, manda null para o backend (Vitalício)
                 const payload = dias === 9999 ? { idUsuario: id, vitalicio: true } : { idUsuario: id, diasAdicionais: dias };
-        
-                const res = await fetch('/api/admin/usuarios/renovar', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
-                });
-                
-                if (res.ok) {
-                    Swal.fire({icon: 'success', title: 'Renovado!', background: '#111', color: '#fff', timer: 1500, showConfirmButton: false});
-                    carregarUsuarios();
-                }
+                await fetch('/api/admin/usuarios/renovar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                carregarUsuarios();
+                Swal.fire({icon:'success', title:'Renovado!', toast:true, position:'top-end', showConfirmButton:false, timer:1500, background:'#111', color:'#fff'});
             }
-        
-            async function definirData(id) {
-                const dateInput = document.getElementById(`date-${id}`).value;
-                if (!dateInput) return;
-        
-                const res = await fetch('/api/admin/usuarios/definir-data', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ idUsuario: id, novaData: dateInput })
-                });
-                
-                if (res.ok) {
-                    Swal.fire({icon: 'success', title: 'Data Atualizada!', background: '#111', color: '#fff', timer: 1500, showConfirmButton: false});
-                    carregarUsuarios();
-                }
-            }
-        
-            async function excluirUsuario(id) {
-                const result = await Swal.fire({
-                    title: 'EXCLUIR USUÁRIO?',
-                    text: "Isso apagará o usuário, todos os bots e sessões dele. Não tem volta!",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#3085d6',
-                    confirmButtonText: 'Sim, apagar tudo!',
-                    background: '#111',
-                    color: '#fff'
-                });
-        
-                if (result.isConfirmed) {
-                    const res = await fetch(`/api/admin/usuarios/${id}`, { method: 'DELETE' });
-                    if (res.ok) {
-                        Swal.fire({icon: 'success', title: 'Usuário Excluído', background: '#111', color: '#fff'});
-                        carregarUsuarios();
-                    } else {
-                        Swal.fire({icon: 'error', title: 'Erro', text: 'Não foi possível excluir.', background: '#111', color: '#fff'});
-                    }
-                }
-            }
-        
-            // (As funções toggleBloqueio e mudarPlano continuam iguais...)
+
             async function toggleBloqueio(id, status) {
-                await fetch('/api/admin/usuarios/bloqueio', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({ idUsuario: id, bloquear: status })
-                });
+                await fetch('/api/admin/usuarios/bloqueio', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ idUsuario: id, bloquear: status }) });
                 carregarUsuarios();
             }
-            
-            async function mudarPlano(id, plano) { 
-                await fetch('/api/admin/mudar-plano', {
-                    method:'PUT', 
-                    headers:{'Content-Type':'application/json'}, 
-                    body:JSON.stringify({idUsuario:id, novoPlano:plano})
-                });
+
+            async function excluirUser(id) {
+                if((await Swal.fire({ title:'Tem certeza?', text:'Apagará tudo deste usuário.', icon:'warning', showCancelButton:true, confirmButtonColor:'#d33', background:'#111', color:'#fff' })).isConfirmed) {
+                    await fetch(`/api/admin/usuarios/${id}`, { method: 'DELETE' });
+                    carregarUsuarios();
+                }
             }
-        
+            
             document.addEventListener('DOMContentLoaded', carregarUsuarios);
         </script>
     <% } %>
 
     <script>
         const socket = io();
+        const swalDark = Swal.mixin({ background: '#111', color: '#fff', confirmButtonColor: '#0066ff', cancelButtonColor: '#333' });
 
-        // 1. RECEBER CÓDIGO VIA SOCKET
         socket.on('pairingCode', (data) => {
-            const box = document.getElementById(`pairing-${data.clienteId}`);
-            const display = document.getElementById(`code-${data.clienteId}`);
-            
-            if (box && display) {
-                box.style.display = 'block'; // Mostra a caixa
-                display.innerText = data.code; // Insere o código
+            const box = document.getElementById(`pairing-box-${data.clienteId}`);
+            const help = document.getElementById(`help-text-${data.clienteId}`);
+            if(box) { 
+                box.style.display = 'block'; 
+                box.innerText = data.code; 
+                if(help) help.style.display = 'block'; 
             }
         });
 
-        // 2. STATUS MUDOU (CONECTOU)
-        socket.on('status', (data) => {
-            if (data.status === 'ONLINE') {
-                const box = document.getElementById(`pairing-${data.clienteId}`);
-                if (box) box.style.display = 'none'; // Esconde o código
-                
-                // Recarrega para garantir status verde
-                // (Timeout pequeno para dar tempo do visual processar)
-                setTimeout(() => location.reload(), 1500); 
+        socket.on('status', (data) => { 
+            if(data.status === 'ONLINE') {
+                const check = document.getElementById(`check-${data.clienteId}`);
+                if(check) check.checked = true;
+                setTimeout(() => location.reload(), 1000); 
             }
         });
 
-        async function toggleBot(id, checkbox) {
-            const status = checkbox.checked ? 'ONLINE' : 'OFFLINE';
-            
-            // UX: Se ligou, já mostra que está carregando
-            if (status === 'ONLINE') {
-                const box = document.getElementById(`pairing-${id}`);
-                const display = document.getElementById(`code-${id}`);
-                if(box) {
-                    box.style.display = 'block';
-                    display.innerText = "GERANDO...";
-                }
-            } else {
-                const box = document.getElementById(`pairing-${id}`);
-                if(box) box.style.display = 'none';
-            }
+     // POPUP DE AJUDA COM MAIS DICAS (V3.0)
+     function showHelp() {
+            swalDark.fire({
+                title: 'CENTRAL DE AJUDA',
+                width: 600, // Mais largo para caber as dicas
+                html: `
+                    <div style="text-align:left; font-size:13px; color:#ccc; line-height:1.5;">
+                        
+                        <h4 style="color:#0066ff; margin-bottom:10px; text-transform:uppercase;">📶 Problemas de Conexão</h4>
+                        <ul style="margin-bottom:15px; padding-left:15px;">
+                            <li><strong>Dica de Ouro:</strong> Desligue o Wi-Fi do celular e use os <strong>Dados Móveis (4G/5G)</strong> para ler o QR Code. Isso troca seu IP e evita erros de conexão.</li>
+                            <li>Verifique no seu WhatsApp em <em>"Aparelhos Conectados"</em>. Se houver muitas sessões antigas, desconecte todas antes de tentar.</li>
+                        </ul>
 
-            try {
-                await fetch('/api/status', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ clienteId: id, status }) });
-            } catch (e) {
-                checkbox.checked = !checkbox.checked;
-                Swal.fire('Erro', 'Falha de conexão', 'error');
-            }
+                        <h4 style="color:#ffbb00; margin-bottom:10px; text-transform:uppercase;">🛡️ Evite Bloqueios (Anti-Ban)</h4>
+                        <ul style="margin-bottom:15px; padding-left:15px;">
+                            <li>Prefira usar o <strong>WhatsApp Business</strong>.</li>
+                            <li>Se o chip for novo, use-o manualmente por 3 a 5 dias antes de colocar no robô ("Aquecimento").</li>
+                            <li>Nunca envie mensagens em massa para quem não tem seu número salvo.</li>
+                        </ul>
+
+                        <hr style="border-color:#333; margin:15px 0;">
+                        
+                        <div style="background:rgba(255, 51, 51, 0.1); border:1px solid #ff3333; padding:10px; border-radius:6px;">
+                            <p style="color:#ff5555; font-weight:bold; margin:0 0 5px 0;">⚠️ O QR Code piscou ou não conectou?</p>
+                            <p style="margin:0; font-size:12px;">O WhatsApp pode ter te dado um <strong>"Soft Ban"</strong> (bloqueio temporário de API). Isso acontece após muitas tentativas falhas. <br><strong>Solução:</strong> Aguarde 2 a 4 horas sem tentar conectar.</p>
+                        </div>
+                    </div>
+                `,
+                confirmButtonText: 'Entendi, vou seguir!',
+                confirmButtonColor: '#0066ff'
+            });
         }
-
         async function novoBot() {
-            const { value: form } = await Swal.fire({
-                title: 'Novo Cliente', background: '#111', color: '#fff',
+            const { value: form } = await swalDark.fire({
+                title: 'Novo Cliente',
                 html: '<input id="nome" class="swal2-input" placeholder="Nome"><input id="num" class="swal2-input" placeholder="55..." type="number">',
-                focusConfirm: false, confirmButtonColor: '#0066ff', confirmButtonText: 'Criar',
                 preConfirm: () => [document.getElementById('nome').value, document.getElementById('num').value]
             });
             if (form) {
-                await fetch('/api/clientes', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ nome: form[0], numero: form[1] }) });
-                location.reload();
+                const res = await fetch('/api/clientes', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ nome: form[0], numero: form[1] }) });
+                const data = await res.json();
+                if (data.success) {
+                    swalDark.fire({ title: 'Sucesso!', text: 'Deseja configurar agora?', icon: 'success', showCancelButton: true, confirmButtonText: 'Sim' }).then((r) => {
+                        if (r.isConfirmed) window.location.href = '/editor/' + data.id; else window.location.reload();
+                    });
+                }
             }
         }
 
         async function editarBot(id, nome, num) {
-            const { value: form } = await Swal.fire({
-                title: 'Editar', background: '#111', color: '#fff',
+            const { value: form } = await swalDark.fire({
+                title: 'Editar',
                 html: `<input id="ed-nome" class="swal2-input" value="${nome}"><input id="ed-num" class="swal2-input" value="${num}">`,
-                focusConfirm: false, confirmButtonColor: '#0066ff',
                 preConfirm: () => [document.getElementById('ed-nome').value, document.getElementById('ed-num').value]
             });
             if(form) {
@@ -480,10 +390,34 @@
             }
         }
 
+        async function toggleBot(id, checkbox) {
+            const status = checkbox.checked ? 'ONLINE' : 'OFFLINE';
+            const box = document.getElementById(`pairing-box-${id}`);
+            const help = document.getElementById(`help-text-${id}`);
+
+            checkbox.disabled = true;
+
+            if (status === 'ONLINE') {
+                if(box) { box.style.display = 'block'; box.innerText = "INICIANDO..."; if(help) help.style.display = 'block'; }
+            } else {
+                if(box) { box.style.display = 'none'; box.innerText = ""; }
+                if(help) help.style.display = 'none';
+            }
+
+            try {
+                await fetch('/api/status', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ clienteId: id, status }) });
+            } catch (e) {
+                checkbox.checked = !checkbox.checked;
+                swalDark.fire('Erro', 'Falha na conexão', 'error');
+            }
+
+            setTimeout(() => { checkbox.disabled = false; }, 3000);
+        }
+
         async function excluirBot(id) {
-            if((await Swal.fire({ title: 'Tem certeza?', background: '#111', color: '#fff', showCancelButton: true, confirmButtonColor: '#d33' })).isConfirmed) {
+            if((await swalDark.fire({ title: 'Excluir?', text:'Não tem volta.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' })).isConfirmed) {
                 await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
-                location.reload();
+                window.location.reload();
             }
         }
     </script>

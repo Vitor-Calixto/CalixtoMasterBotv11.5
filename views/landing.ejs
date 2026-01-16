@@ -2,184 +2,225 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calixto OmniSystem | V15.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Calixto OmniSystem | Automação de Elite</title>
     
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;800;900&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet">
 
     <style>
-        /* ==================== 1. CSS BASE & VARIÁVEIS ==================== */
+        /* ==================== CSS BASE (CYBERPUNK COMMERCIAL) ==================== */
         :root {
             --neon-pink: #ff0055;
             --neon-cyan: #00f3ff;
             --neon-purple: #bd00ff;
-            --glass-dark: rgba(0, 0, 0, 0.85);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --bg-dark: #050505;
             --text-white: #ffffff;
+            --glass-bg: rgba(10, 15, 20, 0.7);
+            --glass-border: rgba(0, 243, 255, 0.2);
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; }
 
         body {
-            background-color: #050505;
+            background-color: var(--bg-dark);
             color: var(--text-white);
             font-family: 'Rajdhani', sans-serif;
             overflow-x: hidden;
-            /* Fundo Cyberpunk */
             background-image: url('/uploads/illustration-rain-futuristic-city_23-2151406573.avif');
             background-size: cover;
             background-position: center;
             background-attachment: fixed;
             min-height: 100vh;
-            cursor: default;
-            transition: 0.5s; /* Suaviza a troca para Matrix/Red Alert */
+            transition: 0.5s;
         }
 
-        body::after {
+        /* Máscara escura */
+        body::before {
             content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(5, 5, 10, 0.7); z-index: -1; /* Máscara escura */
+            background: rgba(0, 5, 10, 0.85); z-index: -1; pointer-events: none;
         }
 
-        /* ==================== 2. LOADER JARVIS ==================== */
-        #jarvis-loader {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background-color: #000; z-index: 99999;
-            display: flex; align-items: center; justify-content: center;
-            background-image: radial-gradient(circle at center, #001a33 0%, #000 80%);
-            transition: opacity 0.8s ease-out, visibility 0.8s;
+        /* Tipografia */
+        h1, h2, h3, .logo, .btn-plan, .section-title, .hero-badge { font-family: 'Orbitron', sans-serif; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
+        .section-padding { padding: 100px 0; }
+        .text-center { text-align: center; }
+
+        .section-title {
+            font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 10px; text-transform: uppercase;
+            letter-spacing: 2px; text-shadow: 0 0 15px var(--neon-cyan); color: #fff;
         }
-        #jarvis-loader.loaded { opacity: 0; visibility: hidden; }
+        .section-subtitle { color: #aaa; font-size: 1.2rem; margin-bottom: 60px; max-width: 700px; margin-left: auto; margin-right: auto; }
 
-        .hud-container { position: relative; width: 350px; height: 350px; display: flex; align-items: center; justify-content: center; }
-        .hud-ring { position: absolute; border-radius: 50%; box-shadow: 0 0 10px rgba(0, 243, 255, 0.1); }
-        .ring-1 { width: 100%; height: 100%; border: 2px solid transparent; border-top: 2px solid var(--neon-cyan); border-bottom: 2px solid var(--neon-cyan); animation: spin 10s linear infinite; }
-        .ring-2 { width: 80%; height: 80%; border: 2px dashed var(--neon-cyan); opacity: 0.6; animation: spin-reverse 5s linear infinite; }
-        .ring-3 { width: 65%; height: 65%; border: 1px solid transparent; border-left: 4px solid var(--neon-cyan); border-right: 4px solid var(--neon-cyan); box-shadow: 0 0 20px var(--neon-cyan); animation: spin 2s linear infinite; }
-        .hud-core { position: absolute; width: 50%; height: 50%; border: 1px solid var(--neon-cyan); border-radius: 50%; box-shadow: inset 0 0 20px rgba(0, 243, 255, 0.5); opacity: 0.8; }
-        .hud-text { position: absolute; color: #fff; font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 1.2rem; letter-spacing: 3px; text-align: center; text-shadow: 0 0 10px var(--neon-cyan); z-index: 10; animation: pulse 2s infinite; }
-        .hud-text span { display: block; color: var(--neon-cyan); font-size: 0.8rem; letter-spacing: 1px; margin-top: 5px; opacity: 0.8; }
-
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        @keyframes spin-reverse { 0% { transform: rotate(360deg); } 100% { transform: rotate(0deg); } }
-        @keyframes pulse { 0% { opacity: 0.8; text-shadow: 0 0 10px var(--neon-cyan); } 100% { opacity: 1; text-shadow: 0 0 25px var(--neon-cyan); } }
-
-        /* ==================== 3. GOD MODE CONSOLE (O SEGREDO DA LOGO) ==================== */
-        #god-console {
-            position: fixed; bottom: -300px; left: 0; width: 100%; height: 250px;
-            background: rgba(0, 0, 0, 0.95); border-top: 2px solid #0f0; color: #0f0;
-            font-family: 'Share Tech Mono', monospace; z-index: 1000000;
-            transition: bottom 0.5s cubic-bezier(0.4, 0.0, 0.2, 1);
-            display: flex; flex-direction: column; box-shadow: 0 -5px 20px rgba(0, 255, 0, 0.2);
+        /* Botão Neon */
+        .cta-btn {
+            display: inline-block; padding: 18px 45px; 
+            background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple));
+            color: #fff; text-decoration: none; font-weight: 700; border-radius: 5px; 
+            text-transform: uppercase; letter-spacing: 2px; transition: 0.3s; border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.4); font-family: 'Orbitron'; font-size: 0.9rem;
         }
+        .cta-btn:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255, 0, 85, 0.8); background: #fff; color: #000; }
+
+        /* ==================== NAVBAR ==================== */
+        nav {
+            display: flex; justify-content: space-between; align-items: center; padding: 15px 5%;
+            position: fixed; width: 100%; top: 0; z-index: 1000;
+            background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); 
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .logo { font-size: 1.5rem; font-weight: 900; color: #fff; cursor: pointer; user-select: none; letter-spacing: 2px; }
+        .logo span { color: var(--neon-cyan); }
+        
+        .nav-right { display: flex; align-items: center; gap: 30px; }
+        .social-link { color: #ccc; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.3s; text-transform: uppercase; font-family: 'Orbitron'; letter-spacing: 1px; cursor: pointer; }
+        .social-link:hover { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); }
+        
+        .btn-login-nav { border: 1px solid var(--neon-cyan); padding: 8px 25px; border-radius: 4px; color: var(--neon-cyan) !important; text-decoration: none; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; transition: 0.3s; font-family: 'Orbitron'; }
+        .btn-login-nav:hover { background: var(--neon-cyan); color: #000 !important; box-shadow: 0 0 20px var(--neon-cyan); }
+        
+        @media(max-width: 768px) { .nav-right .social-link { display: none; } }
+
+        /* ==================== HERO ==================== */
+        .hero { 
+            min-height: 100vh; display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; text-align: center; 
+            padding: 120px 20px 80px; position: relative; 
+        }
+        .hero-content { position: relative; z-index: 1; max-width: 900px; }
+        .hero-badge { display: inline-block; background: linear-gradient(90deg, var(--neon-purple), var(--neon-pink)); padding: 5px 15px; font-size: 0.8rem; font-weight: 800; margin-bottom: 30px; transform: skew(-10deg); box-shadow: 0 0 15px rgba(255,0,85,0.5); }
+        
+        .hero h1 { font-size: clamp(2.5rem, 8vw, 5rem); line-height: 1.1; margin-bottom: 30px; text-transform: uppercase; text-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        .hero h1 .outline { -webkit-text-stroke: 1px #fff; color: transparent; display: block; opacity: 0.7; font-size: 0.6em; margin-bottom: 10px; }
+        .hero h1 strong { background: linear-gradient(to bottom, #fff, var(--neon-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px var(--neon-cyan)); }
+        
+        #secret-o { cursor: default; transition: 0.3s; }
+        #secret-o.activated { text-shadow: 0 0 20px #fff, 0 0 40px var(--neon-cyan); color: #fff !important; -webkit-text-fill-color: #fff !important; }
+
+        .hero p { font-size: 1.2rem; color: #ddd; margin-bottom: 50px; text-shadow: 0 2px 4px #000; }
+        
+        .hero-btns { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+
+        /* ==================== AI STUDIO ==================== */
+        .ai-cta-text {
+            font-family: 'Orbitron', sans-serif; color: var(--neon-pink); font-weight: 800; font-size: 1.4rem;
+            margin-top: 40px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px;
+            text-shadow: 0 0 15px var(--neon-pink); animation: pulse-pink 2s infinite alternate;
+        }
+        @keyframes pulse-pink { from { opacity: 0.8; text-shadow: 0 0 10px var(--neon-pink); } to { opacity: 1; text-shadow: 0 0 30px var(--neon-pink); } }
+
+        .gallery-grid { 
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); 
+            gap: 30px; margin-top: 30px; 
+        }
+        .gallery-item { 
+            width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid var(--neon-purple); 
+            position: relative; overflow: hidden; border-radius: 10px; 
+            box-shadow: 0 0 15px rgba(189, 0, 255, 0.1); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .gallery-item video, .gallery-item img { width: 100%; height: 100%; object-fit: cover; opacity: 0.85; transition: 0.4s; }
+        
+        .gallery-item:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 0 30px rgba(189, 0, 255, 0.4); border-color: var(--neon-cyan); }
+        .gallery-item:hover video, .gallery-item:hover img { opacity: 1; transform: scale(1.05); }
+
+        .gallery-overlay {
+            position: absolute; bottom: 0; left: 0; width: 100%; padding: 20px 15px;
+            background: linear-gradient(to top, rgba(0,0,0,0.95) 10%, transparent);
+            font-family: 'Share Tech Mono', monospace; color: var(--neon-cyan); font-size: 1rem; font-weight: bold;
+            letter-spacing: 1px; text-shadow: 0 0 5px var(--neon-cyan);
+            transform: translateY(100%); transition: 0.4s;
+        }
+        .gallery-item:hover .gallery-overlay { transform: translateY(0); }
+
+        /* ==================== COMPARATIVO ==================== */
+        .comparison-wrapper { background: rgba(0,0,0,0.6); border: 1px solid var(--neon-cyan); border-radius: 5px; overflow: hidden; max-width: 900px; margin: 0 auto; box-shadow: 0 0 20px rgba(0, 243, 255, 0.1); }
+        .comparison-table { display: grid; grid-template-columns: 1fr 1fr; }
+        .comp-col { padding: 50px 30px; text-align: center; }
+        .comp-human { border-right: 1px solid rgba(255,255,255,0.1); }
+        .comp-ai { background: rgba(0, 243, 255, 0.05); position: relative; }
+        .comp-ai::before { content: ''; position: absolute; top:0; left:0; width:100%; height:2px; background: var(--neon-cyan); box-shadow: 0 0 15px var(--neon-cyan); }
+        .comp-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
+        .comp-price { font-size: 2.5rem; font-weight: 700; color: #fff; margin-bottom: 20px; }
+        .comp-list li { list-style: none; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; color: #ccc; font-size: 1rem; text-align: left; }
+
+        @media(max-width: 768px) { .comparison-table { grid-template-columns: 1fr; } .comp-human { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); } }
+
+        /* ==================== DEPOIMENTOS ==================== */
+        .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
+        .testimonial-card { 
+            background: rgba(10, 10, 10, 0.8); border: 1px solid var(--glass-border); 
+            padding: 30px; border-radius: 5px; position: relative; transition: 0.3s;
+        }
+        .testimonial-card:hover { border-color: var(--neon-purple); box-shadow: 0 0 20px rgba(189, 0, 255, 0.2); }
+        .test-text { font-style: italic; color: #ddd; margin-bottom: 20px; font-size: 1rem; line-height: 1.6; }
+        .test-author { display: flex; align-items: center; gap: 15px; }
+        .test-avatar { width: 50px; height: 50px; background: #222; border-radius: 50%; border: 1px solid var(--neon-purple); background-size: cover; }
+        .test-info h4 { color: #fff; font-weight: 700; font-family: 'Orbitron'; font-size: 0.9rem; }
+        .test-info p { font-size: 0.8rem; color: #888; }
+
+        /* ==================== PREÇOS ==================== */
+        .pricing-grid { display: flex; justify-content: center; flex-wrap: wrap; gap: 30px; }
+        .price-card { 
+            background: var(--glass-dark); border: 1px solid var(--glass-border); backdrop-filter: blur(20px); 
+            padding: 40px 30px; border-radius: 5px; width: 350px; text-align: center; transition: 0.4s; position: relative; 
+        }
+        .price-card:hover { transform: translateY(-10px); border-color: var(--neon-cyan); box-shadow: 0 0 30px rgba(0, 243, 255, 0.2); }
+        .price-card.featured { border: 1px solid var(--neon-pink); background: rgba(20, 0, 10, 0.85); box-shadow: 0 0 20px rgba(255, 0, 85, 0.2); transform: scale(1.05); z-index: 10; }
+        .badge-popular { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--neon-pink); color: #fff; padding: 5px 15px; font-size: 0.8rem; font-weight: bold; border-radius: 20px; text-transform: uppercase; font-family: 'Orbitron'; letter-spacing: 1px; }
+        
+        .plan-name { font-size: 1.5rem; margin-bottom: 10px; color: #fff; }
+        .price { font-size: 3rem; font-weight: 700; color: #fff; display: block; margin: 20px 0; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+        .price span { font-size: 1rem; color: #aaa; font-weight: 400; }
+        .features-list { list-style: none; text-align: left; margin-bottom: 40px; }
+        .features-list li { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ddd; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
+        .features-list li i { color: var(--neon-cyan); font-size: 1.1rem; }
+        .featured .features-list li i { color: var(--neon-pink); }
+        
+        .btn-plan { display: block; width: 100%; padding: 15px 0; text-decoration: none; color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; font-weight: bold; text-transform: uppercase; transition: 0.3s; cursor: pointer; letter-spacing: 2px; }
+        .btn-plan:hover { background: #fff; color: #000; }
+        .featured .btn-plan { background: var(--neon-pink); border-color: var(--neon-pink); }
+        .featured .btn-plan:hover { background: #ff3377; color: #fff; box-shadow: 0 0 20px var(--neon-pink); }
+
+        /* ==================== FAQ ==================== */
+        .faq-grid { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
+        .faq-item { background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); border-radius: 5px; overflow: hidden; transition: 0.3s; }
+        .faq-question { width: 100%; padding: 20px; text-align: left; background: transparent; border: none; color: #fff; font-family: 'Rajdhani'; font-weight: 700; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .faq-answer { padding: 0 20px; max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; color: #ccc; }
+        .faq-item.active { border-color: var(--neon-cyan); box-shadow: 0 0 10px rgba(0, 243, 255, 0.1); }
+        .faq-item.active .faq-answer { max-height: 200px; padding-bottom: 20px; }
+        .faq-item.active i { transform: rotate(180deg); transition: 0.3s; color: var(--neon-cyan); }
+
+        /* ==================== FOOTER ==================== */
+        footer { background: #000; padding: 80px 0 30px; margin-top: 100px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.9rem; color: #888; }
+        .footer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; margin-bottom: 60px; }
+        .footer-logo { font-size: 1.5rem; font-weight: 900; color: #fff; margin-bottom: 20px; display: block; font-family: 'Orbitron'; letter-spacing: 2px; }
+        .footer-logo span { color: var(--neon-cyan); }
+        .footer-col h4 { font-size: 1.1rem; color: #fff; margin-bottom: 20px; font-family: 'Orbitron'; letter-spacing: 1px; }
+        .footer-links { list-style: none; }
+        .footer-links li { margin-bottom: 12px; }
+        .footer-links a { color: #888; text-decoration: none; transition: 0.3s; font-family: 'Share Tech Mono'; }
+        .footer-links a:hover { color: var(--neon-cyan); text-shadow: 0 0 5px var(--neon-cyan); }
+        .copyright { text-align: center; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); font-family: 'Share Tech Mono'; }
+
+        /* ==================== EASTER EGGS & FX ==================== */
+        #god-console { position: fixed; bottom: -300px; left: 0; width: 100%; height: 250px; background: rgba(0, 0, 0, 0.95); border-top: 2px solid #0f0; color: #0f0; font-family: 'Share Tech Mono', monospace; z-index: 1000000; transition: bottom 0.5s; display: flex; flex-direction: column; }
         #god-console.active { bottom: 0; }
         .console-header { background: #0f0; color: #000; padding: 5px 10px; font-weight: bold; font-size: 12px; letter-spacing: 1px; }
         .console-output { flex: 1; padding: 10px; overflow-y: auto; font-size: 14px; opacity: 0.8; }
         .console-input-line { display: flex; align-items: center; padding: 10px; background: #0a0a0a; border-top: 1px solid #333; }
         #console-input { flex: 1; background: transparent; border: none; color: #fff; font-family: 'Share Tech Mono', monospace; font-size: 16px; margin-left: 10px; outline: none; }
 
-        /* EFEITOS ESPECIAIS (Matrix / Red Alert) */
         body.matrix-mode { background-image: url('https://media.giphy.com/media/hzIg4f671gBkA/giphy.gif') !important; background-size: cover; }
-        body.matrix-mode * { color: #0f0 !important; border-color: #0f0 !important; text-shadow: 0 0 5px #0f0; }
-        body.red-alert-mode { background-image: none !important; background-color: #1a0000 !important; --neon-pink: #ff0000 !important; --neon-cyan: #ff0000 !important; --neon-purple: #ff0000 !important; }
-        body.red-alert-mode::after { background: rgba(50, 0, 0, 0.2); animation: pulse-red-bg 0.5s infinite alternate; }
-        @keyframes pulse-red-bg { from { opacity: 0.1; } to { opacity: 0.5; } }
-
-        /* ==================== 4. LAYOUT PRINCIPAL ==================== */
-        nav {
-            position: fixed; top: 0; width: 100%; display: flex; justify-content: space-between; align-items: center;
-            padding: 20px 8%; z-index: 1000; backdrop-filter: blur(10px);
-            border-bottom: 1px solid rgba(255,255,255,0.05); background: linear-gradient(to bottom, rgba(0,0,0,0.9), transparent);
-        }
-        
-        /* LOGO CLICÁVEL (GATILHO DO EASTER EGG) */
-        .logo { 
-            font-family: 'Orbitron', sans-serif; font-size: 1.8rem; font-weight: 900; 
-            letter-spacing: 2px; color: #fff; text-shadow: 0 0 10px var(--neon-cyan); 
-            cursor: pointer; user-select: none; /* Pointer avisa que é clicável */
-        }
-        .logo span { color: var(--neon-cyan); }
-        
-        .nav-right { display: flex; align-items: center; gap: 20px; }
-        .social-link { color: #ccc; font-size: 1.4rem; text-decoration: none; transition: 0.3s; display: flex; align-items: center; cursor: pointer; }
-        .social-link:hover { transform: scale(1.1); color: #fff; }
-        .nav-divider { width: 1px; height: 25px; background: rgba(255,255,255,0.2); }
-        .btn-login { text-decoration: none; color: var(--neon-cyan); font-weight: 700; font-size: 0.9rem; text-transform: uppercase; padding: 8px 25px; border: 1px solid var(--neon-cyan); border-radius: 4px; transition: 0.3s; background: rgba(0, 243, 255, 0.1); cursor: pointer; }
-        .btn-login:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 20px var(--neon-cyan); }
-
-        /* HERO SECTION */
-        .hero { height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 0 20px; position: relative; }
-        .tag-version { background: linear-gradient(90deg, var(--neon-purple), var(--neon-pink)); padding: 5px 12px; font-size: 0.8rem; font-weight: 800; text-transform: uppercase; margin-bottom: 20px; box-shadow: 0 0 15px rgba(255, 0, 85, 0.5); transform: skew(-10deg); }
-        
-        /* TÍTULO COM O "O" SECRETO */
-        .hero h1 { 
-            font-family: 'Orbitron'; font-size: clamp(3rem, 6vw, 5.5rem); line-height: 1.1; 
-            text-transform: uppercase; margin-bottom: 20px; text-shadow: 0 0 30px rgba(0,0,0,0.8);
-            display: flex; flex-direction: column; align-items: center; gap: 10px;
-        }
-        
-        .hero h1 span.outline { display: block; color: transparent; -webkit-text-stroke: 1px #fff; opacity: 0.8; font-size: 0.7em; }
-        
-        .hero h1 strong { 
-            background: linear-gradient(to bottom, #fff, var(--neon-cyan)); 
-            -webkit-background-clip: text; -webkit-text-fill-color: transparent; 
-            filter: drop-shadow(0 0 10px var(--neon-cyan)); 
-        }
-
-        /* Lógica do "O" Secreto */
-        #secret-o {
-            cursor: default; background: inherit; -webkit-text-fill-color: inherit; transition: all 0.3s ease;
-        }
-        #secret-o.activated {
-            background: none !important; -webkit-text-fill-color: #fff !important; color: #fff !important;
-            text-shadow: 0 0 10px #fff, 0 0 20px var(--neon-cyan), 0 0 40px var(--neon-cyan), 0 0 80px var(--neon-cyan) !important;
-        }
-
-        .hero p { font-size: 1.2rem; max-width: 700px; color: #ddd; margin-bottom: 40px; line-height: 1.6; text-shadow: 0 2px 5px rgba(0,0,0,1); background: rgba(0,0,0,0.5); padding: 15px; border-radius: 10px; backdrop-filter: blur(5px); }
-        .cta-btn { padding: 18px 50px; background: var(--neon-pink); color: #fff; text-decoration: none; font-weight: 800; font-size: 1.1rem; border-radius: 50px; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; box-shadow: 0 0 20px rgba(255, 0, 85, 0.4); border: 1px solid rgba(255,255,255,0.2); cursor: pointer; }
-        .cta-btn:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255, 0, 85, 0.8); background: #fff; color: var(--neon-pink); }
-
-        /* PREÇOS */
-        section { padding: 80px 5%; position: relative; }
-        .section-title { text-align: center; font-family: 'Orbitron'; font-size: 2.5rem; margin-bottom: 10px; text-shadow: 0 0 10px var(--neon-purple); }
-        .section-subtitle { text-align: center; color: #aaa; margin-bottom: 60px; font-size: 1.1rem; }
-        .pricing-grid { display: flex; justify-content: center; flex-wrap: wrap; gap: 30px; }
-        .price-card { background: var(--glass-dark); border: 1px solid var(--glass-border); backdrop-filter: blur(20px); padding: 40px 30px; border-radius: 15px; width: 350px; text-align: center; transition: 0.4s; position: relative; }
-        .price-card:hover { transform: translateY(-10px); border-color: var(--neon-cyan); box-shadow: 0 0 30px rgba(0, 243, 255, 0.2); }
-        .price-card.featured { border: 1px solid var(--neon-pink); background: rgba(20, 0, 10, 0.85); box-shadow: 0 0 20px rgba(255, 0, 85, 0.2); transform: scale(1.05); z-index: 10; }
-        .badge-popular { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--neon-pink); color: #fff; padding: 5px 15px; font-size: 0.8rem; font-weight: bold; border-radius: 20px; text-transform: uppercase; }
-        .plan-name { font-family: 'Orbitron'; font-size: 1.5rem; margin-bottom: 10px; color: #fff; }
-        .price { font-size: 2.8rem; font-weight: 700; color: #fff; display: block; margin: 15px 0; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
-        .price span { font-size: 1rem; color: #aaa; font-weight: 400; }
-        .features { list-style: none; text-align: left; margin-bottom: 40px; }
-        .features li { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ddd; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
-        .features li i { color: var(--neon-cyan); font-size: 1.1rem; }
-        .btn-plan { display: block; width: 100%; padding: 15px 0; text-decoration: none; color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 5px; font-weight: bold; text-transform: uppercase; transition: 0.3s; cursor: pointer; }
-        .btn-plan:hover { background: #fff; color: #000; }
-        .featured .btn-plan { background: var(--neon-pink); border-color: var(--neon-pink); }
-        .featured .btn-plan:hover { background: #ff3377; color: #fff; box-shadow: 0 0 20px var(--neon-pink); }
-
-        /* GALERIA (AI STUDIO) */
-        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 40px; }
-        .gallery-item { aspect-ratio: 16/9; background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); border-radius: 10px; overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
-        .gallery-item:hover { border-color: var(--neon-purple); transform: scale(1.02); }
-        .placeholder-text { position:absolute; bottom:10px; left:0; width:100%; font-family:'Orbitron'; font-size:0.8rem; color:rgba(255,255,255,0.7); text-align: center; pointer-events:none; }
-        
-        footer { text-align: center; padding: 40px; font-size: 0.8rem; color: #888; border-top: 1px solid rgba(255,255,255,0.1); background: #000; margin-top: 50px; }
+        body.matrix-mode * { color: #0f0 !important; border-color: #0f0 !important; text-shadow: 0 0 5px #0f0 !important; }
+        body.red-alert-mode { filter: sepia(1) saturate(5) hue-rotate(-50deg) !important; animation: pulse-red 0.5s infinite alternate; }
+        @keyframes pulse-red { from { box-shadow: inset 0 0 0 red; } to { box-shadow: inset 0 0 50px red; } }
+        body.nuke-mode { animation: flash 0.1s infinite; }
+        @keyframes flash { 0% { background: #fff; filter: invert(1); } 50% { background: #000; filter: invert(0); } 100% { background: #fff; } }
     </style>
 </head>
 <body>
-
-    <div id="god-console">
-        <div class="console-header">⚡ CALIXTO DEV_CONSOLE // ROOT ACCESS</div>
-        <div class="console-output" id="console-output">
-            > Sistema inicializado. Aguardando comando...<br>
-        </div>
-        <div class="console-input-line">
-            <span style="color: #0f0;">></span>
-            <input type="text" id="console-input" placeholder="Digite um comando..." autocomplete="off">
-        </div>
-    </div>
 
     <div id="jarvis-loader">
         <div class="hud-container">
@@ -191,59 +232,145 @@
         </div>
     </div>
 
+    <div id="god-console">
+        <div class="console-header">⚡ CALIXTO DEV_CONSOLE // ROOT ACCESS</div>
+        <div class="console-output" id="console-output">> Sistema inicializado. Aguardando comando...<br></div>
+        <div class="console-input-line"><span>root@calixto:~#</span><input type="text" id="console-input" autocomplete="off"></div>
+    </div>
+
     <nav>
-        <div class="logo">CALIXTO <span>AI</span></div>
+        <div class="logo" id="secret-trigger">CALIXTO <span>AI</span></div>
         <div class="nav-right">
-            <a href="https://wa.me/5521990026871" target="_blank" class="social-link"><i class="ri-whatsapp-line"></i></a>
-            <a href="https://instagram.com/calixto.dev" target="_blank" class="social-link"><i class="ri-instagram-line"></i></a>
-            <div class="nav-divider"></div>
-            <a href="/login" class="btn-login">Área do Cliente</a>
+            <a href="#ai-studio" class="social-link">AI STUDIO</a>
+            <a href="#precos" class="social-link">PLANOS</a>
+            <div style="width:1px; height:20px; background:rgba(255,255,255,0.2); margin:0 15px;"></div>
+            <a href="/login" class="btn-login-nav">Área do Cliente</a>
         </div>
     </nav>
 
     <header class="hero">
-        <div class="tag-version">Protocolo V15.0 Ativado</div>
-        
-        <h1>
-            <span class="outline">CALIXTO</span> 
-            <strong>
-                <span id="secret-o">O</span>MNISYSTEM
-            </strong>
-        </h1>
-        
-        <p>Domine o caos digital. Conecte seu WhatsApp a uma Automação de Elite. E agora, eleve sua marca com Produções Visuais Neurais de última geração.</p>
-        <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
-            <a href="#automacao" class="cta-btn">Automação</a>
-            <a href="#ai-studio" class="cta-btn" style="background: transparent; border: 1px solid var(--neon-purple); color: var(--neon-purple);">AI Studio</a>
+        <div class="hero-content">
+            <div class="hero-badge">Protocolo V21.0 Ultimate</div>
+            <h1>
+                <span class="outline">CALIXTO</span>
+                <strong><span id="secret-o">O</span>MNISYSTEM</strong>
+            </h1>
+            <p>Domine o caos digital. Conecte seu WhatsApp a uma Automação de Elite. E agora, eleve sua marca com Produções Visuais Neurais.</p>
+            <div class="hero-btns">
+                <a href="#precos" class="cta-btn">Ver Planos</a>
+                <a href="#ai-studio" class="cta-btn" style="background: transparent; border: 1px solid var(--neon-purple); color: var(--neon-purple);">AI Studio</a>
+            </div>
         </div>
     </header>
 
-    <section id="automacao">
-        <h2 class="section-title">AUTOMAÇÃO WHATSAPP</h2>
-        <p class="section-subtitle">Escolha sua armadura de atendimento.</p>
+    <section id="ai-studio" class="section-padding container text-center" style="background: rgba(0,0,0,0.3); border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);">
+        <h2 class="section-title" style="text-shadow: 0 0 15px var(--neon-purple);">NEURAL STUDIO</h2>
+        <p class="section-subtitle">Geração de Vídeo e Imagem por Inteligência Artificial de Alta Definição.</p>
+
+        <p class="ai-cta-text">FAÇA VOCÊ TAMBÉM</p>
+
+        <div class="gallery-grid">
+            <div class="gallery-item">
+                <video autoplay loop muted playsinline>
+                    <source src="/uploads/leonidas.mp4" type="video/mp4">
+                </video>
+                <div class="gallery-overlay">⚡ VEO-3: RENDERIZAÇÃO CINEMÁTICA 4K</div>
+            </div>
+            <div class="gallery-item">
+                <img src="/uploads/tokyojpg.jpg" alt="AI Art Cyberpunk City">
+                <div class="gallery-overlay">🌆 FLUX-1: ESTILO CYBERPUNK REALISTA</div>
+            </div>
+            <div class="gallery-item">
+                <video autoplay loop muted playsinline>
+                    <source src="/uploads/robot.mp4" type="video/mp4">
+                </video>
+                <div class="gallery-overlay">🤖 SORA-V2: GERAÇÃO DE MOVIMENTO COMPLEXO</div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 40px;">
+           <a href="/registro" class="cta-btn" style="background: transparent; border: 2px solid var(--neon-pink); color: var(--neon-pink);">COMEÇAR AGORA</a>
+        </div>
+    </section>
+
+    <section id="comparativo" class="section-padding container text-center">
+        <h2 class="section-title">ECONOMIA INTELIGENTE</h2>
+        <p class="section-subtitle">Veja a diferença brutal de custo e eficiência.</p>
+        <div class="comparison-wrapper">
+            <div class="comparison-table">
+                <div class="comp-col comp-human">
+                    <div class="comp-title" style="color: #ff4444;">SECRETÁRIA HUMANA</div>
+                    <div class="comp-price" style="color: #ff4444;">R$ 3.500<small>/mês</small></div>
+                    <ul class="comp-list">
+                        <li><i class="ri-close-line" style="color:#ff4444"></i> Salário + CLT + Benefícios</li>
+                        <li><i class="ri-close-line" style="color:#ff4444"></i> Horário limitado (8h/dia)</li>
+                        <li><i class="ri-close-line" style="color:#ff4444"></i> Férias e atestados</li>
+                    </ul>
+                </div>
+                <div class="comp-col comp-ai">
+                    <div class="comp-title" style="color: var(--neon-cyan);">CALIXTO OMNISYSTEM</div>
+                    <div class="comp-price" style="color: var(--neon-cyan);">R$ 690<small>/mês</small></div>
+                    <ul class="comp-list">
+                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Sem vínculo trabalhista</li>
+                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Atende 24h / 7 dias</li>
+                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Resposta Imediata</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="depoimentos" class="section-padding container text-center">
+        <h2 class="section-title">QUEM USA, APROVA</h2>
+        <p class="section-subtitle">Parceiros que transformaram seu atendimento.</p>
+        <div class="testimonials-grid">
+            <div class="testimonial-card">
+                <p class="test-text">"A automação transformou o agendamento da clínica. Reduzimos faltas e o paciente já chega com o cadastro pronto. Essencial para a OsteoClinic."</p>
+                <div class="test-author">
+                    <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=33');"></div>
+                    <div class="test-info" style="text-align: left;"><h4>OsteoClinic</h4><p>Clínica Integrada</p></div>
+                </div>
+            </div>
+            <div class="testimonial-card">
+                <p class="test-text">"A função de enviar vídeos dos imóveis automaticamente é fantástica. O cliente já chega pronto pra comprar."</p>
+                <div class="test-author">
+                    <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=5');"></div>
+                    <div class="test-info" style="text-align: left;"><h4>Juliana Costa</h4><p>Corretora</p></div>
+                </div>
+            </div>
+            <div class="testimonial-card">
+                <p class="test-text">"Os áudios gerados por IA parecem humanos de verdade. Meus clientes acham que estou no celular o dia todo."</p>
+                <div class="test-author">
+                    <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=60');"></div>
+                    <div class="test-info" style="text-align: left;"><h4>Marcos V.</h4><p>Infoprodutor</p></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="precos" class="section-padding container text-center">
+        <h2 class="section-title">PLANOS DISPONÍVEIS</h2>
         <div class="pricing-grid">
             <div class="price-card">
                 <div class="plan-name">ESSENTIAL</div>
                 <span class="price">R$ 690<span>/mês</span></span>
-                <span class="setup">+ Setup R$ 497,00</span>
-                <ul class="features">
+                <span style="display:block; margin-bottom:20px; font-size:0.8rem; color:#888;">+ Setup R$ 497,00</span>
+                <ul class="features-list">
                     <li><i class="ri-robot-line"></i> Fluxo Guiado</li>
                     <li><i class="ri-check-line"></i> Menu Interativo</li>
                     <li><i class="ri-check-line"></i> Respostas Rápidas</li>
-                    <li><i class="ri-check-line"></i> Encerramento Auto</li>
                 </ul>
                 <a href="/registro" class="btn-plan">Iniciar</a>
             </div>
 
             <div class="price-card featured">
-                <div class="badge-popular">Recomendado</div>
+                <div class="badge-popular">RECOMENDADO</div>
                 <div class="plan-name">ADVANCED</div>
                 <span class="price">R$ 1.190<span>/mês</span></span>
-                <span class="setup">+ Setup R$ 497,00</span>
-                <ul class="features">
+                <span style="display:block; margin-bottom:20px; font-size:0.8rem; color:#888;">+ Setup R$ 497,00</span>
+                <ul class="features-list">
                     <li><i class="ri-shield-star-line"></i> <strong>Tudo do Essential</strong></li>
                     <li><i class="ri-whatsapp-line"></i> Envio de Mídia (Foto/Vídeo)</li>
-                    <li><i class="ri-user-voice-line"></i> Transbordo Humano</li>
                     <li><i class="ri-calendar-check-line"></i> Agendamento Inteligente</li>
                 </ul>
                 <a href="/registro" class="btn-plan">Assinar Agora</a>
@@ -252,141 +379,156 @@
             <div class="price-card">
                 <div class="plan-name">SIGNATURE</div>
                 <span class="price">R$ 1.890<span>/mês</span></span>
-                <span class="setup">+ Setup R$ 497,00</span>
-                <ul class="features">
+                <span style="display:block; margin-bottom:20px; font-size:0.8rem; color:#888;">+ Setup R$ 497,00</span>
+                <ul class="features-list">
                     <li><i class="ri-vip-diamond-line"></i> <strong>Tudo do Advanced</strong></li>
                     <li><i class="ri-mic-2-line"></i> Áudios Humanizados</li>
                     <li><i class="ri-file-text-line"></i> Gerador de Contratos</li>
-                    <li><i class="ri-customer-service-2-line"></i> Suporte Prioritário</li>
                 </ul>
                 <a href="/registro" class="btn-plan">Contratar</a>
             </div>
         </div>
     </section>
 
-    <section id="ai-studio" style="background: rgba(0,0,0,0.3);">
-        <h2 class="section-title" style="text-shadow: 0 0 20px var(--neon-pink);">NEURAL STUDIO</h2>
-        <p class="section-subtitle">Produção audiovisual gerada por IA de Alto Nível.</p>
-
-        <div class="gallery-grid">
-            <div class="gallery-item">
-                <video controls autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;">
-                    <source src="/uploads/leonidas.mp4" type="video/mp4">
-                </video>
-                <div class="placeholder-text">Demo Veo 3</div>
+    <section class="section-padding container">
+        <h2 class="section-title text-center">DÚVIDAS FREQUENTES</h2>
+        <div class="faq-grid" style="margin-top: 40px;">
+            <div class="faq-item">
+                <button class="faq-question">Preciso deixar o PC ligado? <i class="ri-arrow-down-s-line"></i></button>
+                <div class="faq-answer"><p>Não! Nosso sistema roda na nuvem 24 horas por dia. Você conecta o WhatsApp uma vez e pode desligar seu computador.</p></div>
             </div>
-
-            <div class="gallery-item">
-                <img src="/uploads/tokyojpg.jpg" alt="Foto Nano Bana" style="width: 100%; height: 100%; object-fit: cover;">
-                <div class="placeholder-text">Nano Bana</div>
+            <div class="faq-item">
+                <button class="faq-question">Posso usar meu número atual? <i class="ri-arrow-down-s-line"></i></button>
+                <div class="faq-answer"><p>Sim, você usa seu próprio número de WhatsApp Business ou pessoal. A conexão é feita via QR Code, igual ao WhatsApp Web.</p></div>
             </div>
-
-            <div class="gallery-item">
-                <video controls autoplay loop muted playsinline style="width: 100%; height: 100%; object-fit: cover;">
-                    <source src="/uploads/robot.mp4" type="video/mp4">
-                </video>
-                <div class="placeholder-text">Demo Veo 3</div>
+            <div class="faq-item">
+                <button class="faq-question">Existe fidelidade? <i class="ri-arrow-down-s-line"></i></button>
+                <div class="faq-answer"><p>Não. Você pode cancelar a assinatura a qualquer momento sem multas.</p></div>
             </div>
         </div>
-        <br><br><br>
     </section>
 
     <footer>
-        &copy; 2026 Calixto OmniSystem. Todos os direitos reservados.
+        <div class="container">
+            <div class="footer-grid">
+                <div class="footer-col">
+                    <span class="footer-logo">CALIXTO <span>AI</span></span>
+                    <p style="font-size: 0.9rem; color: #888;">Transformando negócios através de automação inteligente e design de futuro.</p>
+                </div>
+                <div class="footer-col">
+                    <h4>LINKS RÁPIDOS</h4>
+                    <ul class="footer-links">
+                        <li><a href="#ai-studio">AI Studio</a></li>
+                        <li><a href="#comparativo">Vantagens</a></li>
+                        <li><a href="#precos">Planos</a></li>
+                        <li><a href="/login">Área do Cliente</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>LEGAL</h4>
+                    <ul class="footer-links">
+                        <li><a href="#">Termos de Uso</a></li>
+                        <li><a href="#">Privacidade</a></li>
+                        <li><a href="#">Suporte</a></li>
+                    </ul>
+                </div>
+                <div class="footer-col">
+                    <h4>CONTATO</h4>
+                    <ul class="footer-links">
+                        <li><a href="https://wa.me/5521991593547" target="_blank"><i class="ri-whatsapp-line"></i> (21) 99159-3547</a></li>
+                        <li><a href="#"><i class="ri-mail-line"></i> contato@calixto.dev</a></li>
+                        <li><a href="#"><i class="ri-instagram-line"></i> @calixto.dev</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="copyright">&copy; 2026 Calixto OmniSystem. Todos os direitos reservados.</div>
+        </div>
     </footer>
 
     <script>
-        // 1. LOADER SCRIPT
-        window.addEventListener('load', () => {
-            const loader = document.getElementById('jarvis-loader');
-            setTimeout(() => {
-                loader.classList.add('loaded');
-            }, 3500);
+        // LOADER
+        window.addEventListener('load', () => setTimeout(() => document.getElementById('jarvis-loader').classList.add('loaded'), 3500));
+
+        // FAQ
+        document.querySelectorAll('.faq-question').forEach(button => {
+            button.addEventListener('click', () => {
+                const item = button.parentElement;
+                item.classList.toggle('active');
+            });
         });
 
-        // 2. GOD MODE CONSOLE LOGIC (5 Clicks na Logo)
-        let logoClicks = 0;
-        const logo = document.querySelector('.logo');
+        // EASTER EGGS
+        let clicks = 0;
+        const logo = document.getElementById('secret-trigger');
         const consoleDiv = document.getElementById('god-console');
         const consoleInput = document.getElementById('console-input');
         const consoleOutput = document.getElementById('console-output');
 
         if(logo) {
             logo.addEventListener('click', () => {
-                logoClicks++;
-                if (logoClicks === 5) {
-                    consoleDiv.classList.toggle('active');
-                    if (consoleDiv.classList.contains('active')) {
-                        consoleInput.focus();
-                        // Som opcional ao abrir
-                        // new Audio('...').play();
-                    }
-                    logoClicks = 0;
+                clicks++;
+                if(clicks === 5) {
+                    consoleDiv.classList.add('active');
+                    consoleInput.focus();
+                    clicks = 0;
                 }
-                setTimeout(() => logoClicks = 0, 3000); // Reseta se demorar
+                setTimeout(() => clicks = 0, 2000);
             });
         }
 
-        if(consoleInput) {
-            consoleInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    const cmd = consoleInput.value.toLowerCase().trim();
-                    consoleInput.value = '';
-                    consoleOutput.innerHTML += `> ${cmd}<br>`;
-                    
-                    if(cmd === 'matrix') { 
-                        document.body.classList.add('matrix-mode'); 
-                        document.body.classList.remove('red-alert-mode'); 
-                        consoleOutput.innerHTML += '> Matrix carregada.<br>'; 
-                    }
-                    else if(cmd === 'red_alert') { 
-                        document.body.classList.add('red-alert-mode'); 
-                        document.body.classList.remove('matrix-mode'); 
-                        consoleOutput.innerHTML += '> ALERTA VERMELHO!<br>'; 
-                    }
-                    else if(cmd === 'nuke') {
-                        consoleOutput.innerHTML += '> INICIANDO SEQUÊNCIA DE AUTODESTRUIÇÃO...<br>';
-                        let count = 5;
-                        const timer = setInterval(() => {
-                            consoleOutput.innerHTML += `> ${count}...<br>`;
-                            consoleOutput.scrollTop = consoleOutput.scrollHeight;
-                            count--;
-                            if(count < 0) {
-                                clearInterval(timer);
-                                consoleOutput.innerHTML += '> ERRO: Falha no núcleo. Abortando.<br>';
-                                consoleOutput.scrollTop = consoleOutput.scrollHeight;
-                            }
-                        }, 1000);
-                    }
-                    else if(cmd === 'normal' || cmd === 'reset') { 
-                        document.body.classList.remove('matrix-mode', 'red-alert-mode'); 
-                        consoleOutput.innerHTML += '> Sistema normalizado.<br>'; 
-                    }
-                    else if(cmd === 'clear') { consoleOutput.innerHTML = ''; }
-                    else if(cmd === 'exit') { consoleDiv.classList.remove('active'); }
-                    else { consoleOutput.innerHTML += '> Comando desconhecido.<br>'; }
-                    
-                    consoleOutput.scrollTop = consoleOutput.scrollHeight;
+        consoleInput.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') {
+                const cmd = consoleInput.value.trim().toLowerCase();
+                consoleInput.value = '';
+                consoleOutput.innerHTML += `> ${cmd}<br>`;
+                
+                if(cmd === 'matrix') { 
+                    document.body.classList.add('matrix-mode'); 
+                    document.body.classList.remove('red-alert-mode'); 
+                    consoleOutput.innerHTML += '> Matrix carregada.<br>'; 
                 }
-            });
-        }
+                else if(cmd === 'red_alert') { 
+                    document.body.classList.add('red-alert-mode'); 
+                    document.body.classList.remove('matrix-mode'); 
+                    consoleOutput.innerHTML += '> ALERTA VERMELHO!<br>'; 
+                }
+                else if(cmd === 'nuke') {
+                    consoleOutput.innerHTML += '> INICIANDO SEQUÊNCIA DE AUTODESTRUIÇÃO...<br>';
+                    let count = 5;
+                    const timer = setInterval(() => {
+                        consoleOutput.innerHTML += `> ${count}...<br>`;
+                        consoleOutput.scrollTop = consoleOutput.scrollHeight;
+                        count--;
+                        if(count < 0) {
+                            clearInterval(timer);
+                            document.body.classList.add('nuke-mode');
+                            setTimeout(() => { document.body.classList.remove('nuke-mode'); consoleOutput.innerHTML += '> ERRO: SISTEMA REINICIADO.<br>'; document.body.classList.remove('matrix-mode', 'red-alert-mode'); }, 2000);
+                        }
+                    }, 1000);
+                }
+                else if(cmd === 'normal' || cmd === 'reset') { 
+                    document.body.classList.remove('matrix-mode', 'red-alert-mode', 'nuke-mode'); 
+                    consoleOutput.innerHTML += '> Sistema normalizado.<br>'; 
+                }
+                else if(cmd === 'clear') { consoleOutput.innerHTML = ''; }
+                else if(cmd === 'exit') { consoleDiv.classList.remove('active'); }
+                else { consoleOutput.innerHTML += '> Comando desconhecido.<br>'; }
+                
+                consoleOutput.scrollTop = consoleOutput.scrollHeight;
+            }
+        });
 
-        // 3. SECRET "O" DOOR LOGIC
+        // SECRET O
         const secretO = document.getElementById('secret-o');
         let oClicks = 0;
-        
         if(secretO) {
-            secretO.addEventListener('click', (e) => {
+            secretO.addEventListener('click', () => {
                 oClicks++;
-                
                 if (oClicks === 3) {
-                    secretO.classList.add('activated'); // Acende
-                    setTimeout(() => { 
-                        window.location.href = "/registro"; // Redireciona
-                    }, 500);
+                    secretO.classList.add('activated');
+                    setTimeout(() => window.location.href = "/registro", 500);
                 }
-                
-                setTimeout(() => { oClicks = 0; }, 800);
+                setTimeout(() => oClicks = 0, 800);
             });
         }
     </script>

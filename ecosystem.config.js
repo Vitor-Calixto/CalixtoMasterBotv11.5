@@ -1,27 +1,22 @@
 module.exports = {
-  apps : [
-    // 1. O CÉREBRO (Redis)
-    {
-      name: "redis-server",
-      script: "F:\\redis\\redis-server.exe", // Caminho onde você instalou
-      args: "--bind 127.0.0.1",              // Força o IP local para não dar erro de bind
-      instances: 1,
-      autorestart: true,
-      watch: false
-    },
-    // 2. O CORPO (Seu Bot)
-    {
-      name: "calixto-bot",
-      script: "./index.js",
-      instances: 1,
-      autorestart: true,
-      watch: false, // Deixei false para evitar reinícios indesejados ao criar arquivos de log
-      env: {
-        NODE_ENV: "production",
-        // Garante que o bot saiba onde buscar o Redis, caso precise
-        REDIS_HOST: "127.0.0.1",
-        REDIS_PORT: "6379"
-      }
+  apps : [{
+    script: 'index.js',
+    watch: '.'
+  }, {
+    script: './service-worker/',
+    watch: ['./service-worker']
+  }],
+
+  deploy : {
+    production : {
+      user : 'SSH_USERNAME',
+      host : 'SSH_HOSTMACHINE',
+      ref  : 'origin/master',
+      repo : 'GIT_REPOSITORY',
+      path : 'DESTINATION_PATH',
+      'pre-deploy-local': '',
+      'post-deploy' : 'npm install && pm2 reload ecosystem.config.js --env production',
+      'pre-setup': ''
     }
-  ]
+  }
 };
