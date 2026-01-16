@@ -1,5 +1,5 @@
 // ============================================================
-// ARQUIVO: modulos/whatsapp.js (V5.6 - BLINDADO CONTRA ENOENT)
+// ARQUIVO: modulos/whatsapp.js (V5.7 - CORREÇÃO DO DESLIGAMENTO)
 // ============================================================
 const { 
     default: makeWASocket, 
@@ -10,17 +10,14 @@ const {
 } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const fs = require('fs');
-const path = require('path'); // Importante para Windows
+const path = require('path');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const engine = require('./engine'); 
 
-// --- NOVO: MARCA A HORA QUE O SISTEMA LIGOU ---
 const STARTUP_TIME = Math.floor(Date.now() / 1000); 
-
 const sessoes = new Map();
 
-// Função auxiliar para "desembrulhar" mensagens
 function unwrapMessage(msg) {
     if (!msg) return null;
     if (msg.ephemeralMessage) return unwrapMessage(msg.ephemeralMessage.message);
@@ -30,34 +27,26 @@ function unwrapMessage(msg) {
 }
 
 async function iniciarWhatsApp(cliente, io) {
-    // Se já existe sessão, não mata ela a menos que seja estritamente necessário
-    // A lógica de "Mute" do engine.js cuida do resto
-    if (sessoes.has(cliente.id)) {
-        return; 
-    }
+    if (sessoes.has(cliente.id)) return; 
 
+    // Verifica se cliente ainda existe
     const checkStatus = await prisma.cliente.findUnique({ where: { id: cliente.id } });
-    if (!checkStatus) { // Se o cliente não existe mais, aborta
+    if (!checkStatus) return;
+
+    // --- SEGURANÇA EXTRA: Se estiver marcado como OFFLINE no banco, NÃO inicia ---
+    // Isso impede que loops antigos ressuscitem o bot
+    if (checkStatus.status === 'OFFLINE') {
+        console.log(`[${cliente.nome}] 🛑 Status é OFFLINE. Abortando conexão.`);
         return;
     }
-    // NOTA: Removemos a checagem '&& !checkStatus.ativo' para garantir que ele conecte 
-    // mesmo que esteja marcado como OFFLINE no banco (para o modo Mute funcionar)
 
     console.log(`[SISTEMA] 🔗 Conectando: ${cliente.nome}...`);
 
-    // --- CORREÇÃO DE CAMINHO PARA WINDOWS ---
     const sessionsDir = path.join(__dirname, '..', 'sessions');
     const pathAuth = path.join(sessionsDir, `${cliente.nome}-${cliente.id}`);
 
-    // Garante que a pasta 'sessions' existe
-    if (!fs.existsSync(sessionsDir)) {
-        fs.mkdirSync(sessionsDir, { recursive: true });
-    }
-    
-    // Garante que a pasta do cliente existe
-    if (!fs.existsSync(pathAuth)) {
-        fs.mkdirSync(pathAuth, { recursive: true });
-    }
+    if (!fs.existsSync(sessionsDir)) fs.mkdirSync(sessionsDir, { recursive: true });
+    if (!fs.existsSync(pathAuth)) fs.mkdirSync(pathAuth, { recursive: true });
 
     const { state, saveCreds } = await useMultiFileAuthState(pathAuth);
     const { version } = await fetchLatestBaileysVersion();
@@ -70,7 +59,7 @@ async function iniciarWhatsApp(cliente, io) {
             creds: state.creds,
             keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })),
         },
-        browser: ["Windows", "Chrome", "1.0.0"], 
+        browser: ["Calixto System", "Chrome", "10.0"], 
         markOnlineOnConnect: true,
         connectTimeoutMs: 60000, 
         defaultQueryTimeoutMs: 60000,
@@ -81,10 +70,7 @@ async function iniciarWhatsApp(cliente, io) {
     if (!sock.authState.creds.registered) {
         setTimeout(async () => {
             try {
-                // Verifica novamente se o cliente ainda quer conectar
                 const current = await prisma.cliente.findUnique({ where: { id: cliente.id } });
-                
-                // Só gera código se o status no banco for ONLINE (Para evitar spam em bot desligado)
                 if (!current || current.status !== 'ONLINE') return;
 
                 const phoneNumber = cliente.numero.replace(/[^0-9]/g, '');
@@ -96,9 +82,7 @@ async function iniciarWhatsApp(cliente, io) {
                 console.log(`[${cliente.nome}] 🔢 CÓDIGO: ${codeFormatado}`);
                 
                 if (io) io.emit('pairingCode', { clienteId: cliente.id, code: codeFormatado });
-            } catch (erro) {
-                // console.error(`Erro ao gerar código para ${cliente.nome}:`, erro.message);
-            }
+            } catch (erro) {}
         }, 5000);
     }
 
@@ -111,53 +95,44 @@ async function iniciarWhatsApp(cliente, io) {
             const statusCode = lastDisconnect?.error?.output?.statusCode;
             sessoes.delete(cliente.id);
             
-            // SE FOR LOGOUT (Desconexão pelo Celular)
+            // 1. Buscamos o status ATUAL no banco de dados
+            // Isso é o segredo. Se você clicou em desligar, lá estará 'OFFLINE'
+            const clienteAtualizado = await prisma.cliente.findUnique({ where: { id: cliente.id } });
+
             if (statusCode === DisconnectReason.loggedOut) {
                 console.log(`[${cliente.nome}] ❌ LOGOUT (Desconectado pelo celular).`);
-                try {
-                    // Tenta apagar a pasta com segurança
-                    fs.rmSync(pathAuth, { recursive: true, force: true });
-                } catch(e){
-                    console.error(`Erro ao apagar pasta de sessão: ${e.message}`);
-                }
+                try { fs.rmSync(pathAuth, { recursive: true, force: true }); } catch(e){}
                 
-                // Marca como OFFLINE no banco para o usuário saber
                 await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'OFFLINE' } });
                 if(io) io.emit('status', { clienteId: cliente.id, status: 'OFFLINE' });
             
             } else {
-                // SE FOR QUEDA (Erro 515, Internet, etc)
-                // console.log(`[${cliente.nome}] ⚠️ Queda (${statusCode}). Reconectando...`);
-                
-                // Reconexão agressiva (mas segura)
-                setTimeout(() => iniciarWhatsApp(cliente, io), 3000);
+                // SE NÃO FOI LOGOUT, VERIFICAMOS SE DEVEMOS RECONECTAR
+                if (clienteAtualizado && clienteAtualizado.status === 'ONLINE') {
+                    console.log(`[${cliente.nome}] ⚠️ Queda acidental. Reconectando em 3s...`);
+                    setTimeout(() => iniciarWhatsApp(cliente, io), 3000);
+                } else {
+                    console.log(`[${cliente.nome}] 🛑 Conexão encerrada manualmente (OFFLINE). Não reconectando.`);
+                    // AQUI O BOT MORRE E NÃO VOLTA MAIS
+                }
             }
 
         } else if (connection === 'open') {
             console.log(`[${cliente.nome}] 🟢 CONECTADO!`);
             sessoes.set(cliente.id, sock);
             
-            // Garante que o status visual fique verde
             await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'ONLINE' } });
             if(io) io.emit('status', { clienteId: cliente.id, status: 'ONLINE' });
         }
     });
 
-    // --- LEITURA DE MENSAGENS ---
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
         try {
             if (type !== 'notify') return;
             const msg = messages[0];
-            if (!msg.message) return;
-            if (msg.key.fromMe) return;
-            if (msg.key.remoteJid === 'status@broadcast') return;
-            if (msg.key.remoteJid.includes('@g.us')) return; 
+            if (!msg.message || msg.key.fromMe || msg.key.remoteJid === 'status@broadcast' || msg.key.remoteJid.includes('@g.us')) return;
 
-            // BARREIRA DE BOOT (Ignora mensagens antigas)
-            const messageTimestamp = typeof msg.messageTimestamp === "number" 
-                ? msg.messageTimestamp 
-                : msg.messageTimestamp.low; 
-            
+            const messageTimestamp = typeof msg.messageTimestamp === "number" ? msg.messageTimestamp : msg.messageTimestamp.low; 
             if (messageTimestamp <= STARTUP_TIME) return;
 
             const remoteJid = msg.key.remoteJid;
