@@ -252,12 +252,14 @@
                     if (res.headers.get("content-type").indexOf("json") === -1) { window.location.href = '/login'; return; }
                     const users = await res.json();
                     
+                    // --- CABEÇALHO DA TABELA ---
                     let html = `<table><thead><tr>
                         <th>Usuário</th>
                         <th>Plano</th>
                         <th>Bots</th>
                         <th>Validade</th>
                         <th>Status</th>
+                        <th>Jurídico (Termos)</th> 
                         <th>Ações</th>
                     </tr></thead><tbody>`;
 
@@ -298,6 +300,23 @@
                             else { dataFormatada += ` <br><span style="color:#00e054; font-size:10px;">(${dias} dias)</span>`; }
                         }
 
+                        // --- LÓGICA DO CAMPO JURÍDICO (FONTE AUMENTADA PARA 12px) ---
+                        let juridicoHtml = '';
+                        if (u.termsAccepted) {
+                            const dataAceite = u.termsAcceptedAt ? new Date(u.termsAcceptedAt).toLocaleDateString('pt-BR') + ' ' + new Date(u.termsAcceptedAt).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : 'N/A';
+                            juridicoHtml = `
+                                <div style="line-height: 1.4;">
+                                    <span style="color: #00ff88; font-weight: bold; font-size: 12px;">✅ ACEITO</span><br>
+                                    <span style="color: #aaa; font-size: 11px; font-family:monospace;">
+                                        📅 ${dataAceite}<br>
+                                        🌐 IP: <span style="color: #fff;">${u.signupIp || '?'}</span>
+                                    </span>
+                                </div>
+                            `;
+                        } else {
+                            juridicoHtml = `<span style="color: #ffaa00; font-size: 11px;">⚠️ Pendente (Antigo)</span>`;
+                        }
+
                         let btnStatus = '';
                         if (!u.ativo) {
                             btnStatus = `<button class="btn-action-admin bg-green" onclick="aprovar('${u.id}')">APROVAR</button>`;
@@ -318,6 +337,9 @@
                             <td>${botsHtml}</td>
                             <td style="color:${corData}; font-size:12px;">${dataFormatada}</td>
                             <td><span class="status-badge ${u.ativo ? 'st-ativo' : 'st-pendente'}">${u.ativo ? 'ATIVO' : 'PENDENTE'}</span></td>
+                            
+                            <td>${juridicoHtml}</td>
+                            
                             <td>
                                 <div style="display:flex; gap:5px;">
                                     ${btnStatus}
@@ -326,7 +348,7 @@
                             </td>
                         </tr>
                         <tr id="detalhe-${u.id}" style="display:none; background:#0a0a0a;">
-                            <td colspan="6" style="padding:20px; border-left:2px solid var(--primary-blue);">
+                            <td colspan="7" style="padding:20px; border-left:2px solid var(--primary-blue);">
                                 <h4 style="color:#fff; font-size:11px; margin-bottom:10px;">RENOVAR ACESSO RÁPIDO</h4>
                                 <div style="display:flex; gap:5px; align-items:center;">
                                     <button class="btn-renova" onclick="renovarAcesso('${u.id}', 7)">+7d</button>

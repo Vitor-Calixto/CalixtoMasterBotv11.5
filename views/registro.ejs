@@ -104,6 +104,30 @@
             text-align: left;
             display: flex; align-items: center; gap: 10px;
         }
+
+        /* CHECKBOX CUSTOMIZADO (NOVO) */
+        .legal-check {
+            margin: 15px 0;
+            font-size: 11px;
+            color: #aaa;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            text-align: left;
+            line-height: 1.4;
+        }
+        .legal-check input {
+            width: auto; /* Sobrescreve o 100% padrão */
+            margin-top: 3px;
+            cursor: pointer;
+        }
+        .legal-check a {
+            color: #bd00ff;
+            text-decoration: none;
+            font-weight: bold;
+            transition: 0.2s;
+        }
+        .legal-check a:hover { color: #fff; text-shadow: 0 0 5px #bd00ff; }
     </style>
 </head>
 <body>
@@ -131,6 +155,15 @@
                 <input type="password" name="senha" required placeholder="Crie uma senha forte">
             </div>
             
+            <div class="legal-check">
+                <input type="checkbox" id="termos" name="termos" required>
+                <label for="termos" style="font-weight: normal; margin: 0; cursor: pointer; text-transform: none;">
+                    Li e concordo com os <a href="/termos" target="_blank">Termos de Uso</a> e 
+                    <a href="/privacidade" target="_blank">Política de Privacidade</a>.
+                    <br><span style="opacity: 0.6; font-size: 10px;">Estou ciente de que esta ferramenta não possui vínculo com o WhatsApp oficial.</span>
+                </label>
+            </div>
+
             <button type="submit">CADASTRAR</button>
         </form>
 

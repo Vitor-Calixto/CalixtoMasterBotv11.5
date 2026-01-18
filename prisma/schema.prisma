@@ -8,22 +8,28 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-// --- MODELO USUÁRIO (ATUALIZADO PARA SAAS) ---
+
+// --- MODELO USUÁRIO (ATUALIZADO PARA SAAS + JURÍDICO) ---
 model Usuario {
-  id            String    @id @default(uuid())
-  email         String    @unique
-  senha         String
-  nome          String
-  role          String    @default("CLIENTE") // "ADMIN" ou "CLIENTE"
-  ativo         Boolean   @default(false)
+  id           String    @id @default(uuid())
+  email        String    @unique
+  senha        String
+  nome         String
+  role         String    @default("CLIENTE") // "ADMIN" ou "CLIENTE"
+  ativo        Boolean   @default(false)
   
   // --- NOVOS CAMPOS DE CONTROLE ---
-  bloqueado     Boolean   @default(false)      // Se true, o usuário não entra no sistema
-  expiraEm      DateTime?                      // Data limite de uso (Trial ou Plano)
+  bloqueado    Boolean   @default(false)       // Se true, o usuário não entra no sistema
+  expiraEm     DateTime?                       // Data limite de uso (Trial ou Plano)
   
   // Campos de recuperação de senha
-  resetToken    String?   
-  resetExpires  DateTime?
+  resetToken   String?   
+  resetExpires DateTime?
+
+  // --- DADOS JURÍDICOS (LGPD & TERMOS DE USO) ---
+  termsAccepted   Boolean   @default(false)    // Checkbox de aceite
+  termsAcceptedAt DateTime?                    // Data e Hora exata do aceite (Prova)
+  signupIp        String?                      // IP da máquina no momento do cadastro
 
   // --- PLANOS ---
   plano         String    @default("ESSENTIAL") // ESSENTIAL, ADVANCED, SIGNATURE

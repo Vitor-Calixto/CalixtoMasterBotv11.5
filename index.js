@@ -1,5 +1,5 @@
 // ============================================================
-// ARQUIVO: index.js (V18.0 - COM MODO MANUTENÇÃO)
+// ARQUIVO: index.js (V18.1 - FINAL GOLD)
 // ============================================================
 
 const PLANOS = {
@@ -49,6 +49,7 @@ function setSystemConfig(newConfig) {
 // --- CONFIGURAÇÕES DO EXPRESS ---
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
+// Importante: Arquivos estáticos ANTES da manutenção para carregar CSS/Imagens
 app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -62,25 +63,27 @@ app.use(session({
 app.use(flash());
 
 // --- MIDDLEWARE DE MANUTENÇÃO (A BARREIRA) ---
-// Esse código roda antes de TUDO. Se tiver manutenção, bloqueia quem não é admin.
+// Esse código roda antes de TUDO (exceto arquivos estáticos).
 app.use((req, res, next) => {
     const config = getSystemConfig();
     
     // Se NÃO estiver em manutenção, segue a vida
     if (!config.maintenance) return next();
 
-    // Rotas liberadas mesmo em manutenção (Login, Assets, API de login)
+    // Rotas liberadas mesmo em manutenção
     if (req.path.startsWith('/login') || 
         req.path.startsWith('/uploads') || 
-        req.path === '/api/login' || // Se tiver rota de api login
-        req.path === '/registro' || // Talvez queira bloquear registro tbm
-        req.path === '/logout') {
+        req.path === '/api/login' || 
+        req.path === '/registro' || 
+        req.path === '/logout' ||
+        req.path === '/termos' ||      // Libera termos para leitura
+        req.path === '/privacidade') { // Libera privacidade
         return next();
     }
 
     // Se usuário já estiver logado E for ADMIN, deixa passar
     if (req.session.usuario && req.session.role === 'ADMIN') {
-        // Injeta aviso visual que está em manutenção (opcional)
+        // Injeta aviso visual que está em manutenção
         res.locals.maintenanceMode = true; 
         return next();
     }
@@ -157,26 +160,49 @@ app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
 
 app.get('/registro', (req, res) => { res.render('registro', { message: req.flash('error') }); });
 
+// ROTA DE REGISTRO (ATUALIZADA COM BLINDAGEM JURÍDICA)
 app.post('/registro', async (req, res) => {
-    const { nome, email, senha } = req.body;
     try {
-        const existe = await prisma.usuario.findUnique({ where: { email: email.trim() } });
-        if (existe) { req.flash('error', 'E-mail já existe.'); return res.redirect('/registro'); }
-        const hash = bcrypt.hashSync(senha.trim(), 10);
-        const totalUsers = await prisma.usuario.count();
-        const role = totalUsers === 0 ? 'ADMIN' : 'CLIENTE';
-        const isAtivo = totalUsers === 0;
-        const dataTrial = new Date(); dataTrial.setDate(dataTrial.getDate() + 7);
+        const { nome, email, senha, termos } = req.body;
 
-        const novoUsuario = await prisma.usuario.create({ 
-            data: { nome: nome.trim(), email: email.trim(), senha: hash, role: role, ativo: isAtivo, plano: 'ESSENTIAL', expiraEm: role === 'ADMIN' ? null : dataTrial } 
+        // 1. Validação Obrigatória do Checkbox
+        if (!termos) {
+            return res.render('registro', { message: 'Erro: Você precisa aceitar os Termos de Uso para continuar.' });
+        }
+
+        // 2. Verifica se usuário já existe
+        const userExists = await prisma.usuario.findUnique({ where: { email } });
+        if (userExists) {
+            return res.render('registro', { message: 'E-mail já cadastrado.' });
+        }
+
+        // 3. Captura Técnica para Prova Jurídica (IP Real)
+        const ipCliente = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+        
+        // 4. Criptografa a senha
+        const hashedPassword = await bcrypt.hash(senha, 10);
+
+        // 5. Cria no Banco com os DADOS JURÍDICOS
+        await prisma.usuario.create({
+            data: {
+                nome,
+                email,
+                senha: hashedPassword,
+                // --- DADOS DE COMPLIANCE ---
+                termsAccepted: true,           
+                termsAcceptedAt: new Date(),   
+                signupIp: String(ipCliente),   
+                plano: 'ESSENTIAL',            
+                ativo: false                   
+            }
         });
 
-        if (novoUsuario.ativo) { 
-            req.session.usuario = novoUsuario; req.session.userId = novoUsuario.id; req.session.role = novoUsuario.role; 
-            res.redirect('/dashboard'); 
-        } else { res.render('login', { message: null, erro: 'Cadastro realizado! Aguarde aprovação.' }); }
-    } catch (e) { req.flash('error', 'Erro registro.'); res.redirect('/registro'); }
+        res.redirect('/login');
+
+    } catch (error) {
+        console.error("Erro no registro:", error);
+        res.render('registro', { message: 'Erro interno ao criar conta.' });
+    }
 });
 
 // --- DASHBOARD E API ---
@@ -269,7 +295,7 @@ app.post('/upload', isAuth, upload.single('file'), (req, res) => {
 
 // --- ADMIN API ---
 
-// 1. Alternar Manutenção (NOVO)
+// 1. Alternar Manutenção
 app.post('/api/admin/maintenance', isAuth, (req, res) => {
     if (req.session.role !== 'ADMIN') return res.status(403).json({ error: 'Acesso Negado' });
     
@@ -282,11 +308,29 @@ app.post('/api/admin/maintenance', isAuth, (req, res) => {
     res.json({ success: true, maintenance: newState });
 });
 
+// 2. Listar Usuários (CORRIGIDO PARA MOSTRAR DADOS JURÍDICOS)
 app.get('/api/admin/usuarios', isAuth, async (req, res) => {
     if (req.session.role !== 'ADMIN') return res.status(403).json({ error: 'Acesso Negado' });
+    
     const usuarios = await prisma.usuario.findMany({ 
         orderBy: { criadoEm: 'desc' }, 
-        select: { id: true, nome: true, email: true, plano: true, ativo: true, bloqueado: true, expiraEm: true, clientes: { select: { nome: true, status: true } } } 
+        select: { 
+            id: true, 
+            nome: true, 
+            email: true, 
+            plano: true, 
+            ativo: true, 
+            bloqueado: true, 
+            expiraEm: true,
+            // --- CAMPOS JURÍDICOS OBRIGATÓRIOS PARA O DASHBOARD ---
+            termsAccepted: true,
+            termsAcceptedAt: true,
+            signupIp: true,
+            // -----------------------------------------------------
+            clientes: { 
+                select: { nome: true, status: true } 
+            } 
+        } 
     });
     res.json(usuarios);
 });
@@ -347,8 +391,17 @@ app.delete('/api/admin/usuarios/:id', isAuth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: "Erro excluir" }); }
 });
 
+// --- ROTAS LEGAIS ---
+app.get('/termos', (req, res) => {
+    res.render('termos', { usuario: req.session.usuario || null });
+});
+
+app.get('/privacidade', (req, res) => {
+    res.render('privacidade', { usuario: req.session.usuario || null });
+});
+
 server.listen(PORT, async () => {
-    console.log(`🚀 CALIXTO OMNISYSTEM V18.0 ONLINE NA PORTA ${PORT}`);
+    console.log(`🚀 CALIXTO OMNISYSTEM V18.1 ONLINE NA PORTA ${PORT}`);
     timeout.iniciar(); 
     try {
         const clientesParaIniciar = await prisma.cliente.findMany({ where: { status: 'ONLINE' } });
