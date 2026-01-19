@@ -435,9 +435,6 @@ Cookies Blindados: Configuramos a sessão com httpOnly: true e secure: true.
 Tradução: O cookie de login viaja por um túnel seguro (HTTPS) e, mesmo que o hacker consiga injetar um script no navegador do admin, o script não consegue ler o cookie (porque é httpOnly). Isso previne o roubo de sessão.
 
 6. O Escudo Jurídico (Compliance)
-Termos e Privacidade: Atualizamos os documentos legais para deixar claro que você fornece a tecnologia (meio), mas não é responsável pelo conteúdo dos contratos (fim), além de explicar a coleta de dados (IP e Telefone) para validade jurídica, protegendo você de processos.
-```
-
-
+Termos e Privacidade: Atualizamos os documentos legais para deixar claro que você fornece a tecnologia (meio), mas não é responsável pelo conteúdo dos contratos (fim), além de explicar a coleta de dados (IP e Telefone) para validade jurídica, protegendo você de processo
 
 ```

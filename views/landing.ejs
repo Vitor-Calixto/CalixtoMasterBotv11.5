@@ -37,10 +37,17 @@
         }
 
         body::before {
-            content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(2, 4, 8, 0.92); z-index: -1; pointer-events: none;
-        }
-
+    content: ''; 
+    position: fixed; 
+    top: 0; 
+    left: 0; 
+    width: 100%; 
+    height: 100%;
+    /* Mudei de 0.92 para 0.4 (muito mais transparente) e adicionei um gradiente para ficar chique */
+    background: linear-gradient(to bottom, rgba(2, 4, 8, 0.3), rgba(2, 4, 8, 0.8)); 
+    z-index: -1; 
+    pointer-events: none;
+}
         /* ==================== JARVIS HUD LOADER (REFINADO) ==================== */
         #jarvis-loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -342,7 +349,7 @@
 
     <style>
         .use-cases-section {
-            background-color: #050505;
+            background-color: transparent;
             padding: 80px 20px;
             position: relative;
             overflow: hidden;
@@ -563,7 +570,7 @@
         </div>
     </section>
 
-    <section id="ai-studio" class="section-padding container text-center" style="background: rgba(0,0,0,0.3); border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);">
+    <section id="ai-studio" class="section-padding container text-center" style="background: transparent; border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);">
         <h2 class="section-title" style="text-shadow: 0 0 15px var(--neon-purple);">NEURAL STUDIO</h2>
         <p class="section-subtitle">Geração de Vídeo e Imagem por Inteligência Artificial de Alta Definição.</p>
 
