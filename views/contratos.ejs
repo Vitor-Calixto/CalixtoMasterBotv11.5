@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modelos de Contrato - Calixto OmniSystem</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+
+    <style>
+        :root { --bg: #121212; --card: #1e1e1e; --border: #333; --accent: #00d2ff; --text: #e0e0e0; --danger: #ff4444; --warning: #ffbb00; }
+        body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Layout */
+        .sidebar { width: 260px; background: #18181b; border-right: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 10px; }
+        .main-content { flex: 1; padding: 40px; overflow-y: auto; }
+        
+        /* Botões e Links */
+        .btn { padding: 8px 16px; border-radius: 6px; font-weight: 600; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-size: 13px; transition: 0.2s; }
+        .btn-primary { background: var(--accent); color: #000; }
+        .btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        
+        .btn-danger { background: rgba(255, 68, 68, 0.1); color: var(--danger); border: 1px solid rgba(255, 68, 68, 0.2); }
+        .btn-danger:hover { background: rgba(255, 68, 68, 0.2); }
+
+        .btn-warning { background: rgba(255, 187, 0, 0.1); color: var(--warning); border: 1px solid rgba(255, 187, 0, 0.2); }
+        .btn-warning:hover { background: rgba(255, 187, 0, 0.2); }
+
+        .nav-link { color: #888; text-decoration: none; padding: 12px; border-radius: 8px; display: flex; align-items: center; gap: 10px; }
+        .nav-link:hover, .nav-link.active { background: #27272a; color: white; }
+
+        /* Cards */
+        .grid-contratos { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .card-contrato { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; transition: 0.2s; position: relative; }
+        .card-contrato:hover { border-color: var(--accent); transform: translateY(-2px); }
+        .card-title { font-weight: 600; font-size: 16px; margin-bottom: 5px; color: white; }
+        .card-sub { font-size: 12px; color: #888; margin-bottom: 20px; display: flex; align-items: center; gap: 5px; }
+        .actions { display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #333; padding-top: 15px; margin-top: 10px; }
+
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; display: none; align-items: center; justify-content: center; backdrop-filter: blur(5px); }
+        .modal { background: #1e1e1e; width: 900px; max-width: 95%; height: 90vh; border-radius: 12px; border: 1px solid #333; display: flex; flex-direction: column; }
+        .modal-header { padding: 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center; font-weight: 600; }
+        .modal-body { padding: 20px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; }
+        
+        /* Inputs */
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 8px; font-size: 12px; color: #aaa; text-transform: uppercase; font-weight: 600; }
+        input, select { width: 100%; background: #2d2d2d; border: 1px solid #444; color: white; padding: 12px; border-radius: 8px; box-sizing: border-box; outline: none; }
+        input:focus, select:focus { border-color: var(--accent); }
+
+        /* EDITOR QUILL */
+        #editor-container { height: 400px; background: #2d2d2d; border: 1px solid #444; border-radius: 0 0 8px 8px; color: white; font-size: 16px; }
+        .ql-toolbar { background: #333; border-color: #444 !important; border-radius: 8px 8px 0 0; }
+        .ql-container { border-color: #444 !important; }
+        .ql-stroke { stroke: #ccc !important; }
+        .ql-fill { fill: #ccc !important; }
+        .ql-picker { color: #ccc !important; }
+        
+        .helper-box { background: rgba(0, 210, 255, 0.1); border: 1px solid rgba(0, 210, 255, 0.2); color: var(--accent); padding: 10px; border-radius: 6px; font-size: 12px; margin-bottom: 15px; line-height: 1.6; }
+        code { background: rgba(0,0,0,0.3); padding: 2px 5px; border-radius: 4px; font-family: monospace; color: #fff; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <div style="font-weight:bold; font-size:18px; color:white; margin-bottom:20px; display:flex; align-items:center; gap:10px;">
+            <i class="fas fa-robot" style="color:var(--accent)"></i> CalixtoOS
+        </div>
+        <a href="/dashboard" class="nav-link"><i class="fas fa-home"></i> Dashboard</a>
+        <a href="/dashboard/contratos" class="nav-link active" style="background:#27272a; color:white;"><i class="fas fa-file-contract"></i> Contratos</a>
+        <a href="/logout" class="nav-link" style="margin-top:auto;"><i class="fas fa-sign-out-alt"></i> Sair</a>
+    </div>
+
+    <div class="main-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <div>
+                <h1 style="margin:0; font-size:24px;">Meus Modelos</h1>
+                <p style="margin:5px 0 0; color:#888; font-size:14px;">Gerencie os contratos dos seus robôs.</p>
+            </div>
+            <button class="btn btn-primary" onclick="abrirModalCriar()">
+                <i class="fas fa-plus"></i> Novo Contrato
+            </button>
+        </div>
+
+        <div class="grid-contratos">
+            <% if (contratos.length === 0) { %>
+                <div style="grid-column: 1/-1; text-align: center; color: #666; padding: 40px;">
+                    <i class="fas fa-file-signature" style="font-size: 40px; margin-bottom: 10px;"></i>
+                    <p>Nenhum contrato criado.</p>
+                </div>
+            <% } %>
+            <% contratos.forEach(c => { %>
+                <div class="card-contrato">
+                    <div class="card-title"><i class="fas fa-file-alt" style="color:var(--accent); margin-right:8px;"></i> <%= c.nome %></div>
+                    <div class="card-sub"><i class="fas fa-robot"></i> <%= c.cliente.nome %></div>
+                    
+                    <textarea id="conteudo-<%= c.id %>" style="display:none;"><%= c.conteudo %></textarea>
+
+                    <div class="actions">
+                        <button class="btn btn-warning" onclick="abrirModalEditar('<%= c.id %>', '<%= c.nome %>', '<%= c.clienteId %>')">
+                            <i class="fas fa-pencil-alt"></i> Editar
+                        </button>
+                        
+                        <button class="btn btn-danger" onclick="deletarContrato('<%= c.id %>')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            <% }) %>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalEditor">
+        <div class="modal">
+            <div class="modal-header">
+                <span id="modalTitle">Novo Contrato</span>
+                <button onclick="fecharModal()" style="background:none; border:none; color:#fff; cursor:pointer; font-size:20px;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="formContrato" onsubmit="salvarContrato(event)" style="display:flex; flex-direction:column; height:100%;">
+                    
+                    <input type="hidden" name="contratoId" id="contratoId">
+
+                    <div style="display:flex; gap:20px;">
+                        <div class="form-group" style="flex:2;">
+                            <label>Nome do Modelo</label>
+                            <input type="text" name="nome" id="inputNome" placeholder="Ex: Contrato Anual" required>
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label>Vincular ao Robô</label>
+                            <select name="clienteId" id="inputClienteId" required>
+                                <option value="" disabled selected>Selecione...</option>
+                                <% clientes.forEach(cli => { %>
+                                    <option value="<%= cli.id %>"><%= cli.nome %></option>
+                                <% }) %>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="helper-box">
+                        <i class="fas fa-magic"></i> <b>Variáveis Dinâmicas:</b><br>
+                        Use estas tags exatas: 
+                        <code>{{nome_cliente}}</code>, 
+                        <code>{{cpf_cliente}}</code>, 
+                        <code>{{endereco_cliente}}</code>, 
+                        <code>{{valor_servico}}</code>,
+                        <code>{{data_atual}}</code>.
+                    </div>
+
+                    <label>Conteúdo do Contrato</label>
+                    <div id="editor-container"></div>
+                    
+                    <button type="submit" id="btnSalvar" class="btn btn-primary" style="margin-top:20px; justify-content:center;">Salvar Contrato</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.quilljs.com/1.3.6/quill.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        // Inicializa o Editor
+        var quill = new Quill('#editor-container', {
+            theme: 'snow',
+            placeholder: 'Escreva ou cole seu contrato aqui...',
+            modules: {
+                toolbar: [
+                    [{ 'header': [1, 2, 3, false] }],
+                    ['bold', 'italic', 'underline', 'strike'],
+                    [{ 'align': [] }],
+                    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+                    [{ 'color': [] }, { 'background': [] }],
+                    ['clean']
+                ]
+            }
+        });
+
+        const modal = document.getElementById('modalEditor');
+        const form = document.getElementById('formContrato');
+        const tituloModal = document.getElementById('modalTitle');
+
+        // MODO CRIAR
+        function abrirModalCriar() {
+            tituloModal.innerText = "Novo Contrato";
+            form.reset();
+            document.getElementById('contratoId').value = ""; // Limpa ID
+            quill.setText(''); // Limpa editor
+            modal.style.display = 'flex';
+        }
+
+        // MODO EDITAR
+        function abrirModalEditar(id, nome, clienteId) {
+            tituloModal.innerText = "Editar Contrato";
+            
+            // Preenche os campos
+            document.getElementById('contratoId').value = id;
+            document.getElementById('inputNome').value = nome;
+            document.getElementById('inputClienteId').value = clienteId;
+
+            // Pega o HTML escondido no textarea e joga no Quill
+            const conteudoAntigo = document.getElementById('conteudo-' + id).value;
+            quill.clipboard.dangerouslyPasteHTML(conteudoAntigo);
+
+            modal.style.display = 'flex';
+        }
+
+        function fecharModal() { modal.style.display = 'none'; }
+
+        async function salvarContrato(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSalvar');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = 'Salvando...'; btn.disabled = true;
+
+            const id = document.getElementById('contratoId').value;
+            const conteudoHtml = quill.root.innerHTML;
+
+            const dados = {
+                nome: document.getElementById('inputNome').value,
+                clienteId: document.getElementById('inputClienteId').value,
+                conteudo: conteudoHtml
+            };
+
+            // SE TIVER ID É EDIÇÃO (PUT), SE NÃO É CRIAÇÃO (POST)
+            const metodo = id ? 'PUT' : 'POST';
+            const url = id ? `/api/contratos/${id}` : '/api/contratos';
+
+            try {
+                const res = await fetch(url, {
+                    method: metodo,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dados)
+                });
+
+                if (res.ok) {
+                    Swal.fire('Sucesso!', 'Contrato salvo.', 'success').then(() => location.reload());
+                } else {
+                    throw new Error('Erro ao salvar');
+                }
+            } catch (error) {
+                Swal.fire('Erro', 'Falha ao salvar contrato.', 'error');
+                btn.innerHTML = originalText; btn.disabled = false;
+            }
+        }
+
+        async function deletarContrato(id) {
+            const result = await Swal.fire({
+                title: 'Tem certeza?',
+                text: "Se este contrato estiver em uso no fluxo, o robô vai parar de gerar PDFs.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#ff4444',
+                cancelButtonColor: '#333',
+                confirmButtonText: 'Sim, excluir'
+            });
+
+            if (result.isConfirmed) {
+                try {
+                    await fetch(`/api/contratos/${id}`, { method: 'DELETE' });
+                    location.reload();
+                } catch (e) { Swal.fire('Erro', 'Falha ao excluir.', 'error'); }
+            }
+        }
+    </script>
+</body>
+</html>

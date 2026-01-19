@@ -3,17 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Editor de Fluxo - Calixto OmniSystem</title>
+    <title>Editor High-Ticket - Calixto OmniSystem</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/jerosoler/Drawflow/dist/drawflow.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
-        :root { --bg-canvas: #121212; --bg-node: #1e1e1e; --border-node: #333; --accent: #00d2ff; --text-main: #e0e0e0; --danger: #ff4444; --success: #00c851; }
+        :root { --bg-canvas: #121212; --bg-node: #1e1e1e; --border-node: #333; --accent: #00d2ff; --input: #a855f7; --doc: #f59e0b; --text-main: #e0e0e0; --danger: #ff4444; --success: #00c851; }
         body { margin: 0; font-family: 'Inter', sans-serif; background: var(--bg-canvas); color: var(--text-main); overflow: hidden; }
         .sidebar { position: fixed; top: 0; left: 0; width: 260px; height: 100vh; background: #18181b; border-right: 1px solid #27272a; z-index: 5000; padding: 20px; overflow-y: auto; }
         .node-item { display: flex; align-items: center; background: #27272a; padding: 12px; margin-bottom: 8px; border-radius: 8px; cursor: grab; border: 1px solid transparent; transition: all 0.2s; font-size: 13px; font-weight: 500; user-select: none; }
         .node-item:hover { border-color: var(--accent); background: #3f3f46; transform: translateX(4px); }
         .node-item i { margin-right: 12px; width: 20px; text-align: center; color: #aaa; }
+        
+        /* Cores Específicas para os novos nós */
+        .node-item[data-node="pergunta"] { border-left: 3px solid var(--input); }
+        .node-item[data-node="gerar_documento"] { border-left: 3px solid var(--doc); }
+
         #drawflow { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; background: var(--bg-canvas); background-image: radial-gradient(#333 1px, transparent 1px); background-size: 20px 20px; z-index: 0; }
         .top-bar { position: fixed; top: 20px; right: 20px; z-index: 5000; display: flex; gap: 10px; }
         .btn-base { padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px; border: none; font-size: 13px; transition: 0.2s; }
@@ -25,9 +30,13 @@
         .drawflow-node.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(0, 210, 255, 0.3); }
         .drawflow-node .title { padding: 12px 16px; border-bottom: 1px solid #333; font-weight: 600; font-size: 14px; border-radius: 12px 12px 0 0; display: flex; align-items: center; gap: 10px; background: #27272a; height: 46px; box-sizing: border-box; }
         .drawflow-node .drawflow_content_node { padding: 16px; flex-grow: 1; position: relative; }
+        
+        /* Estilização específica para inputs de variáveis */
+        .var-tag { background: rgba(168, 85, 247, 0.2); color: var(--input); padding: 2px 6px; border-radius: 4px; font-size: 10px; font-family: monospace; border: 1px solid rgba(168, 85, 247, 0.4); }
+
         label { display: block; font-size: 11px; font-weight: 600; color: #888; margin-bottom: 6px; text-transform: uppercase; }
-        input[type="text"], input[type="number"], input[type="time"], textarea { width: 100%; background: #2d2d2d; border: 1px solid #404040; color: white; padding: 10px; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 13px; outline: none; }
-        input:focus, textarea:focus { border-color: var(--accent); background: #333; }
+        input[type="text"], input[type="number"], input[type="time"], textarea, select { width: 100%; background: #2d2d2d; border: 1px solid #404040; color: white; padding: 10px; border-radius: 6px; box-sizing: border-box; font-family: inherit; font-size: 13px; outline: none; }
+        input:focus, textarea:focus, select:focus { border-color: var(--accent); background: #333; }
         textarea { resize: vertical; min-height: 80px; line-height: 1.5; }
         .menu-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
         .menu-item { display: flex; align-items: center; gap: 8px; position: relative; background: #27272a; border-radius: 6px; padding: 4px; border: 1px solid #3f3f46; }
@@ -48,7 +57,8 @@
         .drawflow-node .output { position: absolute !important; right: 0 !important; width: 14px; height: 14px; background: #fff; border: 2px solid #000; border-radius: 50%; cursor: crosshair; margin: 0 !important; transform: translateY(-50%); }
         .drawflow-node .input:hover, .drawflow-node .output:hover { transform: translateY(-50%) scale(1.3); border-color: var(--accent); }
         .drawflow-node .input:hover { transform: scale(1.3); }
-        .upload-area { border: 2px dashed #444; background: #222; padding: 20px; text-align: center; border-radius: 8px; cursor: pointer; }
+        .upload-area { border: 2px dashed #444; background: #222; padding: 20px; text-align: center; border-radius: 8px; cursor: pointer; transition: 0.2s;}
+        .upload-area:hover { border-color: #666; background: #2a2a2a; }
         .upload-area img { max-width: 100%; border-radius: 4px; display: block; margin: 10px auto 0; }
     </style>
 </head>
@@ -58,14 +68,20 @@
     <input type="hidden" id="fluxo-base64" value="<%= fluxoBase64 %>">
     
     <div class="sidebar">
-        <h2>Ferramentas</h2>
+        <h2 style="font-size: 12px; text-transform: uppercase; color: #666; margin-bottom: 10px;">Básico</h2>
         <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="inicio"><i class="fas fa-play"></i> Início</div>
-        <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="horario"><i class="fas fa-clock"></i> Horário</div>
-        <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="espera"><i class="fas fa-hourglass-half"></i> Espera/Delay</div>
-        <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="mensagem"><i class="fas fa-comment-alt"></i> Mensagem</div>
         <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="menu"><i class="fas fa-list-ul"></i> Menu Opções</div>
+        <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="mensagem"><i class="fas fa-comment-alt"></i> Mensagem</div>
         <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="midia"><i class="fas fa-image"></i> Foto/Vídeo</div>
         <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="audio"><i class="fas fa-microphone"></i> Áudio</div>
+        
+        <h2 style="font-size: 12px; text-transform: uppercase; color: var(--input); margin: 20px 0 10px;">Inteligente</h2>
+        <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="pergunta"><i class="fas fa-question-circle" style="color:var(--input)"></i> Pergunta (Input)</div>
+        <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="gerar_documento"><i class="fas fa-file-pdf" style="color:var(--doc)"></i> Gerar Contrato</div>
+        
+        <h2 style="font-size: 12px; text-transform: uppercase; color: #666; margin: 20px 0 10px;">Controle</h2>
+        <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="horario"><i class="fas fa-clock"></i> Horário</div>
+        <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="espera"><i class="fas fa-hourglass-half"></i> Espera/Delay</div>
         <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="transferir"><i class="fas fa-headset"></i> Transferir</div>
         <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="finalizar"><i class="fas fa-stop-circle"></i> Finalizar</div>
     </div>
@@ -95,6 +111,28 @@
             finalizar: `<div class="title"><i class="fas fa-stop-circle"></i> Finalizar</div><div style="padding:16px; font-size:13px; color:#aaa">Encerra o protocolo.</div>`,
             mensagem: `<div class="title"><i class="fas fa-comment-alt"></i> Mensagem</div><div style="padding:16px"><label>Texto:</label><textarea df-message placeholder="Digite a mensagem..."></textarea></div>`,
             
+            // --- NOVO: PERGUNTA (CAPTURA DADOS) ---
+            pergunta: `<div class="title" style="border-bottom-color:var(--input)"><i class="fas fa-question-circle" style="color:var(--input)"></i> Pergunta</div><div style="padding:16px"><label>Pergunta ao Cliente:</label><textarea df-message placeholder="Ex: Qual seu nome completo?"></textarea><div style="margin-top:15px; background:#222; padding:10px; border-radius:6px; border:1px dashed var(--input)"><label style="color:var(--input)">Nome da Variável:</label><input type="text" df-variable placeholder="Ex: nome_cliente" style="border-color:var(--input)"><p style="font-size:10px; color:#888; margin-top:5px">Esta resposta será salva para usar no contrato.</p></div></div>`,
+
+            // --- ATUALIZADO: GERAR DOCUMENTO (SELETOR) ---
+            gerar_documento: `
+            <div class="title" style="border-bottom-color:var(--doc)">
+                <i class="fas fa-file-pdf" style="color:var(--doc)"></i> Gerar Contrato
+            </div>
+            <div style="padding:16px">
+                <label>Selecione o Modelo:</label>
+                <select df-templateId class="contract-selector">
+                    <option value="" disabled selected>🔄 Carregando modelos...</option>
+                </select>
+                
+                <div style="margin-top:15px; font-size:11px; color:#aaa; line-height:1.4;">
+                    <i class="fas fa-info-circle"></i> O robô usará o modelo selecionado e preencherá as variáveis (ex: {{nome}}) com as respostas do cliente.
+                </div>
+                <div style="margin-top:10px; text-align:right;">
+                    <a href="/dashboard/contratos" target="_blank" style="color:var(--accent); font-size:11px; text-decoration:none;">Criar novo modelo <i class="fas fa-external-link-alt"></i></a>
+                </div>
+            </div>`,
+
             espera: `<div class="title"><i class="fas fa-hourglass-half"></i> Espera (Delay)</div><div style="padding:16px"><label>Tempo (segundos):</label><input type="number" df-time placeholder="60" style="width:100%"><p style="font-size:10px; color:#888; margin-top:5px">O fluxo para aqui e retoma sozinho após o tempo.</p></div>`,
             
             midia: `<div class="title"><i class="fas fa-image"></i> Mídia</div><div style="padding:16px"><div class="upload-area" onclick="this.nextElementSibling.click()"><span>Clique para Upload</span><img src="" style="display:none"></div><input type="file" style="display:none" onchange="uploadFile(this)"><input type="text" df-url style="display:none"><label style="margin-top:10px">Legenda:</label><input type="text" df-caption></div>`,
@@ -117,7 +155,49 @@
             return json;
         }
 
+        // --- SISTEMA DE CACHE DE CONTRATOS ---
+        let cacheContratos = [];
+
+        async function carregarMeusModelos() {
+            try {
+                // Rota que criaremos no index.js a seguir
+                const res = await fetch(`/api/clientes/${idCliente}/contratos`);
+                if(res.ok) {
+                    cacheContratos = await res.json();
+                    atualizarTodosSelects();
+                }
+            } catch (e) { console.error("Erro ao buscar contratos:", e); }
+        }
+
+        function preencherSelect(selectElement) {
+            const valorAtual = selectElement.value;
+            selectElement.innerHTML = '<option value="" disabled selected>Selecione um modelo...</option>';
+            
+            if (cacheContratos.length === 0) {
+                selectElement.innerHTML += '<option value="" disabled>Nenhum modelo criado</option>';
+                return;
+            }
+
+            cacheContratos.forEach(modelo => {
+                const opt = document.createElement('option');
+                opt.value = modelo.id;
+                opt.innerText = modelo.nome;
+                selectElement.appendChild(opt);
+            });
+
+            if (valorAtual) selectElement.value = valorAtual;
+        }
+
+        function atualizarTodosSelects() {
+            const selects = document.querySelectorAll('.contract-selector');
+            selects.forEach(sel => preencherSelect(sel));
+        }
+
+        // ------------------------------------
+
         window.addEventListener('load', () => {
+            carregarMeusModelos(); // Busca a lista ao iniciar
+            
             try {
                 const base64Input = document.getElementById('fluxo-base64');
                 const base64Data = base64Input ? base64Input.value : "";
@@ -131,6 +211,16 @@
             } catch (e) { console.error("ERRO LOAD:", e); editor.addNode('inicio', 0, 1, 50, 200, 'inicio', {}, templates.inicio); }
         });
 
+        // Monitora novos nós para preencher o select
+        editor.on('nodeCreated', function(id) {
+            const node = editor.getNodeFromId(id);
+            if (node.name === 'gerar_documento') {
+                const el = document.getElementById('node-' + id);
+                const select = el.querySelector('.contract-selector');
+                if (select) preencherSelect(select);
+            }
+        });
+
         // Funções padrão do Drawflow
         function drag(ev) { ev.dataTransfer.setData("node", ev.target.getAttribute('data-node')); }
         function allowDrop(ev) { ev.preventDefault(); }
@@ -138,7 +228,6 @@
         
         function addNodeToDrawFlow(name, pos_x, pos_y) {
             if(editor.editor_mode === 'fixed') return;
-            // Correção de posição do zoom
             pos_x = pos_x * (editor.precanvas.clientWidth / (editor.precanvas.clientWidth * editor.zoom)) - (editor.precanvas.getBoundingClientRect().x * (editor.precanvas.clientWidth / (editor.precanvas.clientWidth * editor.zoom)));
             pos_y = pos_y * (editor.precanvas.clientHeight / (editor.precanvas.clientHeight * editor.zoom)) - (editor.precanvas.getBoundingClientRect().y * (editor.precanvas.clientHeight / (editor.precanvas.clientHeight * editor.zoom)));
             
@@ -149,6 +238,9 @@
             if(name==='horario'){inputs=1;outputs=2;} 
             if(name==='transferir'){inputs=1;outputs=0;}
             if(name==='espera'){inputs=1;outputs=1;}
+            
+            if(name==='pergunta'){inputs=1;outputs=1;}
+            if(name==='gerar_documento'){inputs=1;outputs=1;}
             
             editor.addNode(name, inputs, outputs, pos_x, pos_y, name, {}, templates[name]);
         }
@@ -174,19 +266,41 @@
                         if(node.data['timeout-active']) el.querySelector('.timeout-row input').checked = true;
                         watchNode(id); setTimeout(() => updateMenuOutputs(id), 100);
                     }
-                } else if (['midia', 'audio'].includes(node.name)) {
+                } 
+                else if (['midia', 'audio'].includes(node.name)) {
+                    // ... (logica anterior de midia) ...
                     const url = node.data.url;
-                    if (url) {
-                        const inputUrl = el.querySelector('[df-url]'); if(inputUrl) inputUrl.value = url;
-                        if (node.name === 'midia') { const img = el.querySelector('img'); if(img) { img.src = url; img.style.display = 'block'; el.querySelector('.upload-area span').style.display='none'; } } 
-                        else if (node.name === 'audio') { const span = el.querySelector('.upload-area span'); if(span) span.innerHTML = '<i class="fas fa-check"></i> Áudio Salvo!'; }
+                    if(url) {
+                        const inputUrl = el.querySelector('[df-url]');
+                        if(inputUrl) inputUrl.value = url;
+                        // ... atualiza UI ...
+                        const area = el.querySelector('.upload-area span');
+                        if(node.name === 'midia') { 
+                            const img = el.querySelector('img'); 
+                            if(img) { img.src = url; img.style.display = 'block'; area.style.display='none'; } 
+                        } else if(node.name === 'audio') { area.innerHTML = '<i class="fas fa-check"></i> Áudio!'; }
                     }
                 }
+                
+                // NOVO: Restaura o valor do select de contrato
+                else if (node.name === 'gerar_documento') {
+                    // Como a lista vem da API, precisamos forçar a atualização
+                    setTimeout(() => {
+                        const sel = el.querySelector('.contract-selector');
+                        if (sel && node.data.templateId) {
+                             // Se o template ainda existir na lista, seleciona ele
+                            sel.value = node.data.templateId;
+                        }
+                    }, 500); // Delay para garantir que o fetch terminou
+                }
+
                 for(let key in node.data) {
                     const input = el.querySelector(`[df-${key}]`);
                     if(input) { if(input.type === 'checkbox') input.checked = node.data[key]; else input.value = node.data[key]; }
                 }
             }
+            // Chama atualização global dos selects por garantia
+            setTimeout(atualizarTodosSelects, 200);
         }
 
         // --- FUNÇÕES AUXILIARES DE INTERFACE (Menu dinâmico, upload, etc) ---
@@ -247,7 +361,7 @@
             data[key+'-active'] = chk.checked; editor.updateNodeDataFromId(nodeId, data); updateMenuOutputs(nodeId);
         }
         document.getElementById('drawflow').addEventListener('input', (e) => {
-            if(!e.target.matches('input, textarea')) return;
+            if(!e.target.matches('input, textarea, select')) return; // Incluir SELECT
             const nodeEl = e.target.closest('.drawflow-node'); if(!nodeEl) return;
             const nodeId = nodeEl.id.replace('node-', '');
             const attr = Array.from(e.target.attributes).find(a => a.name.startsWith('df-'));
@@ -267,28 +381,21 @@
             formData.append('file', file);
             
             try {
-                // FIXED: Changed /api/upload to /upload
                 const res = await fetch('/upload', { method: 'POST', body: formData });
-                
                 if (!res.ok) throw new Error(`Erro HTTP: ${res.status}`);
-                
                 const data = await res.json();
                 
                 if(data.url) {
-                    const inputUrl = input.parentElement.querySelector('[df-url]'); 
-                    inputUrl.value = data.url; 
+                    const selector = tipo === 'pdf' ? '[df-arquivo]' : '[df-url]';
+                    const inputUrl = input.parentElement.querySelector(selector); 
+                    if(inputUrl) inputUrl.value = data.url; 
                     
-                    // Force Drawflow update
                     const event = new Event('input', {bubbles:true});
-                    inputUrl.dispatchEvent(event);
+                    if(inputUrl) inputUrl.dispatchEvent(event);
                     
-                    // Update UI
-                    if(tipo !== 'audio') { 
-                        area.innerHTML = `<span>Substituir</span><img src="${data.url}" style="display:block; max-height: 100px; margin-top: 5px;">`; 
-                        area.querySelector('span').style.display='none'; 
-                    } else { 
-                        area.innerHTML = `<span><i class="fas fa-check"></i> Áudio Salvo!</span>`; 
-                    }
+                    if(tipo === 'pdf') { area.innerHTML = `<span><i class="fas fa-check-circle" style="color:#00c851"></i> Modelo Salvo!</span>`; } 
+                    else if(tipo === 'audio') { area.innerHTML = `<span><i class="fas fa-check"></i> Áudio Salvo!</span>`; } 
+                    else { area.innerHTML = `<span>Substituir</span><img src="${data.url}" style="display:block; max-height: 100px; margin-top: 5px;">`; area.querySelector('span').style.display='none'; }
                 }
             } catch(e) { 
                 area.innerHTML = '<span>❌ Falha</span>'; 

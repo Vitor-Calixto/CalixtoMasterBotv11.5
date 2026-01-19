@@ -1,14 +1,15 @@
 // ============================================================
-// ARQUIVO: modulos/sessions.js v5.0
+// ARQUIVO: modulos/sessions.js v6.0 (DATA-READY)
 // ============================================================
 const Redis = require('ioredis');
-// Ajuste o host se necessário
 const redis = new Redis(process.env.REDIS_URL || { host: '127.0.0.1', port: 6379 });
 
 const PREFIX = 'sessao:';
 const PREFIX_PAUSA = 'pausa:';
+const PREFIX_DADOS = 'dados:'; // Novo prefixo para variáveis do contrato
 
-// Salva onde o usuário está no fluxo
+// --- GESTÃO DE ETAPAS (FLUXO) ---
+
 async function setEtapaUsuario(userNum, nodeId, ttlSeconds = 600, clienteId, remoteJid) {
     const key = `${PREFIX}${userNum}`;
     const data = {
@@ -17,16 +18,13 @@ async function setEtapaUsuario(userNum, nodeId, ttlSeconds = 600, clienteId, rem
         clienteId,
         remoteJid,
         timestamp: Date.now(),
-        // Timeout lógico (para o script timeout.js ler)
         timeoutAt: ttlSeconds ? Date.now() + (ttlSeconds * 1000) : null
     };
 
     await redis.set(key, JSON.stringify(data));
-    // Expiração de segurança (24h)
-    await redis.expire(key, 86400); 
+    await redis.expire(key, 86400); // 24h de persistência máxima
 }
 
-// Lê o nó atual
 async function getEtapaUsuario(userNum) {
     const key = `${PREFIX}${userNum}`;
     const data = await redis.get(key);
@@ -37,7 +35,6 @@ async function getEtapaUsuario(userNum) {
     } catch (e) { return null; }
 }
 
-// Pega dados ricos (incluindo timestamp)
 async function getSessaoCompleta(userNum) {
     const key = `${PREFIX}${userNum}`;
     const data = await redis.get(key);
@@ -45,25 +42,58 @@ async function getSessaoCompleta(userNum) {
     return JSON.parse(data);
 }
 
-// Apaga sessão (Reset)
-async function limparSessao(userNum) {
-    const key = `${PREFIX}${userNum}`;
-    await redis.del(key);
+// --- GESTÃO DE VARIÁVEIS (CONTRATOS) ---
+
+/**
+ * Salva um dado capturado (ex: nome, cpf) no dicionário do usuário
+ */
+async function salvarDadosUsuario(userNum, variavel, valor) {
+    const key = `${PREFIX_DADOS}${userNum}`;
+    // Busca dados já existentes
+    const bruto = await redis.get(key);
+    let dados = bruto ? JSON.parse(bruto) : {};
+    
+    // Atualiza com o novo valor
+    dados[variavel] = valor;
+    
+    await redis.set(key, JSON.stringify(dados));
+    await redis.expire(key, 86400); // Mantém por 24h
+    console.log(`[REDIS] 📥 Dado salvo (${userNum}): ${variavel} = ${valor}`);
 }
 
-// Lista chaves ativas (para o monitor)
+/**
+ * Recupera o objeto completo de variáveis para preencher o contrato
+ */
+async function getDadosUsuario(userNum) {
+    const key = `${PREFIX_DADOS}${userNum}`;
+    const data = await redis.get(key);
+    if (!data) return {};
+    return JSON.parse(data);
+}
+
+// --- UTILITÁRIOS E CONTROLE ---
+
+/**
+ * Reset completo: Apaga a posição no fluxo E os dados coletados
+ */
+async function limparSessao(userNum) {
+    const keySessao = `${PREFIX}${userNum}`;
+    const keyDados = `${PREFIX_DADOS}${userNum}`;
+    await redis.del(keySessao);
+    await redis.del(keyDados);
+    console.log(`[REDIS] 🧹 Sessão e Dados limpos para ${userNum}`);
+}
+
 async function listarSessoesAtivas() {
     return await redis.keys(`${PREFIX}*`);
 }
 
-// --- FUNÇÕES DE PAUSA (ATENDIMENTO HUMANO) ---
-
 async function setPausado(userNum, status) {
     const key = `${PREFIX_PAUSA}${userNum}`;
     if (status) {
-        await redis.set(key, '1'); // Trava
+        await redis.set(key, '1');
     } else {
-        await redis.del(key); // Destrava
+        await redis.del(key);
     }
 }
 
@@ -77,6 +107,8 @@ module.exports = {
     setEtapaUsuario,
     getEtapaUsuario,
     getSessaoCompleta,
+    salvarDadosUsuario,
+    getDadosUsuario,
     limparSessao,
     listarSessoesAtivas,
     setPausado,

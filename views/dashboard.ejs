@@ -117,6 +117,7 @@
         .tooltip-row:last-child { margin-bottom: 0; }
         .status-dot { width: 6px; height: 6px; border-radius: 50%; }
         
+        /* Personalização do SweetAlert para Dark Mode */
         .swal2-popup { background: #111 !important; border: 1px solid #333 !important; }
         .swal2-title, .swal2-html-container { color: #fff !important; }
     </style>
@@ -134,7 +135,11 @@
             <i class="ri-dashboard-3-line"></i> Calixto OmniSystem 
             <% if (usuario) { %> <span class="plan-badge"><%= usuario.plano %></span> <% } %>
         </div>
-        <div>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <a href="/dashboard/contratos" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
+                <i class="ri-file-text-line"></i> Meus Contratos
+            </a>
+            <span style="color: #333;">|</span>
             <a href="/logout" class="btn-logout">Sair</a>
             <button class="btn-new" onclick="novoBot()">+ Novo Cliente</button>
         </div>
@@ -424,14 +429,19 @@
             }
         });
 
+        // ==========================================
+        // 🚨 CORREÇÃO CRÍTICA AQUI!
+        // REMOVI O: "setTimeout(() => location.reload(), 1000);"
+        // AGORA A PÁGINA NÃO RECARREGA SOZINHA!
+        // ==========================================
+        
         socket.on('status', (data) => { 
-            if(data.status === 'ONLINE') {
-                const check = document.getElementById(`check-${data.clienteId}`);
-                if(check) check.checked = true;
-                setTimeout(() => location.reload(), 1000); 
-            }
-        });
-
+    if(data.status === 'ONLINE') {
+        const check = document.getElementById(`check-${data.clienteId}`);
+        if(check) check.checked = true;
+        // setTimeout(() => location.reload(), 1000); 
+    }
+});
         function showHelp() {
             swalDark.fire({
                 title: 'CENTRAL DE AJUDA',
@@ -491,14 +501,18 @@
             checkbox.disabled = true;
 
             if (status === 'ONLINE') {
-                if(box) { box.style.display = 'block'; box.innerText = "INICIANDO..."; if(help) help.style.display = 'block'; }
+                if(box) { box.style.display = 'block'; box.innerText = "AGUARDE..."; if(help) help.style.display = 'block'; }
             } else {
                 if(box) { box.style.display = 'none'; box.innerText = ""; }
                 if(help) help.style.display = 'none';
             }
 
             try {
-                await fetch('/api/status', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ clienteId: id, status }) });
+                await fetch('/api/status', { 
+                    method: 'POST', 
+                    headers: {'Content-Type': 'application/json'}, 
+                    body: JSON.stringify({ clienteId: id, status }) 
+                });
             } catch (e) {
                 checkbox.checked = !checkbox.checked;
                 swalDark.fire('Erro', 'Falha na conexão', 'error');

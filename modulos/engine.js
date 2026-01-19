@@ -1,26 +1,24 @@
 // ============================================================
-// ARQUIVO: modulos/engine.js (V18.0 - FINAL CORRIGIDO)
+// ARQUIVO: modulos/engine.js (V19.3 - AUTO RESGATE ATIVADO)
 // ============================================================
 const sessions = require('./sessions');
+const contratos = require('./contratos');
 const path = require('path');
 const fs = require('fs');
 
-// Função auxiliar para pausa (delay visual simulando digitação)
+// Função auxiliar para pausa
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// Normalização de texto (Remove acentos e deixa minúsculo)
 function normalizar(texto) {
     if (!texto) return "";
     return texto.toString().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
-// Calcula tempo de "Digitando..."
 function calcularTempo(texto) {
     if (!texto) return 1000;
     return Math.min(1000 + (texto.length * 50), 5000);
 }
 
-// Navegação segura no JSON do fluxo
 function getNextNodeId(node, outputName = 'output_1') {
     try {
         if (node?.outputs?.[outputName]?.connections?.length > 0) {
@@ -30,7 +28,6 @@ function getNextNodeId(node, outputName = 'output_1') {
     return null;
 }
 
-// Detecta tipo de arquivo
 function getMimeType(ext) {
     const types = {
         '.pdf': 'application/pdf', '.txt': 'text/plain', '.doc': 'application/msword',
@@ -42,33 +39,25 @@ function getMimeType(ext) {
     return types[ext] || 'application/octet-stream';
 }
 
-// Calcula tempo de vida da sessão
 function getTTL(node) {
-    if (node.name === 'espera') {
-        return parseInt(node.data.time) || 60; 
-    }
+    if (node.name === 'espera') return parseInt(node.data.time) || 60;
+    if (node.name === 'pergunta') return 3600;
     if (node.data && node.data['timeout-active'] && node.data.timeout) {
         const parsed = parseInt(node.data.timeout);
-        if (!isNaN(parsed) && parsed > 0) return parsed * 60; 
+        if (!isNaN(parsed) && parsed > 0) return parsed * 60;
     }
-    return null; 
+    return null;
 }
 
 // ============================================================
 // 1. PROCESSADOR DE MENSAGENS
 // ============================================================
 async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, nomePerfil = "Cliente") {
-    const userNum = remoteJid.replace(/\D/g, ''); 
+    const userNum = remoteJid.replace(/\D/g, '');
 
-    // --- 1. BUSCA O CLIENTE NO BANCO ---
     const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
-    
-    // SE NÃO EXISTIR OU ESTIVER "OFFLINE", O BOT FINGE DE MORTO
-    if (!cliente || cliente.status !== 'ONLINE') {
-        return; 
-    }
+    if (!cliente || cliente.status !== 'ONLINE') return;
 
-    // --- COMANDOS ESPECIAIS ---
     if (textoMsg.trim().toUpperCase() === '#RESET') {
         await sessions.limparSessao(userNum);
         await sock.sendMessage(remoteJid, { text: "🔄 Sessão reiniciada!" });
@@ -76,20 +65,15 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, n
     }
 
     if (textoMsg.trim().toUpperCase() === '#VOLTAR' || textoMsg.trim().toUpperCase() === '#BOT') {
-        await sessions.setPausado(userNum, false); 
-        await sessions.limparSessao(userNum);      
+        await sessions.setPausado(userNum, false);
+        await sessions.limparSessao(userNum);
         await sock.sendMessage(remoteJid, { text: "🤖 *O Bot assumiu novamente!* \nEnvie 'Oi' para ver o menu." });
         return;
     }
 
-    if (await sessions.isPausado(userNum)) {
-        return; 
-    }
+    if (await sessions.isPausado(userNum)) return;
 
-    // --- LÓGICA DO ROBÔ ---
-    // Cliente já foi buscado acima, verifica fluxo
     if (!cliente.fluxoJson) return;
-
     const fluxoData = cliente.fluxoJson.drawflow?.Home?.data;
     if (!fluxoData) return;
 
@@ -99,22 +83,24 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, n
     if (!estadoAtualId) {
         const startNode = Object.values(fluxoData).find(n => n.name === 'inicio');
         if (startNode) proximoId = getNextNodeId(startNode);
-    } 
-    else {
+    } else {
         const noAtual = fluxoData[estadoAtualId];
         if (!noAtual) {
             await sessions.limparSessao(userNum);
             return processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, nomePerfil);
         }
 
-        if (noAtual.name === 'espera') {
-             proximoId = getNextNodeId(noAtual);
-        }
-        else if (noAtual.name === 'menu') {
-            const entradaRaw = textoMsg.trim(); 
+        if (noAtual.name === 'pergunta') {
+            const nomeVariavel = noAtual.data.variable || 'resposta_generica';
+            await sessions.salvarDadosUsuario(userNum, nomeVariavel, textoMsg);
+            proximoId = getNextNodeId(noAtual);
+        } else if (noAtual.name === 'espera') {
+            proximoId = getNextNodeId(noAtual);
+        } else if (noAtual.name === 'menu') {
+            const entradaRaw = textoMsg.trim();
             const entradaNorm = normalizar(entradaRaw);
             let connectionKey = null;
-            
+
             if (!isNaN(entradaRaw) && parseInt(entradaRaw) > 0) {
                 connectionKey = `output_${entradaRaw}`;
             } else {
@@ -129,16 +115,13 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, n
             }
 
             const target = getNextNodeId(noAtual, connectionKey);
-
             if (target) {
                 proximoId = target;
             } else if (noAtual.data['invalid-active']) {
                 let totalOpcoes = 0;
                 Object.keys(noAtual.data).forEach(k => { if (k.startsWith('opcao')) totalOpcoes++; });
-                
-                let errorOutputIndex = totalOpcoes + 1; 
-                if (noAtual.data['timeout-active']) errorOutputIndex++; 
-                
+                let errorOutputIndex = totalOpcoes + 1;
+                if (noAtual.data['timeout-active']) errorOutputIndex++;
                 const rotaErro = getNextNodeId(noAtual, `output_${errorOutputIndex}`);
                 if (rotaErro) proximoId = rotaErro;
                 else {
@@ -153,74 +136,104 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, n
     }
 
     if (proximoId) {
-        await executarNo(proximoId, fluxoData, sock, remoteJid, userNum, clienteId);
+        await executarNo(proximoId, fluxoData, sock, remoteJid, userNum, clienteId, prisma);
     }
 }
 
 // ============================================================
 // 2. EXECUTOR DE NÓS
 // ============================================================
-async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum, clienteId) {
+async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum, clienteId, prisma) {
     const node = fluxoData[nodeId];
     if (!node) return;
 
     console.log(`[ENGINE] 🚀 Executando: ${node.name} (${nodeId})`);
-    
+
     const ttl = getTTL(node);
     await sessions.setEtapaUsuario(userNum, nodeId, ttl, clienteId, remoteJid);
 
-    // --- TIPO: ESPERA ---
     if (node.name === 'espera') {
         const tempo = parseInt(node.data.time) || 60;
         console.log(`[ENGINE] ⏳ Pausando fluxo por ${tempo} segundos...`);
         return;
-    }
-
-    // --- TIPO: MENSAGEM ---
-    else if (node.name === 'mensagem') {
+    } else if (node.name === 'mensagem') {
         const texto = node.data.message;
         if (texto) {
             await sock.sendPresenceUpdate('composing', remoteJid);
-            await delay(calcularTempo(texto)); 
+            await delay(calcularTempo(texto));
             await sock.sendMessage(remoteJid, { text: texto });
             await sock.sendPresenceUpdate('paused', remoteJid);
         }
         const next = getNextNodeId(node);
-        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId);
+        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId, prisma);
+    } else if (node.name === 'pergunta') {
+        const texto = node.data.message;
+        if (texto) {
+            await sock.sendPresenceUpdate('composing', remoteJid);
+            await delay(calcularTempo(texto));
+            await sock.sendMessage(remoteJid, { text: texto });
+            await sock.sendPresenceUpdate('paused', remoteJid);
+        }
     }
 
-    // --- TIPO: MÍDIA / ÁUDIO (CORREÇÃO DE CAMINHO) ---
+    // --- AQUI ESTÁ A CORREÇÃO MÁGICA ---
+    else if (node.name === 'gerar_documento') {
+        try {
+            await sock.sendMessage(remoteJid, { text: "📄 *Gerando seu documento...*" });
+
+            const dadosSessao = await sessions.getDadosUsuario(userNum);
+            let templateId = node.data.templateId;
+
+            // LÓGICA DE AUTO-RESGATE: Se ID vazio, pega o primeiro do cliente
+            if (!templateId || templateId === "") {
+                console.log("[ENGINE] ⚠️ ID vazio. Ativando Auto-Resgate...");
+                const contratoResgate = await prisma.contratoTemplate.findFirst({
+                    where: { clienteId: clienteId } // Busca contrato deste cliente
+                });
+
+                if (contratoResgate) {
+                    templateId = contratoResgate.id;
+                    console.log(`[ENGINE] ✅ Resgate com sucesso! Usando: ${contratoResgate.nome}`);
+                } else {
+                    throw new Error("Nenhum contrato encontrado para este cliente.");
+                }
+            }
+
+            const resultado = await contratos.processarContrato(prisma, templateId, dadosSessao, userNum);
+
+            if (resultado && resultado.caminhoArquivo) {
+                await sock.sendMessage(remoteJid, {
+                    document: fs.readFileSync(resultado.caminhoArquivo),
+                    mimetype: 'application/pdf',
+                    fileName: resultado.nomeArquivo,
+                    caption: "✅ Aqui está seu documento assinado digitalmente."
+                });
+            } else {
+                await sock.sendMessage(remoteJid, { text: "❌ Erro ao gerar o arquivo PDF." });
+            }
+
+        } catch (erro) {
+            console.error("[ENGINE] Erro crítico contrato:", erro.message);
+            await sock.sendMessage(remoteJid, { text: "⚠️ Falha ao localizar o modelo de contrato." });
+        }
+
+        const next = getNextNodeId(node);
+        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId, prisma);
+    }
+    // ------------------------------------
+
     else if (node.name === 'midia' || node.name === 'audio') {
         try {
-            const urlRaw = node.data.url; 
-            console.log(`[DEBUG MÍDIA] URL do Fluxo: ${urlRaw}`);
-
+            const urlRaw = node.data.url;
             if (urlRaw) {
-                // Remove o domínio para pegar apenas o nome do arquivo
-                let fileName = "";
-                if (urlRaw.includes('uploads/')) {
-                    fileName = urlRaw.split('uploads/')[1]; 
-                } else {
-                    fileName = path.basename(urlRaw);
-                }
-
-                // Caminho absoluto para a pasta public/uploads
-                // Ajuste '../public' conforme a estrutura do seu projeto se necessário
+                let fileName = urlRaw.includes('uploads/') ? urlRaw.split('uploads/')[1] : path.basename(urlRaw);
                 const filePath = path.resolve(__dirname, '..', 'public', 'uploads', fileName);
-                console.log(`[DEBUG MÍDIA] Caminho Físico: ${filePath}`);
-
                 if (fs.existsSync(filePath)) {
                     const fileBuffer = fs.readFileSync(filePath);
                     const ext = path.extname(filePath).toLowerCase();
-
                     if (node.name === 'audio') {
-                        await sock.sendMessage(remoteJid, { 
-                            audio: fileBuffer, 
-                            mimetype: 'audio/mp4', 
-                            ptt: node.data.ptt !== false 
-                        });
-                    } 
-                    else {
+                        await sock.sendMessage(remoteJid, { audio: fileBuffer, mimetype: 'audio/mp4', ptt: node.data.ptt !== false });
+                    } else {
                         if (['.mp4', '.avi', '.mov'].includes(ext)) {
                             await sock.sendMessage(remoteJid, { video: fileBuffer, caption: node.data.caption || '', gifPlayback: false });
                         } else if (['.jpg', '.jpeg', '.png', '.webp'].includes(ext)) {
@@ -229,65 +242,31 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum, clienteId
                             await sock.sendMessage(remoteJid, { document: fileBuffer, mimetype: getMimeType(ext), fileName: fileName, caption: node.data.caption || '' });
                         }
                     }
-                    console.log('[DEBUG MÍDIA] ✅ Enviado!');
                 } else {
-                    console.error(`[ERRO MÍDIA] ❌ Arquivo não existe: ${filePath}`);
-                    await sock.sendMessage(remoteJid, { text: '⚠️ Erro: Mídia não encontrada no servidor.' });
+                    await sock.sendMessage(remoteJid, { text: '⚠️ Erro: Mídia não encontrada.' });
                 }
-            } else {
-                console.error('[ERRO MÍDIA] URL vazia no fluxo.');
             }
-        } catch (error) {
-            console.error('[ERRO CRÍTICO MÍDIA]', error);
-        }
-        
+        } catch (error) { console.error('[ERRO MÍDIA]', error); }
         const next = getNextNodeId(node);
-        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId);
+        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId, prisma);
     }
-
-    // --- TIPO: MENU ---
     else if (node.name === 'menu') {
         const titulo = node.data.question || "Opções:";
         let opcoes = [];
-        Object.keys(node.data).forEach(key => {
-            if (key.startsWith('opcao')) opcoes.push({ id: parseInt(key.replace('opcao','')), text: node.data[key] });
-        });
-        opcoes.sort((a,b) => a.id - b.id);
-
+        Object.keys(node.data).forEach(key => { if (key.startsWith('opcao')) opcoes.push({ id: parseInt(key.replace('opcao', '')), text: node.data[key] }); });
+        opcoes.sort((a, b) => a.id - b.id);
         await sock.sendPresenceUpdate('composing', remoteJid);
         await delay(1000);
-
         const rawButton = node.data.buttons || node.data['buttons-active'];
-        const usaBotao = (rawButton === true || rawButton === "true");
-
-        if (usaBotao && opcoes.length <= 3) {
-            const buttons = opcoes.map(op => ({
-                name: "quick_reply",
-                buttonParamsJson: JSON.stringify({ display_text: op.text, id: String(op.id) })
-            }));
-            const msgInteractive = {
-                viewOnceMessage: {
-                    message: {
-                        interactiveMessage: {
-                            body: { text: titulo },
-                            footer: { text: "Escolha uma opção:" },
-                            header: { title: "", subtitle: "", hasMediaAttachment: false },
-                            nativeFlowMessage: { buttons: buttons }
-                        }
-                    }
-                }
-            };
-            await sock.sendMessage(remoteJid, msgInteractive);
+        if ((rawButton === true || rawButton === "true") && opcoes.length <= 3) {
+            const buttons = opcoes.map(op => ({ name: "quick_reply", buttonParamsJson: JSON.stringify({ display_text: op.text, id: String(op.id) }) }));
+            await sock.sendMessage(remoteJid, { viewOnceMessage: { message: { interactiveMessage: { body: { text: titulo }, footer: { text: "Escolha uma opção:" }, header: { title: "", subtitle: "", hasMediaAttachment: false }, nativeFlowMessage: { buttons: buttons } } } } });
         } else {
-            let textoMenu = `*${titulo}*\n\n`;
-            opcoes.forEach(op => textoMenu += `*${op.id}.* ${op.text}\n`);
-            await sock.sendMessage(remoteJid, { text: textoMenu });
+            let textoMenu = `*${titulo}*\n\n`; opcoes.forEach(op => textoMenu += `*${op.id}.* ${op.text}\n`); await sock.sendMessage(remoteJid, { text: textoMenu });
         }
     }
-
-    // --- TIPO: HORÁRIO ---
     else if (node.name === 'horario') {
-        const dataSP = new Date().toLocaleString("en-US", {timeZone: "America/Sao_Paulo"});
+        const dataSP = new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
         const agora = new Date(dataSP);
         const minutosAtuais = (agora.getHours() * 60) + agora.getMinutes();
         const [h1, m1] = (node.data.inicio || "09:00").split(':').map(Number);
@@ -295,24 +274,14 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum, clienteId
         const inicio = h1 * 60 + m1;
         const fim = h2 * 60 + m2;
         const aberto = minutosAtuais >= inicio && minutosAtuais < fim;
-        
-        const saida = aberto ? 'output_1' : 'output_2'; 
+        const saida = aberto ? 'output_1' : 'output_2';
         const next = getNextNodeId(node, saida);
-        
-        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId);
+        if (next) await executarNo(next, fluxoData, sock, remoteJid, userNum, clienteId, prisma);
     }
-
-    // --- TIPO: TRANSFERIR ---
     else if (node.name === 'transferir') {
         const setor = node.data.fila || "Geral";
-        console.log(`[ENGINE] 👤 Transferindo ${userNum} para HUMANO.`);
-
-        await sock.sendMessage(remoteJid, { 
-            text: `⏳ *Aguarde um momento.*\n\nEstamos transferindo seu atendimento para o setor *${setor}*.\nUm atendente falará com você em breve.` 
-        });
-
+        await sock.sendMessage(remoteJid, { text: `⏳ *Aguarde um momento.*\n\nEstamos transferindo seu atendimento para o setor *${setor}*.\nUm atendente falará com você em breve.` });
         await sessions.setPausado(userNum, true);
-
         const numeroAdminRaw = node.data.notificacao;
         if (numeroAdminRaw && numeroAdminRaw.length > 10) {
             try {
@@ -320,60 +289,35 @@ async function executarNo(nodeId, fluxoData, sock, remoteJid, userNum, clienteId
                 const adminJid = numeroLimpo.includes('@') ? numeroLimpo : numeroLimpo + '@s.whatsapp.net';
                 const textoNotificacao = `🔔 *NOVO TRANSBORDO*\n📱 Cliente: +${userNum}\n📂 Setor: ${setor}\n👉 Digite #VOLTAR no chat do cliente para reativar o robô.`;
                 await sock.sendMessage(adminJid, { text: textoNotificacao });
-            } catch (erro) {
-                console.error(`[ENGINE] ❌ Erro notificação:`, erro.message);
-            }
+            } catch (erro) { console.error(`[ENGINE] ❌ Erro notificação:`, erro.message); }
         }
-        return; 
     }
-
-    // --- TIPO: FINALIZAR ---
     else if (node.name === 'finalizar') {
         console.log(`[ENGINE] 🛑 Fim.`);
         await sessions.limparSessao(userNum);
     }
 }
 
-// ============================================================
-// 3. EXECUTOR DE TIMEOUT
-// ============================================================
 async function executarTimeout(userNum, clienteId, remoteJid, nodeId, prisma, sock) {
     console.log(`[TIMEOUT] ⏰ Disparado para: ${userNum}`);
-    
     const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
     if (!cliente || !cliente.fluxoJson) return;
     const fluxoData = cliente.fluxoJson.drawflow?.Home?.data;
     const node = fluxoData[nodeId];
-    
-    if (!node) {
-        await sessions.limparSessao(userNum);
-        return;
-    }
-
+    if (!node) { await sessions.limparSessao(userNum); return; }
     if (node.name === 'espera') {
-        console.log(`[TIMEOUT] ✅ Retomando após espera...`);
         const nextId = getNextNodeId(node, 'output_1');
-        if (nextId) await executarNo(nextId, fluxoData, sock, remoteJid, userNum, clienteId);
+        if (nextId) await executarNo(nextId, fluxoData, sock, remoteJid, userNum, clienteId, prisma);
         else await sessions.limparSessao(userNum);
         return;
     }
-
-    if (!node.data['timeout-active']) {
-        await sessions.limparSessao(userNum);
-        return;
-    }
-
+    if (!node.data['timeout-active']) { await sessions.limparSessao(userNum); return; }
     let totalOpcoes = 0;
-    if (node.name === 'menu') {
-        Object.keys(node.data).forEach(k => { if (k.startsWith('opcao')) totalOpcoes++; });
-    }
-    
+    if (node.name === 'menu') { Object.keys(node.data).forEach(k => { if (k.startsWith('opcao')) totalOpcoes++; }); }
     const timeoutOutputIndex = totalOpcoes + 1;
     const timeoutOutputName = `output_${timeoutOutputIndex}`;
-    
     const nextId = getNextNodeId(node, timeoutOutputName);
-    
-    if (nextId) await executarNo(nextId, fluxoData, sock, remoteJid, userNum, clienteId);
+    if (nextId) await executarNo(nextId, fluxoData, sock, remoteJid, userNum, clienteId, prisma);
     else await sessions.limparSessao(userNum);
 }
 

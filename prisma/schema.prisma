@@ -46,6 +46,7 @@ model Cliente {
   numero    String?  @unique
   ativo     Boolean  @default(false)
   fluxoJson Json?
+  contratos  ContratoTemplate[]
   status    String   @default("OFFLINE")
   criadoEm  DateTime @default(now())
 
@@ -86,4 +87,15 @@ model Mensagem {
   contatoId String
   criadoEm  DateTime @default(now())
   contato   Contato  @relation(fields: [contatoId], references: [id], onDelete: Cascade)
+}
+
+model ContratoTemplate {
+  id        String   @id @default(uuid())
+  nome      String   // Nome do modelo (ex: Contrato de Aluguel)
+  conteudo  String   @db.Text // O texto HTML com as {{variaveis}}
+  criadoEm  DateTime @default(now())
+  
+  // Relacionamento com o seu cliente (dono do bot)
+  cliente   Cliente  @relation(fields: [clienteId], references: [id])
+  clienteId String
 }
