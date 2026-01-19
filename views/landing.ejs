@@ -16,6 +16,10 @@
             --neon-blue: #0066ff;
             --neon-white: #e0ffff;
             --bg-dark: #020408;
+            --neon-pink: #ff0055;
+            --neon-purple: #bd00ff;
+            --glass-dark: rgba(10, 10, 10, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.1);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; }
@@ -200,29 +204,54 @@
 
         .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
         .testimonial-card { background: rgba(10, 10, 10, 0.8); border: 1px solid var(--glass-border); padding: 30px; border-radius: 5px; position: relative; transition: 0.3s; }
-        .testimonial-card:hover { border-color: var(--neon-purple); box-shadow: 0 0 20px rgba(189, 0, 255, 0.2); }
+        .testimonial-card:hover { border-color: var(--neon-purple); box-shadow: 0 0 20px rgba(189, 0, 255, 0.2); transform: translateY(-5px); }
         .test-text { font-style: italic; color: #ddd; margin-bottom: 20px; font-size: 1rem; line-height: 1.6; }
         .test-author { display: flex; align-items: center; gap: 15px; }
         .test-avatar { width: 50px; height: 50px; background: #222; border-radius: 50%; border: 1px solid var(--neon-purple); background-size: cover; }
         .test-info h4 { color: #fff; font-weight: 700; font-family: 'Orbitron'; font-size: 0.9rem; }
         .test-info p { font-size: 0.8rem; color: #888; }
 
-        .pricing-grid { display: flex; justify-content: center; flex-wrap: wrap; gap: 30px; }
+        .pricing-grid { display: flex; justify-content: center; flex-wrap: wrap; gap: 30px; align-items: center; }
         .price-card { background: var(--glass-dark); border: 1px solid var(--glass-border); backdrop-filter: blur(20px); padding: 40px 30px; border-radius: 5px; width: 350px; text-align: center; transition: 0.4s; position: relative; }
         .price-card:hover { transform: translateY(-10px); border-color: var(--neon-cyan); box-shadow: 0 0 30px rgba(0, 243, 255, 0.2); }
-        .price-card.featured { border: 1px solid var(--neon-pink); background: rgba(20, 0, 10, 0.85); box-shadow: 0 0 20px rgba(255, 0, 85, 0.2); transform: scale(1.05); z-index: 10; }
-        .badge-popular { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--neon-pink); color: #fff; padding: 5px 15px; font-size: 0.8rem; font-weight: bold; border-radius: 20px; text-transform: uppercase; font-family: 'Orbitron'; letter-spacing: 1px; }
-        .plan-name { font-size: 1.5rem; margin-bottom: 10px; color: #fff; }
-        .price { font-size: 3rem; font-weight: 700; color: #fff; display: block; margin: 20px 0; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+        
+        /* ESTILO PARA O PLANO DESTAQUE (ADVANCED) */
+        .price-card.featured { 
+            border: 2px solid var(--neon-pink); 
+            background: linear-gradient(180deg, rgba(20, 0, 10, 0.9), rgba(0,0,0,0.95)); 
+            box-shadow: 0 0 30px rgba(255, 0, 85, 0.3); 
+            transform: scale(1.08); 
+            z-index: 10; 
+        }
+        .price-card.featured:hover { transform: scale(1.1); }
+        
+        .badge-popular { 
+            position: absolute; top: -15px; left: 50%; transform: translateX(-50%); 
+            background: var(--neon-pink); color: #fff; padding: 5px 20px; 
+            font-size: 0.85rem; font-weight: 800; border-radius: 20px; 
+            text-transform: uppercase; font-family: 'Orbitron'; letter-spacing: 2px; 
+            box-shadow: 0 0 15px rgba(255,0,85,0.6);
+        }
+
+        .plan-name { font-size: 1.6rem; margin-bottom: 10px; color: #fff; letter-spacing: 2px; }
+        .price { font-size: 3.5rem; font-weight: 700; color: #fff; display: block; margin: 20px 0; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
         .price span { font-size: 1rem; color: #aaa; font-weight: 400; }
+        
+        .setup-fee {
+            display: block; margin-bottom: 25px; font-size: 0.9rem; color: #888; 
+            background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;
+        }
+
         .features-list { list-style: none; text-align: left; margin-bottom: 40px; }
-        .features-list li { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ddd; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
-        .features-list li i { color: var(--neon-cyan); font-size: 1.1rem; }
+        .features-list li { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ddd; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
+        .features-list li i { color: var(--neon-cyan); font-size: 1.2rem; }
         .featured .features-list li i { color: var(--neon-pink); }
-        .btn-plan { display: block; width: 100%; padding: 15px 0; text-decoration: none; color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; font-weight: bold; text-transform: uppercase; transition: 0.3s; cursor: pointer; letter-spacing: 2px; }
-        .btn-plan:hover { background: #fff; color: #000; }
-        .featured .btn-plan { background: var(--neon-pink); border-color: var(--neon-pink); }
-        .featured .btn-plan:hover { background: #ff3377; color: #fff; box-shadow: 0 0 20px var(--neon-pink); }
+        
+        .btn-plan { display: block; width: 100%; padding: 18px 0; text-decoration: none; color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; font-weight: bold; text-transform: uppercase; transition: 0.3s; cursor: pointer; letter-spacing: 2px; background: transparent; }
+        .btn-plan:hover { background: #fff; color: #000; box-shadow: 0 0 15px #fff; }
+        
+        .featured .btn-plan { background: var(--neon-pink); border-color: var(--neon-pink); box-shadow: 0 0 15px rgba(255,0,85,0.4); }
+        .featured .btn-plan:hover { background: #ff3377; color: #fff; box-shadow: 0 0 30px var(--neon-pink); }
 
         .faq-grid { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
         .faq-item { background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); border-radius: 5px; overflow: hidden; transition: 0.3s; }
@@ -298,18 +327,241 @@
 
     <header class="hero">
         <div class="hero-content">
-            <div class="hero-badge">Protocolo V21.0 Ultimate</div>
+            <div class="hero-badge">Protocolo V19.1 Ultimate</div>
             <h1>
                 <span class="outline">CALIXTO</span>
                 <strong><span id="secret-o">O</span>MNISYSTEM</strong>
             </h1>
-            <p>Domine o caos digital. Conecte seu WhatsApp a uma Automação de Elite. E agora, eleve sua marca com Produções Visuais Neurais.</p>
+            <p>Domine o caos digital. Conecte seu WhatsApp a uma Automação de Elite. E agora, eleve sua marca com Produções Visuais Neurais e Contratos Automáticos.</p>
             <div class="hero-btns">
                 <a href="#precos" class="cta-btn">Ver Planos</a>
                 <a href="#ai-studio" class="cta-btn" style="background: transparent; border: 1px solid var(--neon-purple); color: var(--neon-purple);">AI Studio</a>
             </div>
         </div>
     </header>
+
+    <style>
+        .use-cases-section {
+            background-color: #050505;
+            padding: 80px 20px;
+            position: relative;
+            overflow: hidden;
+            border-bottom: 1px solid #1a1a1a;
+        }
+    
+        /* Efeito de Luz de Fundo */
+        .use-cases-section::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(0, 243, 255, 0.05) 0%, rgba(0, 0, 0, 0) 70%);
+            z-index: 1;
+            pointer-events: none;
+        }
+    
+        .section-header {
+            text-align: center;
+            margin-bottom: 50px;
+            position: relative;
+            z-index: 2;
+        }
+    
+        .section-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 2.5rem;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 10px;
+        }
+    
+        .section-subtitle {
+            color: #888;
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+    
+        .highlight-text {
+            color: #00f3ff;
+            font-weight: bold;
+        }
+    
+        /* CARROSSEL */
+        .carousel-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 2;
+            display: flex;
+            gap: 30px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+    
+        .case-card {
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 30px;
+            width: 350px;
+            transition: all 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+    
+        /* Efeito Hover Cyberpunk */
+        .case-card:hover {
+            transform: translateY(-10px);
+            border-color: #00f3ff;
+            box-shadow: 0 0 30px rgba(0, 243, 255, 0.15);
+        }
+    
+        .case-card::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.1), transparent);
+            transition: 0.5s;
+        }
+    
+        .case-card:hover::after {
+            left: 100%;
+        }
+    
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            display: inline-block;
+            padding: 15px;
+            background: rgba(0, 243, 255, 0.05);
+            border-radius: 50%;
+            border: 1px solid rgba(0, 243, 255, 0.2);
+        }
+    
+        .card-title {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.4rem;
+            color: #fff;
+            margin-bottom: 15px;
+        }
+    
+        .card-desc {
+            color: #aaa;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin-bottom: 25px;
+        }
+    
+        .card-feature {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #fff;
+            font-size: 0.9rem;
+            margin-top: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 12px;
+            border-radius: 4px;
+            border-left: 3px solid #00f3ff;
+        }
+    
+        .card-tag {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+    
+        .tag-retail { background: rgba(255, 165, 0, 0.2); color: #ffa500; border: 1px solid rgba(255, 165, 0, 0.4); }
+        .tag-service { background: rgba(0, 255, 0, 0.2); color: #00ff00; border: 1px solid rgba(0, 255, 0, 0.4); }
+        .tag-high { background: rgba(0, 243, 255, 0.2); color: #00f3ff; border: 1px solid rgba(0, 243, 255, 0.4); }
+    
+        /* Responsivo */
+        @media (max-width: 768px) {
+            .carousel-container {
+                flex-direction: column;
+                align-items: center;
+            }
+            .case-card {
+                width: 100%;
+                max-width: 320px;
+            }
+            .section-title {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+    
+    <section class="use-cases-section">
+        <div class="section-header">
+            <h2 class="section-title">Um Sistema, <span class="highlight-text">Infinitos Nichos</span></h2>
+            <p class="section-subtitle">De pizzarias a escritórios de advocacia. Veja como a tecnologia de <strong style="color:#fff">Documentos Dinâmicos (PDF)</strong> transforma seu atendimento.</p>
+        </div>
+    
+        <div class="carousel-container">
+            
+            <div class="case-card">
+                <span class="card-tag tag-retail">Delivery & Varejo</span>
+                <div class="card-icon">🍕</div>
+                <h3 class="card-title">Comanda Digital</h3>
+                <p class="card-desc">
+                    Chega de errar pedidos anotados à mão. O robô coleta os sabores, bebidas,endereço e <strong>gera a comanda pronta</strong> para a cozinha.
+                </p>
+                <div class="card-feature">
+                    <span>📄</span> Gera PDF do Pedido Instantâneo
+                </div>
+                <div class="card-feature">
+                    <span>⚡</span> Zero Erro de Produção
+                </div>
+            </div>
+    
+            <div class="case-card">
+                <span class="card-tag tag-service">Serviços & Agenda</span>
+                <div class="card-icon">💈</div>
+                <h3 class="card-title">Voucher & Reserva</h3>
+                <p class="card-desc">
+                    Reduza o "bolo" na agenda. Ao confirmar o horário, seu cliente recebe um <strong>Voucher Oficial em PDF</strong>. Isso aumenta o compromisso e a percepção de valor.
+                </p>
+                <div class="card-feature">
+                    <span>📅</span> Confirmação Visual Profissional
+                </div>
+                <div class="card-feature">
+                    <span>💎</span> Ideal para Estética e Barbearias
+                </div>
+            </div>
+    
+            <div class="case-card" style="border-color: rgba(0,243,255,0.4);">
+                <span class="card-tag tag-high">Premium & B2B</span>
+                <div class="card-icon">⚖️</div>
+                <h3 class="card-title">Contratos Jurídicos</h3>
+                <p class="card-desc">
+                    O "Santo Graal" das vendas. Feche negócios de R$ 10k+ <strong>dentro do WhatsApp</strong>. O sistema coleta CPF, gera o contrato e entrega assinado na hora.
+                </p>
+                <div class="card-feature">
+                    <span>🔐</span> Validade Jurídica (IP + Log)
+                </div>
+                <div class="card-feature">
+                    <span>🚀</span> Acelera Vendas em 3x
+                </div>
+            </div>
+    
+        </div>
+    </section>
 
     <section id="ai-studio" class="section-padding container text-center" style="background: rgba(0,0,0,0.3); border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);">
         <h2 class="section-title" style="text-shadow: 0 0 15px var(--neon-purple);">NEURAL STUDIO</h2>
@@ -370,56 +622,64 @@
 
     <section id="depoimentos" class="section-padding container text-center">
         <h2 class="section-title">QUEM USA, APROVA</h2>
-        <p class="section-subtitle">Parceiros que transformaram seu atendimento.</p>
+        <p class="section-subtitle">Parceiros que transformaram seu atendimento com automação.</p>
         <div class="testimonials-grid">
+            
             <div class="testimonial-card">
-                <p class="test-text">"A automação transformou o agendamento da clínica. Reduzimos faltas e o paciente já chega com o cadastro pronto. Essencial para a OsteoClinic."</p>
+                <p class="test-text">"Antes, eu perdia ligações enquanto atendia pacientes. Agora, a secretária virtual faz a triagem, agenda e envia o preparo do exame automaticamente. Minha agenda lotou sem esforço."</p>
                 <div class="test-author">
                     <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=33');"></div>
-                    <div class="test-info" style="text-align: left;"><h4>OsteoClinic</h4><p>Clínica Integrada</p></div>
+                    <div class="test-info" style="text-align: left;"><h4>OsteoClinic</h4><p>Fisioterapia Integrada</p></div>
                 </div>
             </div>
+
             <div class="testimonial-card">
-                <p class="test-text">"A função de enviar vídeos dos imóveis automaticamente é fantástica. O cliente já chega pronto pra comprar."</p>
+                <p class="test-text">"Fechei uma locação em 15 minutos pelo WhatsApp. O robô coletou os dados do inquilino e gerou o contrato em PDF na hora. O cliente assinou impressionado com a velocidade."</p>
                 <div class="test-author">
-                    <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=5');"></div>
-                    <div class="test-info" style="text-align: left;"><h4>Juliana Costa</h4><p>Corretora</p></div>
+                    <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=11');"></div>
+                    <div class="test-info" style="text-align: left;"><h4>Roberto Mendes</h4><p>Imobiliária Prime</p></div>
                 </div>
             </div>
+
             <div class="testimonial-card">
-                <p class="test-text">"Os áudios gerados por IA parecem humanos de verdade. Meus clientes acham que estou no celular o dia todo."</p>
+                <p class="test-text">"O erro na cozinha caiu para zero. O cliente faz o pedido, o robô calcula o total e a comanda já sai pronta para impressão. Agilidade total na sexta à noite."</p>
                 <div class="test-author">
                     <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=60');"></div>
-                    <div class="test-info" style="text-align: left;"><h4>Marcos V.</h4><p>Infoprodutor</p></div>
+                    <div class="test-info" style="text-align: left;"><h4>Pizzaria Donatello</h4><p>Delivery Premium</p></div>
                 </div>
             </div>
+
         </div>
     </section>
 
     <section id="precos" class="section-padding container text-center">
-        <h2 class="section-title">PLANOS DISPONÍVEIS</h2>
+        <h2 class="section-title">ESCOLHA SEU NÍVEL</h2>
+        <p class="section-subtitle">Planos desenhados para escalar sua operação.</p>
+        
         <div class="pricing-grid">
+            
             <div class="price-card">
                 <div class="plan-name">ESSENTIAL</div>
                 <span class="price">R$ 690<span>/mês</span></span>
-                <span style="display:block; margin-bottom:20px; font-size:0.8rem; color:#888;">+ Setup R$ 497,00</span>
+                <span class="setup-fee">+ Setup Único: R$ 497,00</span>
                 <ul class="features-list">
-                    <li><i class="ri-robot-line"></i> Fluxo Guiado</li>
+                    <li><i class="ri-robot-line"></i> Atendimento 24h</li>
                     <li><i class="ri-check-line"></i> Menu Interativo</li>
                     <li><i class="ri-check-line"></i> Respostas Rápidas</li>
+                    <li><i class="ri-close-line" style="color: #444;"></i> Sem Mídia/Áudio</li>
                 </ul>
                 <a href="/registro" class="btn-plan">Iniciar</a>
             </div>
 
             <div class="price-card featured">
-                <div class="badge-popular">RECOMENDADO</div>
+                <div class="badge-popular">MAIS ESCOLHIDO</div>
                 <div class="plan-name">ADVANCED</div>
                 <span class="price">R$ 1.190<span>/mês</span></span>
-                <span style="display:block; margin-bottom:20px; font-size:0.8rem; color:#888;">+ Setup R$ 497,00</span>
+                <span class="setup-fee">+ Setup Único: R$ 497,00</span>
                 <ul class="features-list">
                     <li><i class="ri-shield-star-line"></i> <strong>Tudo do Essential</strong></li>
-                    <li><i class="ri-whatsapp-line"></i> Envio de Mídia (Foto/Vídeo)</li>
-                    <li><i class="ri-calendar-check-line"></i> Agendamento Inteligente</li>
+                    <li><i class="ri-whatsapp-line"></i> Envio de Fotos e Vídeos</li>
+                    <li><i class="ri-file-list-3-line"></i> Relatórios Básicos</li>
                 </ul>
                 <a href="/registro" class="btn-plan">Assinar Agora</a>
             </div>
@@ -427,13 +687,14 @@
             <div class="price-card">
                 <div class="plan-name">SIGNATURE</div>
                 <span class="price">R$ 1.890<span>/mês</span></span>
-                <span style="display:block; margin-bottom:20px; font-size:0.8rem; color:#888;">+ Setup R$ 497,00</span>
+                <span class="setup-fee">+ Setup Único: R$ 497,00</span>
                 <ul class="features-list">
                     <li><i class="ri-vip-diamond-line"></i> <strong>Tudo do Advanced</strong></li>
-                    <li><i class="ri-mic-2-line"></i> Áudios Humanizados</li>
-                    <li><i class="ri-file-text-line"></i> Gerador de Contratos</li>
+                    <li><i class="ri-mic-2-line"></i> Áudios Humanizados (IA)</li>
+                    <li><i class="ri-file-pdf-2-line"></i> <strong>Gerador de Contratos PDF</strong></li>
+                    <li><i class="ri-lock-2-line"></i> Segurança Jurídica (Logs)</li>
                 </ul>
-                <a href="/registro" class="btn-plan">Contratar</a>
+                <a href="/registro" class="btn-plan">Contratar Elite</a>
             </div>
         </div>
     </section>
@@ -450,8 +711,8 @@
                 <div class="faq-answer"><p>Sim, você usa seu próprio número de WhatsApp Business ou pessoal. A conexão é feita via QR Code, igual ao WhatsApp Web.</p></div>
             </div>
             <div class="faq-item">
-                <button class="faq-question">Existe fidelidade? <i class="ri-arrow-down-s-line"></i></button>
-                <div class="faq-answer"><p>Não. Você pode cancelar a assinatura a qualquer momento sem multas.</p></div>
+                <button class="faq-question">Os contratos têm validade jurídica? <i class="ri-arrow-down-s-line"></i></button>
+                <div class="faq-answer"><p>Sim. O sistema registra o IP, data, hora e o número de telefone validado do aceitante, criando um rastro de auditoria robusto para fins de comprovação.</p></div>
             </div>
         </div>
     </section>

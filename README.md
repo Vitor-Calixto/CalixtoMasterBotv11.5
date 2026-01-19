@@ -360,9 +360,84 @@ O usuário com a flag `isAdmin: true` possui capacidades que transcendem as regr
 
 ---
 
+
+# 🚀 Calixto OmniSystem - Changelog V19.1
+**Data:** 19/01/2026
+**Foco:** Módulo de Contratos Inteligentes & Editor Visual
+
+## ✨ Novas Funcionalidades
+
+### 1. Gerador de Contratos PDF (Engine V19.1)
+- **Conversão Automática:** O sistema agora converte templates HTML em arquivos PDF profissionais usando `html-pdf-node`.
+- **Variáveis Dinâmicas:** Substituição automática de tags no texto:
+  - `{{nome_cliente}}`: Nome salvo na sessão.
+  - `{{cpf_cliente}}`: CPF/CNPJ salvo.
+  - `{{endereco_cliente}}`: Endereço completo.
+  - `{{valor_servico}}`: Valor negociado.
+  - `{{data_atual}}`: Data atual formatada (ex: 19 de janeiro de 2026).
+- **Auto-Rescue (Resgate Automático):** Implementada lógica de segurança na Engine. Se o fluxo no editor não tiver um ID de contrato selecionado, o sistema busca automaticamente o primeiro contrato disponível na conta do cliente, evitando erros de "Template ID não fornecido".
+
+### 2. Editor Visual (WYSIWYG)
+- **Integração Quill.js:** O antigo campo de texto HTML foi substituído por um editor visual rico.
+- **Recursos:** Negrito, Itálico, Sublinhado, Alinhamento, Listas e Títulos.
+- **Benefício:** Permite que usuários sem conhecimento de programação criem contratos bonitos visualmente.
+
+### 3. Melhorias no Dashboard
+- **Navegação:** Adicionado atalho "Meus Contratos" no cabeçalho do Dashboard.
+- **Gestão:** Interface para Criar, Editar e Excluir modelos de contrato vinculados a cada robô.
+
+## 🛠️ Alterações Técnicas (Arquivos Modificados)
+- `modulos/engine.js`: Adicionado bloco `gerar_documento` com lógica de PDF e Auto-Rescue.
+- `modulos/contratos.js`: Novo módulo responsável pela renderização do PDF.
+- `views/contratos.ejs`: Interface refeita com Quill.js.
+- `views/dashboard.ejs`: Header atualizado com links de navegação.
+- `package.json`: Nova dependência `html-pdf-node`.
+
+---
+
 > **Copyright © 2026 CalixtoDev Engineering.**
 > *Documentação gerada para conformidade com padrões Enterprise SaaS (Nível NASA/JPL).*
 
+
+
+.Segurança
+
+
+1. A Muralha Externa (Anti-Scanner e Camuflagem)
+Antes mesmo do hacker tentar entrar, nós dificultamos a vida dele.
+
+Camuflagem (Helmet): O servidor web normalmente "grita" para o mundo: "Oi, sou feito em Express/Node.js!". Isso ajuda hackers a buscarem falhas específicas dessa tecnologia. Nós instalamos o Helmet, que remove essas etiquetas. Agora seu servidor é um "fantasmas" na rede; o hacker não sabe o que está atacando.
+
+Portão de Aço (Rate Limiting): Se um robô tentar testar 1.000 senhas por segundo na sua rota de login, o sistema conta as tentativas. Passou de 10 tentativas em 15 minutos? O IP é bloqueado. Isso torna ataques de Força Bruta matematicamente inviáveis.
+
+2. O Detector de Metais (Entrada de Dados)
+A maior parte dos ataques vem do que o usuário digita.
+
+Anti-XSS e Sanitização: Criamos a função limparTexto(). Se alguém tentar digitar um código malicioso (como <script>roubarSenha()</script>) no campo de busca ou no nome do contrato, o sistema remove os caracteres perigosos (< e >) antes mesmo de processar.
+
+Anti-Travamento (DoS): Limitamos o texto a 100 caracteres. Isso impede que alguém cole o texto de um livro inteiro no campo de busca só para estourar a memória RAM do seu servidor.
+
+3. O Laboratório de Análises (Uploads)
+Onde o usuário envia arquivos, mora o perigo de vírus.
+
+Validação de DNA (MIME Type): Não olhamos apenas para o nome do arquivo. Se um hacker renomear um vírus virus.exe para foto.jpg, o seu sistema (Multer) analisa o código interno do arquivo. Se não for imagem, áudio ou PDF real, ele é rejeitado na porta.
+
+Balança de Carga: Limitamos arquivos a 5MB. Ninguém vai conseguir lotar o disco rígido da sua VPS enviando arquivos gigantescos.
+
+4. O Cofre Blindado (Banco de Dados)
+Anti-SQL Injection (Prisma): Usamos o Prisma ORM. Diferente de sistemas antigos onde se colava o texto do usuário direto no comando do banco, o Prisma trata tudo como "texto puro". Se alguém digitar um comando de banco de dados no login, o Prisma vai apenas procurar um usuário com aquele nome estranho, sem executar o comando.
+
+5. O Carro-Forte (Transporte de Dados)
+Cadeado SSL (HTTPS): Como você confirmou, seu domínio tem o cadeado. Isso criptografa os dados entre o cliente e o servidor.
+
+Cookies Blindados: Configuramos a sessão com httpOnly: true e secure: true.
+
+Tradução: O cookie de login viaja por um túnel seguro (HTTPS) e, mesmo que o hacker consiga injetar um script no navegador do admin, o script não consegue ler o cookie (porque é httpOnly). Isso previne o roubo de sessão.
+
+6. O Escudo Jurídico (Compliance)
+Termos e Privacidade: Atualizamos os documentos legais para deixar claro que você fornece a tecnologia (meio), mas não é responsável pelo conteúdo dos contratos (fim), além de explicar a coleta de dados (IP e Telefone) para validade jurídica, protegendo você de processos.
 ```
+
+
 
 ```

@@ -33,7 +33,7 @@ const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 // ...
-
+app.set('trust proxy', 1); // Se estiver atrás de um proxy (ex: Heroku, VPS com proxy reverso)
 // --- SEGURANÇA 1: HELMET (Esconde que é Express) ---
 // contentSecurityPolicy: false é necessário para não bloquear os scripts do Quill/CDN que usamos
 app.use(helmet({ contentSecurityPolicy: false })); 
