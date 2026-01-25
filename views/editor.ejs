@@ -103,6 +103,21 @@
         editor.reroute = true;
         editor.editor_mode = 'edit';
         editor.start();
+
+        // Escuta qualquer mudança nos selects de contrato e salva no JSON do Drawflow
+document.addEventListener('change', function(e) {
+    if (e.target && e.target.classList.contains('contract-selector')) {
+        const nodeId = getNodeId(e.target);
+        const valorSelecionado = e.target.value;
+        
+        // Atualiza o dado internamente no Drawflow para garantir que o JSON exportado tenha o ID
+        const nodeData = editor.getNodeFromId(nodeId).data;
+        nodeData.templateId = valorSelecionado;
+        editor.updateNodeDataFromId(nodeId, nodeData);
+        
+        console.log(`✨ ID ${valorSelecionado} travado no nó ${nodeId}`);
+    }
+});
         const getNodeId = (elem) => elem.closest('.drawflow-node').id.replace('node-', '');
         
         // --- TEMPLATES HTML DOS NÓS ---
@@ -145,16 +160,18 @@
         };
 
         function sanitizarJson(json) {
-            if (!json || !json.drawflow || !json.drawflow.Home || !json.drawflow.Home.data) return json;
-            const nodes = json.drawflow.Home.data;
-            for (const key in nodes) {
-                const node = nodes[key];
-                node.typenode = false; 
-                if (templates[node.name]) node.html = templates[node.name];
-            }
-            return json;
+    if (!json || !json.drawflow || !json.drawflow.Home || !json.drawflow.Home.data) return json;
+    const nodes = json.drawflow.Home.data;
+    for (const key in nodes) {
+        const node = nodes[key];
+        node.typenode = false; 
+        if (templates[node.name]) {
+            // Mantemos o HTML, mas o Drawflow usará o node.data para preencher os campos df-*
+            node.html = templates[node.name];
         }
-
+    }
+    return json;
+}
         // --- SISTEMA DE CACHE DE CONTRATOS ---
         let cacheContratos = [];
 
@@ -193,23 +210,31 @@
             selects.forEach(sel => preencherSelect(sel));
         }
 
-        // ------------------------------------
+        window.addEventListener('load', async () => {
+    // 1. Garante que os 4 contratos do banco estão no cache do navegador
+    await carregarMeusModelos(); 
 
-        window.addEventListener('load', () => {
-            carregarMeusModelos(); // Busca a lista ao iniciar
+    try {
+        const base64Input = document.getElementById('fluxo-base64');
+        const base64Data = base64Input ? base64Input.value : "";
+        
+        if (base64Data && base64Data.trim() !== "") {
+            const jsonString = decodeURIComponent(escape(window.atob(base64Data)));
+            let json = JSON.parse(jsonString || '{}');
+            json = sanitizarJson(json);
             
-            try {
-                const base64Input = document.getElementById('fluxo-base64');
-                const base64Data = base64Input ? base64Input.value : "";
-                if (base64Data && base64Data.trim() !== "") {
-                    const jsonString = decodeURIComponent(escape(window.atob(base64Data)));
-                    let json = JSON.parse(jsonString || '{}');
-                    json = sanitizarJson(json);
-                    if (json && json.drawflow) { editor.import(json); setTimeout(restoreData, 100); } 
-                    else { editor.addNode('inicio', 0, 1, 50, 200, 'inicio', {}, templates.inicio); }
-                } else { editor.addNode('inicio', 0, 1, 50, 200, 'inicio', {}, templates.inicio); }
-            } catch (e) { console.error("ERRO LOAD:", e); editor.addNode('inicio', 0, 1, 50, 200, 'inicio', {}, templates.inicio); }
-        });
+            // 2. Importa o fluxo. Como o cache já preencheu os selects, o ID vai encontrar seu par.
+            editor.import(json); 
+            
+            // 3. Dá um tempo para o DOM respirar e executa a restauração visual
+            setTimeout(restoreData, 300); 
+        } else {
+            editor.addNode('inicio', 0, 1, 50, 200, 'inicio', {}, templates.inicio);
+        }
+    } catch (e) { 
+        console.error("ERRO CRÍTICO NO CARREGAMENTO:", e);
+    }
+});
 
         // Monitora novos nós para preencher o select
         editor.on('nodeCreated', function(id) {
