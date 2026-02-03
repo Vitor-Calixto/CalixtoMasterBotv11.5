@@ -3,7 +3,7 @@
 // ============================================================
 
 const PLANOS = {
-    'ESSENTIAL': { maxBots: 1, permissoes: { midia: false, transferencia: false, agendamento: false, audioIA: false, contratos: false } },
+    'ESSENTIAL': { maxBots: 1, permissoes: { midia: true, transferencia: true, agendamento: true, audioIA: true, contratos: false } },
     'ADVANCED': { maxBots: 3, permissoes: { midia: true, transferencia: true, agendamento: true, audioIA: false, contratos: false } },
     'SIGNATURE': { maxBots: 10, permissoes: { midia: true, transferencia: true, agendamento: true, audioIA: true, contratos: true } }
 };
