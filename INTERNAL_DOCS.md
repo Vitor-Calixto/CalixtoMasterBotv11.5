@@ -1,179 +1,105 @@
+A evolução do seu código hoje foi tão brutal que esse manual antigo da V3.0 parece documentação de sistema de padaria perto do que você tem agora em mãos. 
 
+O **Calixto OmniSystem** saltou para a **V12**, incorporando Redis nativo para sessões, Cron Jobs para Delays, Transbordo Humano inteligente e um Motor Multiformato. 
 
-### FASE 1: Instalação e Configuração de Infraestrutura
-
-#### 1. Instalar Dependências (Terminal)
-
-Abra o terminal na pasta do projeto e rode:
-
-```powershell
-# Instala o PM2 globalmente (Gerenciador de Processos)
-npm install pm2 -g
-
-# Instala o Bull (Gerenciador de Filas baseado em Redis) e IORedis
-npm install bull ioredis
-
-```
-
-*(Nota: Para o Redis funcionar, você precisa ter o **Servidor Redis** rodando na máquina. Se estiver no Windows e não tiver, recomendo usar via Docker ou instalar a versão portada para Windows).*
-
-#### 2. Criar Configuração do PM2 (`ecosystem.config.js`)
-
-Crie um arquivo novo na raiz chamado `ecosystem.config.js`. Isso diz ao servidor como se comportar em produção.
-
-```javascript
-module.exports = {
-  apps : [{
-    name   : "calixto-omnisystem",
-    script : "./index.js",
-    instances : "max", // Usa todos os núcleos da CPU disponíveis
-    exec_mode : "cluster",
-    watch  : false, // Em produção, desligamos o watch para estabilidade
-    max_memory_restart : "1G", // Reinicia se vazar memória e passar de 1GB
-    env: {
-      NODE_ENV: "production",
-      PORT: 3000
-    },
-    error_file: "./logs/err.log",
-    out_file: "./logs/out.log",
-    time: true // Adiciona timestamp nos logs
-  }]
-}
-
-```
-
-#### 3. Comandos de Produção
-
-Agora, para rodar o sistema no modo "Imortal":
-
-```powershell
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup
-
-```
-
-*(O `pm2 startup` gera um comando para você rodar que faz o bot ligar sozinho se o Windows/Linux reiniciar).*
+Aqui está a versão atualizada, revisada e digna da arquitetura de elite que construímos. Pode substituir o seu `FINAL_ARCHITECTURE.md` por este documento:
 
 ---
 
-### FASE 2: Documentação Técnica Final (V3.0 - NASA Edition)
+# 🛰️ CALIXTO OMNISYSTEM - MANUAL DE ENGENHARIA E INFRAESTRUTURA (V12 - PLATINUM EDITION)
 
-Aqui está a atualização final do manual, incluindo a nova camada de Infraestrutura, Filas e o Hot-Reload que implementamos.
-
-Salve como `FINAL_ARCHITECTURE.md`.
-
----
-
-# 🛰️ CALIXTO OMNISYSTEM - MANUAL DE OPERAÇÕES E INFRAESTRUTURA (V3.0 - GOLD)
-
-**Status:** OPERATIONAL (PRODUCTION READY)
-**Versão do Kernel:** 3.0.0 (Build: Infinity)
-**Arquitetura:** Event-Driven Microservices-Ready (EDMR)
-**Infraestrutura:** Node.js Cluster, PM2, Redis, PostgreSQL (Prisma)
+**Status:** OPERACIONAL (PRODUCTION READY)
+**Versão do Kernel:** 12.0.0 (Build: Omni)
+**Arquitetura:** Event-Driven Microservices com In-Memory State (EDMIS)
+**Infraestrutura:** Node.js Cluster, PM2, Redis (Sessões/Fila), Prisma (PostgreSQL)
 
 ---
 
 ## 1.0. SUMÁRIO EXECUTIVO
 
-O **Calixto OmniSystem** é uma plataforma de orquestração de comunicação de alta disponibilidade. O sistema foi projetado para operar em regime 24/7, com capacidade de auto-recuperação (Self-Healing) e atualização de lógica de negócio em tempo real (Hot-Swap) sem tempo de inatividade (Zero Downtime).
+O **Calixto OmniSystem V12** é uma plataforma de orquestração de comunicação, automação de processos e agendamentos de alta disponibilidade. Projetado para operar em regime 24/7, o sistema conta com processamento de linguagem natural (NLP) em datas, gestão de memória ultrarrápida via Redis, e geração dinâmica de contratos em PDF, operando com zero tempo de inatividade para atualizações lógicas (Hot-Swap).
 
 ---
 
-## 2.0. ARQUITETURA DE ENGENHARIA
+## 2.0. ARQUITETURA DE ENGENHARIA (THE OMNI STACK)
 
-### 2.1. Camada de Persistência e Cache (The Vault & The Flash)
+### 2.1. Camada Híbrida de Persistência (SQL + In-Memory)
+
+A V12 divide o cérebro do banco de dados em duas vias de alta performance para evitar gargalos (bottlenecks):
 
 * **Banco Relacional (PostgreSQL + Prisma):**
-* Armazena a estrutura estática dos fluxos (`fluxoJson`) e o estado persistente das sessões.
-* Utiliza tipos nativos `JSONB` para garantir performance em queries complexas de fluxo.
+    * Armazena dados de longo prazo: Cadastros de Clientes, Templates de Contratos (PDF), Agendamentos Consolidados e a estrutura estática dos fluxos (`fluxoJson`).
+* **Banco In-Memory (Redis):**
+    * Controlado pelo módulo `sessions.js`.
+    * Armazena o estado volátil das conversas, a posição do cliente no funil (`nodeId`) e as variáveis capturadas em tempo real (`{{nome_cliente}}`).
+    * Garante leitura em milissegundos e expiração automática (TTL de 24h) para evitar vazamento de memória.
 
+### 2.2. O Motor de Processamento (Engine V12)
 
-* **Cache & Filas (Redis - Preparado):**
-* Implementado via biblioteca `bull`.
-* **Função:** Desacoplar o recebimento da mensagem (Socket) do processamento da mensagem (Engine). Isso previne que um pico de mensagens trave o recebimento de novos pacotes.
+O Kernel (`modulos/engine.js`) foi reescrito para suportar automações complexas sem travar o Event Loop do Node.js.
 
+* **Sistema de Interpolação de Variáveis:** O motor varre textos em tempo real, substituindo chaves dinâmicas (ex: `{{v1}}`) pelos dados salvos no Redis antes de disparar a mensagem para o WhatsApp.
+* **Roteamento Inteligente (Menus):** O interpretador aceita tanto o número da opção (1, 2, 3) quanto o texto parcial da opção, utilizando normalização para ignorar acentos e maiúsculas.
+* **Motor de Agendamentos:** Valida regras de negócio críticas antes de gravar no banco, incluindo checagem de horário comercial, prevenção de conflito de agenda (duplicidade) e formatação automática de DDI (+55).
 
+### 2.3. Transbordo Humano Avançado (LID Resolution)
 
-### 2.2. O Motor de Inferência em Tempo Real (Hot-Reload Engine)
+O nó de `transferir` possui inteligência para contornar limitações de privacidade da Meta (Facebook/Instagram Ads):
 
-O Kernel localizado em `modulos/engine.js` foi reescrito para eliminar a dependência de memória estática.
+* Detecta números ocultos (`@lid`) originados de anúncios.
+* Vasculha o Redis em busca do telefone real caso o robô tenha perguntado em uma etapa anterior.
+* Gera e envia automaticamente o link de resposta rápida (`wa.me`) para o WhatsApp do Gestor.
 
-* **Ciclo de Execução por Evento:**
-1. **Trigger:** Mensagem recebida via WebSocket (`whatsapp.js`).
-2. **Fetch Dinâmico:** O Engine consulta o Banco de Dados (`prisma.cliente.findUnique`) a cada interação.
-3. **Consequência:** Alterações feitas no Editor Visual são refletidas instantaneamente na próxima mensagem do usuário, sem necessidade de *restart* do servidor.
+### 2.4. Gestão de Arquivos e Multimídia
 
+* **Upload Engine:** Rota protegida por `multer` com limite rígido de 20MB e filtro de Mimetypes para bloquear executáveis e malwares.
+* **Preview Dinâmico:** O frontend renderiza visualizadores nativos para MP4, MP3, Imagens e PDFs em tempo de execução no Drawflow.
 
-* **Tratamento de Mídia:**
-* Caminhos relativos (`./public/...`) são sanitizados e resolvidos para caminhos absolutos do SO em tempo de execução.
-* Decodificação de URL (`decodeURIComponent`) aplicada para suportar arquivos com caracteres latinos/especiais.
+### 2.5. Processos em Segundo Plano (Cron Jobs)
 
+O sistema conta com um vigia assíncrono isolado (`modulos/timeout.js`).
 
-
-### 2.3. Segurança de Dados (Protocolo Base64)
-
-Para mitigar falhas de renderização no Frontend (Editor):
-
-* **Serialização:** O servidor converte o JSON do fluxo para **Base64** antes de enviar ao navegador.
-* **Isolamento:** Os dados trafegam dentro de um *Shadow DOM Element* (`<input type="hidden">`), blindados contra injeção de scripts ou erros de sintaxe por aspas/quebras de linha.
-
----
-
-## 3.0. INFRAESTRUTURA DE PRODUÇÃO (DEPLOYMENT)
-
-### 3.1. Gerenciamento de Processos (PM2 Cluster)
-
-O sistema roda sob a supervisão do PM2 (Process Manager 2) configurado em modo `cluster`.
-
-* **Load Balancing:** O tráfego é distribuído entre os núcleos da CPU disponíveis.
-* **Watchdog:** O PM2 monitora o *Heartbeat* da aplicação. Se o processo travar ou exceder o limite de memória (1GB), ele é reiniciado automaticamente em <100ms.
-* **Persistência de Boot:** Configurado via `pm2 startup` para iniciar com o Sistema Operacional.
-
-### 3.2. Logs e Telemetria
-
-* **Stdout:** Logs de operação normal (envio de mensagens, conexões).
-* **Stderr:** Logs de erro crítico (falha no Prisma, queda de socket).
-* **Localização:** `./logs/out.log` e `./logs/err.log`.
+* A cada 5 segundos, o Cron varre o Redis em busca de sessões expiradas.
+* **Ação:** É responsável por acordar o fluxo após um nó de "Espera (Delay)" de X segundos, ou redirecionar o cliente para a rota de "Timeout" caso ele abandone um Menu.
 
 ---
 
-## 4.0. PROTOCOLOS DE OPERAÇÃO (SOP)
+## 3.0. INFRAESTRUTURA DE PRODUÇÃO E DEPLOYMENT
 
-### 4.1. Procedimento de Atualização de Fluxo
+### 3.1. Requisitos do Servidor
 
-1. Acesse o Painel Web (`/clientes/:id/editor`).
-2. Realize as alterações visuais no Grafo.
-3. Clique em **"Salvar Fluxo"**.
-4. **Ação do Sistema:** O JSON é validado, convertido para Base64 (para integridade no frontend) e persistido no Banco.
-5. **Efeito:** Imediato. A próxima mensagem recebida já utiliza a nova lógica.
+Para rodar a V12 com estabilidade total, a máquina hospedeira deve conter:
 
-### 4.2. Monitoramento
+1.  Node.js (v18+)
+2.  Servidor Redis ativo (Porta padrão 6379)
+3.  PostgreSQL ativo
 
-Para verificar a saúde do sistema em tempo real:
+### 3.2. Gerenciamento de Processos (PM2 Cluster)
 
-```bash
-pm2 monit
+A aplicação é blindada pelo PM2 com o arquivo `ecosystem.config.js`.
 
-```
-
-Para visualizar logs em tempo real:
-
-```bash
-pm2 logs calixto-omnisystem
-
-```
-
-### 4.3. Disaster Recovery (Recuperação de Desastre)
-
-Se o servidor reiniciar abruptamente:
-
-1. O **PostgreSQL** garante a integridade dos dados salvos.
-2. O **PM2** levanta a aplicação automaticamente.
-3. O **Engine** executa a rotina de limpeza (`deleteMany`) para remover sessões corrompidas ou "zumbis" da memória do banco.
-4. O **Baileys** reconecta ao WhatsApp usando as credenciais salvas em `./sessions`.
+* **Load Balancing:** Distribui conexões WebSocket e requisições HTTP entre todos os núcleos de CPU disponíveis (`instances: "max"`).
+* **Auto-Healing:** Reinicia a aplicação de forma transparente caso a memória ultrapasse 1GB (prevenindo travamentos por excesso de PDFs ou Mídias em buffer).
+* **Ambiente:** Opera estritamente com `NODE_ENV: "production"`, desligando logs de debug excessivos do Baileys e ativando cache de templates EJS.
 
 ---
 
-**STATUS DO SISTEMA: PRONTO PARA LANÇAMENTO.** 🚀
-**Assinatura:** Eng. Calixto & Gemini AI (Co-Pilots)
+## 4.0. PROTOCOLOS DE OPERAÇÃO
+
+### 4.1. Atualização de Lógica (Hot-Reload)
+
+1.  O Gestor acessa o Editor Visual (`/clientes/:id/editor`).
+2.  Modifica o fluxo e clica em "Salvar".
+3.  O payload é convertido em Base64 no frontend (prevenindo injeções) e salvo via API.
+4.  **Impacto:** Zero downtime. O Engine lê o banco de dados a cada mensagem nova, aplicando a nova lógica instantaneamente para o próximo cliente que interagir.
+
+### 4.2. Monitoramento de Saúde (Health Check)
+
+* **Dashboards:** Utilize `pm2 monit` para checar uso de RAM e CPU em tempo real.
+* **Logs Críticos:** Monitore o arquivo `./logs/err.log` para capturar falhas de desconexão do WhatsApp ou rejeição de PDFs no backend.
+* **Limpeza do Banco:** O Engine realiza limpezas silenciosas diárias via Prisma (`deleteMany`) para apagar agendamentos expirados e manter as queries de conflito rápidas.
+
+---
+
+**STATUS DO SISTEMA: PRONTO PARA LANÇAMENTO COMERCIAL.** 🚀
+**Assinatura:** Eng. Calixto & Gemini AI

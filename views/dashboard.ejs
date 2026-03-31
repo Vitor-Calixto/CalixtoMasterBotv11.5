@@ -23,6 +23,8 @@
             --danger: #ff3333;
             --success: #00e054;
             --warning: #ff9900;
+            --primary-purple: #bd00ff;
+            --primary-purple-hover: #a000cc;
         }
 
         body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; margin: 0; padding: 40px; }
@@ -67,8 +69,10 @@
         .bot-number { background: #000; border: 1px solid #222; padding: 10px; border-radius: 6px; color: #888; font-family: monospace; font-size: 13px; display: flex; align-items: center; gap: 8px; }
 
         /* BOTÕES DO CARD */
+        .btn-disparo { flex: 1; background-color: var(--primary-purple); color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-disparo:hover { background-color: var(--primary-purple-hover); }
         .card-actions { display: flex; gap: 10px; }
-        .btn-fluxo { flex: 1; background-color: var(--primary-blue); color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-fluxo { flex: 1; background-color: var(--primary-blue) !important; color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; }
         .btn-fluxo:hover { background-color: var(--primary-hover); }
         .btn-lixo { width: 45px; background-color: #1a1a1a; border: 1px solid #333; color: #666; border-radius: 6px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
         .btn-lixo:hover { background-color: #220000; border-color: #550000; color: #ff4444; }
@@ -135,10 +139,16 @@
             <i class="ri-dashboard-3-line"></i> Calixto OmniSystem 
             <% if (usuario) { %> <span class="plan-badge"><%= usuario.plano %></span> <% } %>
         </div>
+    
         <div style="display: flex; gap: 15px; align-items: center;">
+            <a href="/dashboard/agenda" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
+                <i class="ri-calendar-todo-line"></i> Minha agenda
+            </a>
+    
             <a href="/dashboard/contratos" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
                 <i class="ri-file-text-line"></i> Meus Contratos
             </a>
+    
             <span style="color: #333;">|</span>
             <a href="/logout" class="btn-logout">Sair</a>
             <button class="btn-new" onclick="novoBot()">+ Novo Cliente</button>
@@ -173,6 +183,10 @@
                     <div id="help-text-<%= c.id %>" class="help-text">WhatsApp > Aparelhos > Conectar</div>
 
                     <div class="card-actions">
+
+                        <button class="btn-disparo" onclick="window.location.href='/disparo/<%= c.id %>'">
+                            <i class="ri-megaphone-line"></i> Disparo
+                        </button>
                         <button class="btn-fluxo" onclick="window.location.href='/editor/<%= c.id %>'">
                             <i class="ri-settings-4-line"></i> Editar Fluxo
                         </button>

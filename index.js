@@ -9,7 +9,8 @@ const PLANOS = {
 };
 
 require('dotenv').config();
-const rateLimit = require('express-rate-limit');
+const { iniciarMonitorDeLembretes } = require('./modulos/cron'); // Importa o vigia de lembretes
+const rateLimit = require('express-rate-limit'); 
 const helmet = require('helmet'); 
 const express = require('express');
 const http = require('http');
@@ -22,8 +23,8 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs'); 
 const session = require('express-session'); 
 const flash = require('connect-flash'); 
-
 const whatsapp = require('./modulos/whatsapp');
+const iniciarBot = whatsapp.iniciarWhatsApp;
 const timeout = require('./modulos/timeout');
 
 const app = express();
@@ -47,13 +48,11 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Se quiser ser MAIS rígido apenas no Login (Recomendado):
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 10, // Só 10 tentativas de login por 15 min
     message: "Muitas tentativas de login. Bloqueado por 15 min."
 });
-// Aplique na rota POST /login lá embaixo: app.post('/login', loginLimiter, async ...
 
 // ==========================================
 // FUNÇÃO DE SEGURANÇA (ANTI-HACKER) 🛡️
@@ -128,16 +127,12 @@ app.use((req, res, next) => {
 
 // --- MIDDLEWARE DE AUTENTICAÇÃO ---
 async function isAuth(req, res, next) {
-    if (req.session.usuario) {
+    if (req.session.userId) { // Mudamos para conferir o ID direto
         try {
             const user = await prisma.usuario.findUnique({ where: { id: req.session.userId } });
             if (!user || user.bloqueado || !user.ativo) {
                 req.session.destroy();
                 return res.redirect('/login');
-            }
-            if (user.role !== 'ADMIN' && user.expiraEm && new Date() > new Date(user.expiraEm)) {
-                req.session.destroy();
-                return res.render('login', { message: null, erro: 'Plano expirado.' });
             }
             req.session.usuario = user; 
             return next();
@@ -145,7 +140,6 @@ async function isAuth(req, res, next) {
     }
     res.redirect('/login');
 }
-
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = path.join(__dirname, 'public/uploads');
@@ -155,24 +149,28 @@ const storage = multer.diskStorage({
     filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9.]/g, "_"))
 });
 
-// --- SEGURANÇA 3: FILTRO DE UPLOAD ---
+
+// --- SEGURANÇA 3: FILTRO DE UPLOAD (VERSÃO CORRIGIDA) ---
 const upload = multer({ 
     storage: storage,
-    limits: { fileSize: 5 * 1024 * 1024 }, // Limite de 5MB por arquivo
+    // Aumentamos para 20MB porque vídeos MP4 são maiores que fotos
+    limits: { fileSize: 20 * 1024 * 1024 }, 
     fileFilter: (req, file, cb) => {
         const allowedMimes = [
-            'image/jpeg', 'image/png', 'image/webp', // Imagens
-            'audio/mpeg', 'audio/ogg', 'audio/mp4',  // Áudios
-            'application/pdf'                        // PDFs
+            'image/jpeg', 'image/png', 'image/webp', 
+            'audio/mpeg', 'audio/ogg', 'audio/mp4',  
+            'application/pdf', // <--- A VÍRGULA QUE FALTAVA ESTÁ AQUI
+            'video/mp4'        // Agora o MP4 será aceito pelo Multer
         ];
+
         if (allowedMimes.includes(file.mimetype)) {
             cb(null, true);
         } else {
-            cb(new Error('Tipo de arquivo não permitido (Apenas Imagens, Áudio e PDF).'));
+            // Mensagem de erro atualizada para incluir Vídeos
+            cb(new Error('Tipo de arquivo não permitido (Aceitamos Fotos, Áudio, PDF e Vídeo MP4).'));
         }
     }
 });
-
 // ================= ROTAS =================
 
 app.get('/', (req, res) => { res.render('landing', { usuario: req.session.usuario || null }); });
@@ -360,43 +358,55 @@ app.post('/api/clientes', isAuth, async (req, res) => {
         const regras = PLANOS[user.plano] || PLANOS['ESSENTIAL'];
         if (user.role !== 'ADMIN' && user.clientes.length >= regras.maxBots) return res.status(403).json({ error: 'Limite de bots atingido.' });
         const novoBot = await prisma.cliente.create({ data: { nome: req.body.nome, numero: req.body.numero, donoId: req.session.userId, status: 'OFFLINE' } });
+        console.log(`\n[FLUXO] 💾 Novo desenho salvo com sucesso para: ${cliente.nome}`);
+    console.log(`[FLUXO] 📊 Total de nós registrados: ${Object.keys(fluxo.drawflow.Home.data).length}\n`);
+    res.sendStatus(200);
         res.json({ success: true, id: novoBot.id });
     } catch (e) { res.status(500).json({ error: "Erro criar" }); }
 });
 
-// --- EXCLUSÃO BLINDADA: Mata a sessão antes de apagar a pasta ---
+// --- EXCLUSÃO BLINDADA: Mata a sessão, apaga a pasta e limpa o banco ---
 app.delete('/api/clientes/:id', isAuth, async (req, res) => {
     try {
         const botId = req.params.id;
         
-        // 1. Mata a conexão na memória RAM
+        // 1. Localiza o cliente para pegar o nome da pasta
+        const cliente = await prisma.cliente.findUnique({ where: { id: botId } });
+        if (!cliente) return res.status(404).json({ error: "Bot não encontrado" });
+
+        // 2. Para o motor na memória RAM imediatamente
         if (whatsapp.sessoes && whatsapp.sessoes.has(botId)) {
             const sessao = whatsapp.sessoes.get(botId);
             try { sessao.end(undefined); } catch (e) {}
             whatsapp.sessoes.delete(botId);
         }
 
-        // 2. Aguarda o Windows soltar os arquivos
+        // 3. Aguarda 1 segundo para o Windows liberar os arquivos (Evita erro de Permissão)
         await new Promise(r => setTimeout(r, 1000));
 
-        // 3. Tenta apagar a pasta de arquivos físico
-        const paths = [
-            path.join(__dirname, 'public', 'sessions', botId),
-            path.join(__dirname, 'sessions', botId)
-        ];
+        // 4. Define o caminho da pasta conforme o seu whatsapp.js
+        const sessionsDir = path.join(__dirname, 'public', 'sessions', `${cliente.nome}-${cliente.id}`);
 
-        paths.forEach(p => {
-            if (fs.existsSync(p)) {
-                try { fs.rmSync(p, { recursive: true, force: true }); } catch (err) { console.error("Erro ao apagar pasta:", err.message); }
+        // 5. Deleta a pasta física (Força bruta para garantir conexão limpa no próximo bot)
+        if (fs.existsSync(sessionsDir)) {
+            try {
+                fs.rmSync(sessionsDir, { recursive: true, force: true });
+                console.log(`[SISTEMA] Pasta de sessão removida com sucesso: ${sessionsDir}`);
+            } catch (fsErr) {
+                console.warn(`[AVISO] Não foi possível apagar a pasta agora: ${fsErr.message}`);
             }
-        });
+        }
 
-        // 4. Apaga do Banco
-        await prisma.contratoTemplate.deleteMany({ where: { clienteId: botId } }); // Limpa contratos antes
+        // 6. Limpeza Hierárquica do Banco de Dados
+        // Remove os contratos primeiro para não dar erro de chave estrangeira
+        await prisma.contratoTemplate.deleteMany({ where: { clienteId: botId } });
         await prisma.cliente.delete({ where: { id: botId } });
         
         res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Erro ao excluir" }); }
+    } catch (e) {
+        console.error("Erro crítico na exclusão:", e);
+        res.status(500).json({ error: "Falha ao remover bot e arquivos" });
+    }
 });
 
 app.post('/api/status', isAuth, async (req, res) => {
@@ -418,7 +428,9 @@ app.post('/api/status', isAuth, async (req, res) => {
 app.get('/editor/:id', isAuth, async (req, res) => {
     const cliente = await prisma.cliente.findUnique({ where: { id: req.params.id } });
     if (!cliente || (cliente.donoId !== req.session.userId && req.session.role !== 'ADMIN')) return res.redirect('/dashboard');
-    res.render('editor', { cliente, fluxo: cliente.fluxoJson });
+    res.render('editor', { cliente, fluxo: cliente.fluxoJson || {}
+
+    });
 });
 
 app.post('/api/clientes/:id/fluxo', isAuth, async (req, res) => {
@@ -499,20 +511,269 @@ app.delete('/api/admin/usuarios/:id', isAuth, async (req, res) => {
 app.get('/termos', (req, res) => res.render('termos', { usuario: req.session.usuario || null }));
 app.get('/privacidade', (req, res) => res.render('privacidade', { usuario: req.session.usuario || null }));
 
+
+// 📄 1. ROTA PARA ABRIR A TELA DE DISPARO
+app.get('/broadcast', isAuth, async (req, res) => {
+    const idDoRobo = req.query.id; 
+    
+    if (!idDoRobo) return res.redirect('/dashboard');
+
+    try {
+        // Busca no modelo 'lembrete' (conforme seu schema.prisma)
+        const agendamentos = await prisma.lembrete.findMany({
+            where: { clienteId: idDoRobo },
+            select: { numero: true, mensagem: true }
+        });
+
+        const contatosDaBase = agendamentos.map(ag => ({
+            numero: ag.numero,
+            nome: (ag.mensagem && ag.mensagem.includes('*')) ? ag.mensagem.split('*')[3] : 'Cliente'
+        }));
+
+        res.render('disparo', { 
+            usuario: req.session.usuario,
+            clienteId: idDoRobo, 
+            contatos: contatosDaBase 
+        });
+
+    } catch (error) {
+        console.error("❌ ERRO NO PRISMA:", error.message);
+        res.status(500).send("Erro ao carregar a base de dados.");
+    }
+}); 
+
+// 🚀 2. ROTA PARA EXECUTAR O DISPARO
+app.post('/api/broadcast', isAuth, async (req, res) => {
+    const { contatos, mensagem, clienteId } = req.body; 
+
+    console.log(`[BROADCAST] 🛰️ Tentando disparo para o robô: ${clienteId}`);
+
+    const sock = global.socks ? global.socks[clienteId] : null;
+
+    if (!sock) {
+        console.error(`[BROADCAST] ❌ Erro: Robô ${clienteId} sem conexão ativa.`);
+        return res.status(500).json({ 
+            error: "Robô desconectado. Reinicie o bot no dashboard para ativar a conexão." 
+        });
+    }
+
+    const listaFinal = contatos.split(/[,\n]/).map(c => c.trim()).filter(c => c.length > 5);
+    const { executarDisparoEmMassa } = require('./modulos/broadcast');
+    
+    // Executa em segundo plano para não travar a resposta do site
+    executarDisparoEmMassa(listaFinal, mensagem, sock);
+    res.json({ success: true });
+});
+
+// --- ROTA DE DISPARO CORRIGIDA ---
+app.get('/disparo/:id', isAuth, async (req, res) => {
+    try {
+        const clienteId = req.params.id;
+        
+        const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
+        if (!cliente) return res.redirect('/dashboard');
+
+        // 2. 🛡️ BUSCA DOS NÚMEROS (Ajustado para o modelo 'lembrete')
+        const contatosRecuperados = await prisma.lembrete.findMany({
+            where: { clienteId: clienteId },
+            distinct: ['numero'],
+            select: { 
+                nome: true,
+                numero: true,
+                cpf: true // Você pode usar o CPF como identificador se quiser
+            }
+        }) || [];
+
+        // 3. Renderiza enviando os dados
+        res.render('disparo', { 
+            cliente, 
+            // Mapeamos para garantir que o EJS não quebre se procurar por .nome
+            contatos: contatosRecuperados.map(c => ({
+                nome: c.cpf || 'Cliente Base', // Usamos o CPF ou um texto fixo como nome
+                numero: c.numero
+            })), 
+            usuario: req.session.usuario 
+        });
+
+    } catch (error) {
+        console.error("Erro ao carregar página de disparo:", error);
+        res.redirect('/dashboard');
+    }
+});
+
+
+async function religarRobosAtivos() {
+    console.log("[SISTEMA] 🤖 Verificando robôs para auto-conexão...");
+    const ativos = await prisma.cliente.findMany({ where: { status: 'ONLINE' } });
+
+    for (const bot of ativos) {
+        console.log(`[SISTEMA] 🔌 Restaurando conexão do robô: ${bot.nome}`);
+        
+        // ✅ CORREÇÃO: Passamos o objeto 'bot' completo e o 'io' do socket
+        if (typeof iniciarBot === 'function') {
+            iniciarBot(bot, io); 
+        }
+    }
+}
+
+// ==========================================
+// 🚀 GESTÃO DA AGENDA 
+// ==========================================
+
+// 1. Rota para abrir a página (Carrega robôs e configurações)
+app.get('/dashboard/agenda', isAuth, async (req, res) => {
+    try {
+        // Esta linha é o "soro" que cura o erro 'clientes is not defined'
+        const meusRobos = await prisma.cliente.findMany({ 
+            where: { donoId: req.session.userId } 
+        });
+
+        res.render('agenda', { 
+            usuario: req.session.usuario,
+            clientes: meusRobos, // Agora a página recebe os dados
+            systemMaintenance: getSystemConfig().maintenance 
+        });
+    } catch (e) {
+        res.status(500).send("Erro ao carregar agenda.");
+    }
+});
+// 2. Rota para salvar configurações da agenda (Notificação, Lembretes e Horário)
+app.post('/api/clientes/:id/config-notificacao', isAuth, async (req, res) => {
+    try {
+        // 1. Puxa todas as variáveis enviadas pelo front-end
+        const { numeroDono, tempoLembrete1, tempoLembrete2, usarHorarioComercial } = req.body;
+        
+        // 2. Inteligência do DDI 55 para o número do gestor
+        let numeroLimpo = numeroDono.replace(/\D/g, '');
+        if (numeroLimpo.length === 10 || numeroLimpo.length === 11) {
+            numeroLimpo = '55' + numeroLimpo;
+        }
+        const jidGestor = numeroLimpo + '@s.whatsapp.net';
+        
+        // 3. Salva TUDO no banco de dados
+        await prisma.cliente.update({
+            where: { id: req.params.id },
+            data: { 
+                numeroNotificacao: jidGestor,
+                tempoLembrete1: parseInt(tempoLembrete1) || 24, // Padrão 24h
+                tempoLembrete2: parseInt(tempoLembrete2) || 0,  // Padrão 0 (desativado)
+                usarHorarioComercial: usarHorarioComercial !== undefined ? usarHorarioComercial : true
+            }
+        });
+        
+        console.log(`✅ [ config ] Configurações da Agenda salvas para o bot ${req.params.id}`);
+        res.json({ success: true });
+    } catch (e) {
+        console.error("❌ Erro ao salvar configurações:", e.message);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// 3. API: Busca eventos para o calendário (VERSÃO SINCRONIZADA V30.9)
+
+// DENTRO DO SEU INDEX.JS
+app.get('/api/agendamentos/usuario', isAuth, async (req, res) => {
+    try {
+        const meusRobos = await prisma.cliente.findMany({ where: { donoId: req.session.userId }, select: { id: true } });
+        const ids = meusRobos.map(r => r.id);
+        const agendamentos = await prisma.lembrete.findMany({ where: { clienteId: { in: ids } } });
+        
+        res.json(agendamentos.map(ag => ({
+            id: String(ag.id),
+            title: ag.status === 'BLOQUEADO' ? '🔒 RESTRITO' : (ag.nome || 'Agendamento'), 
+            start: ag.dataAgendada,
+            backgroundColor: ag.status === 'BLOQUEADO' ? '#1a1a1a' : 'rgba(0, 102, 255, 0.2)',
+            borderColor: ag.status === 'BLOQUEADO' ? '#ff3333' : '#0066ff',
+            extendedProps: { 
+                // 🚩 Garante que o Nome não vai como undefined
+                nome: ag.nome || 'Nome não registado', 
+                cpf: ag.cpf,
+                // 🚩 Garante que o número não vai como undefined
+                numero: ag.numero || 'Sem número',
+                mensagem: ag.mensagem
+            }
+        })));
+    } catch (e) { res.status(500).json([]); }
+});
+// 4. API: Bloqueio manual e 5. API: Excluir (Mantenha as que enviamos antes)
+app.post('/api/agendamentos/bloquear', isAuth, async (req, res) => {
+    try {
+        const { start, clienteId } = req.body;
+        await prisma.lembrete.create({
+            data: { numero: "SISTEMA", cpf: "BLOQUEIO", status: 'BLOQUEADO', mensagem: "🔒 HORÁRIO RESTRITO (MANUAL)", dataAgendada: new Date(start), clienteId: clienteId }
+        });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/agendamentos/:id', isAuth, async (req, res) => {
+    try {
+        await prisma.lembrete.delete({ where: { id: req.params.id } });
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Executa a verificação de novos lembretes a cada 2 minutos
+// setInterval(() => {
+//     verificarENotificarLembretes(prisma, sock);
+// }, 2 * 60 * 1000);
+
+
+
+
+// ==========================================
+// 🧪 ROTA DE TESTE MANUAL DE LEMBRETE
+// ==========================================
+app.get('/api/testar-lembrete/:id', isAuth, async (req, res) => {
+    try {
+        const idLembrete = req.params.id;
+
+        // 1. Busca o agendamento específico no banco
+        const agendamento = await prisma.lembrete.findUnique({
+            where: { id: idLembrete }
+        });
+
+        if (!agendamento) return res.status(404).send("❌ Erro: Agendamento não encontrado no banco.");
+
+        // 2. Localiza a sessão ativa do robô (usando o mapa de sessoes)
+        const sock = whatsapp.sessoes.get(agendamento.clienteId);
+
+        if (!sock) {
+            return res.status(500).send("❌ Erro: O robô responsável por este agendamento está OFFLINE.");
+        }
+
+        // 3. Monta a mensagem (Exatamente como no CRON)
+        const dataF = agendamento.dataAgendada.toLocaleDateString('pt-BR');
+        const horaF = agendamento.dataAgendada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        const textoMensagem = `🔔 *TESTE DE LEMBRETE MANUAL*\n\n` +
+            `Olá, *${agendamento.nome || 'Cliente'}*! Este é um teste de funcionamento.\n\n` +
+            `🪪 *CPF:* ${agendamento.cpf}\n` +
+            `📅 *Data:* ${dataF}\n` +
+            `🕒 *Hora:* ${horaF}\n\n` +
+            `O sistema de notificações está operando corretamente.`;
+
+        // 4. Dispara para o WhatsApp do cliente
+        const jid = agendamento.numero.replace(/\D/g, '') + '@s.whatsapp.net';
+        await sock.sendMessage(jid, { text: textoMensagem });
+
+        console.log(`[TESTE] Lembrete enviado manualmente para: ${agendamento.nome}`);
+        res.send(`🚀 Sucesso! Lembrete enviado para ${agendamento.nome} (${agendamento.numero}).`);
+
+    } catch (e) {
+        console.error("Erro no teste manual:", e.message);
+        res.status(500).send("Erro interno: " + e.message);
+    }
+});
+
+
+// 🏁 4. INÍCIO DO SERVIDOR
 server.listen(PORT, async () => {
     console.log(`🚀 CALIXTO OMNISYSTEM V19.1 ONLINE NA PORTA ${PORT}`);
+    await religarRobosAtivos(); // Restaura as conexões antes de liberar o sistema
     timeout.iniciar(); 
-    try {
-        const clientesParaIniciar = await prisma.cliente.findMany({ where: { status: 'ONLINE' } });
-        for (const cliente of clientesParaIniciar) {
-            const dono = await prisma.usuario.findUnique({ where: { id: cliente.donoId } });
-            if (dono && dono.ativo && !dono.bloqueado) {
-                if (dono.role !== 'ADMIN' && dono.expiraEm && new Date() > new Date(dono.expiraEm)) continue;
-                whatsapp.iniciarWhatsApp(cliente, io);
-                await new Promise(r => setTimeout(r, 2000)); 
-            } else {
-                await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'OFFLINE' } });
-            }
-        }
-    } catch (e) { console.error('[BOOT] Erro:', e); }
+    if (typeof iniciarMonitorDeLembretes === 'function') {
+        iniciarMonitorDeLembretes(prisma, whatsapp.sessoes);
+        console.log("[SISTEMA] ⏰ Monitor de Lembretes Ativado.");
+    }
 });

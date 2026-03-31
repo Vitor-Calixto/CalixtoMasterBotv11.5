@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Calixto OmniSystem | Automação de Elite</title>
+    <title>Calixto OmniSystem | Atendimento Automatizado para Empresas</title>
     
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;500;700;800;900&display=swap" rel="stylesheet">
@@ -11,7 +11,7 @@
     <style>
         /* ==================== CSS BASE ==================== */
         :root {
-            /* Paleta de cores exata do JARVIS */
+            var(--neon-cyan): #00f3ff;
             --neon-cyan: #00f3ff;
             --neon-blue: #0066ff;
             --neon-white: #e0ffff;
@@ -19,7 +19,7 @@
             --neon-pink: #ff0055;
             --neon-purple: #bd00ff;
             --glass-dark: rgba(10, 10, 10, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.1);
+            --glass-border: rgba(255, 255, 255, 0.15);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; }
@@ -37,116 +37,54 @@
         }
 
         body::before {
-    content: ''; 
-    position: fixed; 
-    top: 0; 
-    left: 0; 
-    width: 100%; 
-    height: 100%;
-    /* Mudei de 0.92 para 0.4 (muito mais transparente) e adicionei um gradiente para ficar chique */
-    background: linear-gradient(to bottom, rgba(2, 4, 8, 0.3), rgba(2, 4, 8, 0.8)); 
-    z-index: -1; 
-    pointer-events: none;
-}
-        /* ==================== JARVIS HUD LOADER (REFINADO) ==================== */
+            content: ''; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%;
+            background: linear-gradient(to bottom, rgba(2, 4, 8, 0.4), rgba(2, 4, 8, 0.9)); 
+            z-index: -1; 
+            pointer-events: none;
+        }
+        
+        /* ==================== JARVIS HUD LOADER ==================== */
         #jarvis-loader {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: radial-gradient(ellipse at center, #0b2e4a 0%, #020408 60%, #000000 100%);
             z-index: 99999;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            transition: opacity 1.5s ease-out, visibility 1.5s;
+            transition: opacity 0.8s ease-out, visibility 0.8s;
         }
         #jarvis-loader.loaded { opacity: 0; visibility: hidden; }
 
-        /* Grade de fundo sutil */
         #jarvis-loader::after {
             content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background-image: linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
                               linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
-            background-size: 50px 50px;
-            pointer-events: none;
+            background-size: 50px 50px; pointer-events: none;
         }
 
-        /* Wrapper dos anéis (Tamanho Compacto) */
-        .hud-ring-wrapper {
-            position: relative;
-            width: 420px; height: 420px;
-            display: flex; align-items: center; justify-content: center;
-            margin-bottom: 30px; /* Espaço para o conteúdo abaixo */
-        }
-
-        .hud-svg {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            fill: none;
-            overflow: visible;
-            z-index: 1;
-        }
-
-        /* Título Interno (Centralizado no Núcleo) */
+        .hud-ring-wrapper { position: relative; width: 420px; height: 420px; display: flex; align-items: center; justify-content: center; margin-bottom: 30px; }
+        .hud-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; fill: none; overflow: visible; z-index: 1; }
+        
         .hud-title-internal {
-            position: absolute;
-            z-index: 10; /* Acima do SVG */
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-family: 'Orbitron', sans-serif;
-            font-size: 34px; font-weight: 900;
-            letter-spacing: 4px; color: #fff;
-            text-shadow: 0 0 15px var(--neon-cyan), 0 0 35px var(--neon-cyan);
-            margin: 0;
-            white-space: nowrap;
-            animation: text-pulse 3s infinite alternate;
+            position: absolute; z-index: 10; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-family: 'Orbitron', sans-serif; font-size: 34px; font-weight: 900; letter-spacing: 4px; color: #fff;
+            text-shadow: 0 0 15px var(--neon-cyan), 0 0 35px var(--neon-cyan); margin: 0; white-space: nowrap; animation: text-pulse 3s infinite alternate;
         }
 
-        /* --- CAMADAS DO REATOR --- */
-        .ring-outer-segments {
-            stroke: var(--neon-cyan); stroke-width: 6; stroke-dasharray: 100 20 50 20 100 20;
-            filter: drop-shadow(0 0 10px var(--neon-cyan)); opacity: 0.8; transform-origin: center; animation: spin-slow 25s linear infinite;
-        }
-        .ring-ticks {
-            stroke: var(--neon-blue); stroke-width: 12; stroke-dasharray: 2 6;
-            opacity: 0.4; transform-origin: center; animation: spin-reverse 40s linear infinite;
-        }
-        .ring-thin-solid {
-            stroke: rgba(224, 255, 255, 0.3); stroke-width: 1; transform-origin: center;
-        }
-        .ring-loader-arc {
-            stroke: var(--neon-white); stroke-width: 3; stroke-dasharray: 60 200;
-            stroke-linecap: round; filter: drop-shadow(0 0 8px #fff); transform-origin: center; animation: spin-fast 4s linear infinite;
-        }
-        .core-circle {
-            stroke: var(--neon-cyan); stroke-width: 2; fill: rgba(0, 243, 255, 0.05);
-            filter: drop-shadow(0 0 25px var(--neon-cyan)); transform-origin: center; animation: pulse 2s ease-in-out infinite alternate;
-        }
+        .ring-outer-segments { stroke: var(--neon-cyan); stroke-width: 6; stroke-dasharray: 100 20 50 20 100 20; filter: drop-shadow(0 0 10px var(--neon-cyan)); opacity: 0.8; transform-origin: center; animation: spin-slow 25s linear infinite; }
+        .ring-ticks { stroke: var(--neon-blue); stroke-width: 12; stroke-dasharray: 2 6; opacity: 0.4; transform-origin: center; animation: spin-reverse 40s linear infinite; }
+        .ring-thin-solid { stroke: rgba(224, 255, 255, 0.3); stroke-width: 1; transform-origin: center; }
+        .ring-loader-arc { stroke: var(--neon-white); stroke-width: 3; stroke-dasharray: 60 200; stroke-linecap: round; filter: drop-shadow(0 0 8px #fff); transform-origin: center; animation: spin-fast 4s linear infinite; }
+        .core-circle { stroke: var(--neon-cyan); stroke-width: 2; fill: rgba(0, 243, 255, 0.05); filter: drop-shadow(0 0 25px var(--neon-cyan)); transform-origin: center; animation: pulse 2s ease-in-out infinite alternate; }
 
-        /* --- CONTEÚDO ABAIXO --- */
-        .hud-content-below {
-            position: relative; z-index: 10;
-            display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
-        }
+        .hud-content-below { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .hud-subtitle { font-family: 'Share Tech Mono', monospace; font-size: 14px; color: var(--neon-cyan); letter-spacing: 3px; margin-bottom: 20px; opacity: 0.8; text-transform: uppercase; }
+        .loading-bar-frame { width: 250px; height: 3px; background: rgba(0, 243, 255, 0.15); position: relative; overflow: hidden; border-radius: 4px; box-shadow: 0 0 10px rgba(0, 243, 255, 0.1); }
+        .loading-bar-fill { position: absolute; top: 0; left: 0; height: 100%; width: 100%; background: linear-gradient(90deg, transparent, var(--neon-cyan), var(--neon-white), transparent); box-shadow: 0 0 15px var(--neon-cyan); transform: translateX(-100%); animation: loading 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
 
-        .hud-subtitle {
-            font-family: 'Share Tech Mono', monospace;
-            font-size: 14px; color: var(--neon-cyan);
-            letter-spacing: 3px; margin-bottom: 20px;
-            opacity: 0.8; text-transform: uppercase;
-        }
-
-        /* Barra de Loading Fina */
-        .loading-bar-frame {
-            width: 250px; height: 3px;
-            background: rgba(0, 243, 255, 0.15);
-            position: relative; overflow: hidden; border-radius: 4px;
-            box-shadow: 0 0 10px rgba(0, 243, 255, 0.1);
-        }
-        .loading-bar-fill {
-            position: absolute; top: 0; left: 0; height: 100%; width: 100%;
-            background: linear-gradient(90deg, transparent, var(--neon-cyan), var(--neon-white), transparent);
-            box-shadow: 0 0 15px var(--neon-cyan);
-            transform: translateX(-100%);
-            animation: loading 3.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-        }
-
-        /* --- ANIMAÇÕES --- */
         @keyframes spin-slow { 100% { transform: rotate(360deg); } }
         @keyframes spin-reverse { 100% { transform: rotate(-360deg); } }
         @keyframes spin-fast { 100% { transform: rotate(360deg); } }
@@ -154,23 +92,23 @@
         @keyframes text-pulse { 0% { opacity: 0.9; text-shadow: 0 0 10px var(--neon-cyan); } 100% { opacity: 1; text-shadow: 0 0 25px var(--neon-cyan), 0 0 50px var(--neon-white); } }
         @keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
 
-        /* ==================== RESTO DO SITE (Mantido) ==================== */
+        /* ==================== RESTO DO SITE ==================== */
         h1, h2, h3, .logo, .btn-plan, .section-title, .hero-badge { font-family: 'Orbitron', sans-serif; }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
         .section-padding { padding: 100px 0; }
         .text-center { text-align: center; }
 
         .section-title { font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 15px var(--neon-cyan); color: #fff; }
-        .section-subtitle { color: #aaa; font-size: 1.2rem; margin-bottom: 60px; max-width: 700px; margin-left: auto; margin-right: auto; }
+        .section-subtitle { color: #ddd; font-size: 1.2rem; margin-bottom: 60px; max-width: 700px; margin-left: auto; margin-right: auto; }
 
         .cta-btn { display: inline-block; padding: 18px 45px; background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple)); color: #fff; text-decoration: none; font-weight: 700; border-radius: 5px; text-transform: uppercase; letter-spacing: 2px; transition: 0.3s; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 0 20px rgba(255, 0, 85, 0.4); font-family: 'Orbitron'; font-size: 0.9rem; }
         .cta-btn:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255, 0, 85, 0.8); background: #fff; color: #000; }
 
-        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; position: fixed; width: 100%; top: 0; z-index: 1000; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(10px); border-bottom: 1px solid var(--glass-border); }
+        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; position: fixed; width: 100%; top: 0; z-index: 1000; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--glass-border); }
         .logo { font-size: 1.5rem; font-weight: 900; color: #fff; cursor: pointer; user-select: none; letter-spacing: 2px; }
         .logo span { color: var(--neon-cyan); }
         .nav-right { display: flex; align-items: center; gap: 30px; }
-        .social-link { color: #ccc; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.3s; text-transform: uppercase; font-family: 'Orbitron'; letter-spacing: 1px; cursor: pointer; }
+        .social-link { color: #ddd; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.3s; text-transform: uppercase; font-family: 'Orbitron'; letter-spacing: 1px; cursor: pointer; }
         .social-link:hover { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); }
         .btn-login-nav { border: 1px solid var(--neon-cyan); padding: 8px 25px; border-radius: 4px; color: var(--neon-cyan) !important; text-decoration: none; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; transition: 0.3s; font-family: 'Orbitron'; }
         .btn-login-nav:hover { background: var(--neon-cyan); color: #000 !important; box-shadow: 0 0 20px var(--neon-cyan); }
@@ -184,8 +122,21 @@
         .hero h1 strong { background: linear-gradient(to bottom, #fff, var(--neon-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px var(--neon-cyan)); }
         #secret-o { cursor: default; transition: 0.3s; }
         #secret-o.activated { text-shadow: 0 0 20px #fff, 0 0 40px var(--neon-cyan); color: #fff !important; -webkit-text-fill-color: #fff !important; }
-        .hero p { font-size: 1.2rem; color: #ddd; margin-bottom: 50px; text-shadow: 0 2px 4px #000; }
+        .hero p { font-size: 1.25rem; color: #eee; margin-bottom: 50px; text-shadow: 0 2px 4px #000; line-height: 1.6; font-weight: 500; }
         .hero-btns { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
+
+        /* --- NOVO GRID DO ARSENAL --- */
+        .arsenal-section { background-color: transparent; padding: 80px 20px; position: relative; border-bottom: 1px solid #1a1a1a; }
+        .arsenal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; max-width: 1200px; margin: 0 auto; position: relative; z-index: 2; }
+        .arsenal-card { background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(0, 243, 255, 0.2); border-radius: 12px; padding: 40px 30px; text-align: left; transition: all 0.4s ease; position: relative; overflow: hidden; }
+        .arsenal-card:hover { transform: translateY(-10px); border-color: #00f3ff; box-shadow: 0 0 30px rgba(0, 243, 255, 0.15); }
+        .arsenal-card::after { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.1), transparent); transition: 0.5s; }
+        .arsenal-card:hover::after { left: 100%; }
+        .arsenal-icon { font-size: 2.5rem; color: var(--neon-cyan); margin-bottom: 20px; text-shadow: 0 0 15px var(--neon-cyan); }
+        .arsenal-card.pink .arsenal-icon { color: var(--neon-pink); text-shadow: 0 0 15px var(--neon-pink); }
+        .arsenal-card.pink:hover { border-color: var(--neon-pink); box-shadow: 0 0 30px rgba(255, 0, 85, 0.15); }
+        .arsenal-title { font-family: 'Orbitron', sans-serif; font-size: 1.3rem; color: #fff; margin-bottom: 15px; text-transform: uppercase; }
+        .arsenal-desc { color: #ccc; font-size: 1.05rem; line-height: 1.6; }
 
         .ai-cta-text { font-family: 'Orbitron', sans-serif; color: var(--neon-pink); font-weight: 800; font-size: 1.4rem; margin-top: 40px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 15px var(--neon-pink); animation: pulse-pink 2s infinite alternate; }
         @keyframes pulse-pink { from { opacity: 0.8; text-shadow: 0 0 10px var(--neon-pink); } to { opacity: 1; text-shadow: 0 0 30px var(--neon-pink); } }
@@ -198,7 +149,7 @@
         .gallery-overlay { position: absolute; bottom: 0; left: 0; width: 100%; padding: 20px 15px; background: linear-gradient(to top, rgba(0,0,0,0.95) 10%, transparent); font-family: 'Share Tech Mono', monospace; color: var(--neon-cyan); font-size: 1rem; font-weight: bold; letter-spacing: 1px; text-shadow: 0 0 5px var(--neon-cyan); transform: translateY(100%); transition: 0.4s; }
         .gallery-item:hover .gallery-overlay { transform: translateY(0); }
 
-        .comparison-wrapper { background: rgba(0,0,0,0.6); border: 1px solid var(--neon-cyan); border-radius: 5px; overflow: hidden; max-width: 900px; margin: 0 auto; box-shadow: 0 0 20px rgba(0, 243, 255, 0.1); }
+        .comparison-wrapper { background: rgba(0,0,0,0.7); border: 1px solid var(--neon-cyan); border-radius: 5px; overflow: hidden; max-width: 900px; margin: 0 auto; box-shadow: 0 0 20px rgba(0, 243, 255, 0.1); }
         .comparison-table { display: grid; grid-template-columns: 1fr 1fr; }
         .comp-col { padding: 50px 30px; text-align: center; }
         .comp-human { border-right: 1px solid rgba(255,255,255,0.1); }
@@ -206,79 +157,61 @@
         .comp-ai::before { content: ''; position: absolute; top:0; left:0; width:100%; height:2px; background: var(--neon-cyan); box-shadow: 0 0 15px var(--neon-cyan); }
         .comp-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
         .comp-price { font-size: 2.5rem; font-weight: 700; color: #fff; margin-bottom: 20px; }
-        .comp-list li { list-style: none; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; color: #ccc; font-size: 1rem; text-align: left; }
+        .comp-list li { list-style: none; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; color: #ddd; font-size: 1.05rem; text-align: left; }
         @media(max-width: 768px) { .comparison-table { grid-template-columns: 1fr; } .comp-human { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); } }
 
         .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
-        .testimonial-card { background: rgba(10, 10, 10, 0.8); border: 1px solid var(--glass-border); padding: 30px; border-radius: 5px; position: relative; transition: 0.3s; }
+        .testimonial-card { background: rgba(10, 10, 10, 0.9); border: 1px solid var(--glass-border); padding: 30px; border-radius: 5px; position: relative; transition: 0.3s; }
         .testimonial-card:hover { border-color: var(--neon-purple); box-shadow: 0 0 20px rgba(189, 0, 255, 0.2); transform: translateY(-5px); }
-        .test-text { font-style: italic; color: #ddd; margin-bottom: 20px; font-size: 1rem; line-height: 1.6; }
+        .test-text { font-style: italic; color: #eee; margin-bottom: 20px; font-size: 1.05rem; line-height: 1.6; }
         .test-author { display: flex; align-items: center; gap: 15px; }
         .test-avatar { width: 50px; height: 50px; background: #222; border-radius: 50%; border: 1px solid var(--neon-purple); background-size: cover; }
         .test-info h4 { color: #fff; font-weight: 700; font-family: 'Orbitron'; font-size: 0.9rem; }
-        .test-info p { font-size: 0.8rem; color: #888; }
+        .test-info p { font-size: 0.8rem; color: #aaa; }
 
-        .pricing-grid { display: flex; justify-content: center; flex-wrap: wrap; gap: 30px; align-items: center; }
-        .price-card { background: var(--glass-dark); border: 1px solid var(--glass-border); backdrop-filter: blur(20px); padding: 40px 30px; border-radius: 5px; width: 350px; text-align: center; transition: 0.4s; position: relative; }
+        /* GRID DE PREÇOS REFINADO E SIMÉTRICO */
+        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; max-width: 1200px; margin: 0 auto; align-items: stretch; }
+        .price-card { background: var(--glass-dark); border: 1px solid var(--glass-border); backdrop-filter: blur(20px); padding: 40px 30px; border-radius: 5px; display: flex; flex-direction: column; text-align: center; transition: 0.4s; position: relative; height: 100%; }
         .price-card:hover { transform: translateY(-10px); border-color: var(--neon-cyan); box-shadow: 0 0 30px rgba(0, 243, 255, 0.2); }
         
-        /* ESTILO PARA O PLANO DESTAQUE (ADVANCED) */
-        .price-card.featured { 
-            border: 2px solid var(--neon-pink); 
-            background: linear-gradient(180deg, rgba(20, 0, 10, 0.9), rgba(0,0,0,0.95)); 
-            box-shadow: 0 0 30px rgba(255, 0, 85, 0.3); 
-            transform: scale(1.08); 
-            z-index: 10; 
-        }
-        .price-card.featured:hover { transform: scale(1.1); }
-        
-        .badge-popular { 
-            position: absolute; top: -15px; left: 50%; transform: translateX(-50%); 
-            background: var(--neon-pink); color: #fff; padding: 5px 20px; 
-            font-size: 0.85rem; font-weight: 800; border-radius: 20px; 
-            text-transform: uppercase; font-family: 'Orbitron'; letter-spacing: 2px; 
-            box-shadow: 0 0 15px rgba(255,0,85,0.6);
-        }
+        .price-card.featured { border: 2px solid var(--neon-pink); background: linear-gradient(180deg, rgba(20, 0, 10, 0.95), rgba(0,0,0,0.95)); box-shadow: 0 0 30px rgba(255, 0, 85, 0.3); z-index: 10; }
+        .badge-popular { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: var(--neon-pink); color: #fff; padding: 5px 20px; font-size: 0.85rem; font-weight: 800; border-radius: 20px; text-transform: uppercase; font-family: 'Orbitron'; letter-spacing: 2px; box-shadow: 0 0 15px rgba(255,0,85,0.6); white-space: nowrap; }
 
         .plan-name { font-size: 1.6rem; margin-bottom: 10px; color: #fff; letter-spacing: 2px; }
         .price { font-size: 3.5rem; font-weight: 700; color: #fff; display: block; margin: 20px 0; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
-        .price span { font-size: 1rem; color: #aaa; font-weight: 400; }
-        
-        .setup-fee {
-            display: block; margin-bottom: 25px; font-size: 0.9rem; color: #888; 
-            background: rgba(255,255,255,0.05); padding: 5px; border-radius: 4px;
-        }
+        .price span { font-size: 1rem; color: #ccc; font-weight: 400; }
+        .setup-fee { display: block; margin-bottom: 25px; font-size: 0.95rem; color: #ddd; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; }
 
-        .features-list { list-style: none; text-align: left; margin-bottom: 40px; }
-        .features-list li { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #ddd; display: flex; align-items: center; gap: 10px; font-size: 0.95rem; }
+        .features-list { list-style: none; text-align: left; margin-bottom: 40px; flex-grow: 1; }
+        .features-list li { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #eee; display: flex; align-items: center; gap: 10px; font-size: 1rem; }
         .features-list li i { color: var(--neon-cyan); font-size: 1.2rem; }
         .featured .features-list li i { color: var(--neon-pink); }
         
-        .btn-plan { display: block; width: 100%; padding: 18px 0; text-decoration: none; color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; font-weight: bold; text-transform: uppercase; transition: 0.3s; cursor: pointer; letter-spacing: 2px; background: transparent; }
+        .btn-plan { display: block; width: 100%; padding: 18px 0; text-decoration: none; color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; font-weight: bold; text-transform: uppercase; transition: 0.3s; cursor: pointer; letter-spacing: 2px; background: transparent; margin-top: auto; }
         .btn-plan:hover { background: #fff; color: #000; box-shadow: 0 0 15px #fff; }
-        
         .featured .btn-plan { background: var(--neon-pink); border-color: var(--neon-pink); box-shadow: 0 0 15px rgba(255,0,85,0.4); }
         .featured .btn-plan:hover { background: #ff3377; color: #fff; box-shadow: 0 0 30px var(--neon-pink); }
 
         .faq-grid { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
-        .faq-item { background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); border-radius: 5px; overflow: hidden; transition: 0.3s; }
-        .faq-question { width: 100%; padding: 20px; text-align: left; background: transparent; border: none; color: #fff; font-family: 'Rajdhani'; font-weight: 700; font-size: 1.1rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-        .faq-answer { padding: 0 20px; max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; color: #ccc; }
+        .faq-item { background: rgba(0,0,0,0.7); border: 1px solid var(--glass-border); border-radius: 5px; overflow: hidden; transition: 0.3s; }
+        .faq-question { width: 100%; padding: 20px; text-align: left; background: transparent; border: none; color: #fff; font-family: 'Rajdhani'; font-weight: 700; font-size: 1.15rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .faq-answer { padding: 0 20px; max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; color: #ddd; font-size: 1.05rem; }
         .faq-item.active { border-color: var(--neon-cyan); box-shadow: 0 0 10px rgba(0, 243, 255, 0.1); }
         .faq-item.active .faq-answer { max-height: 200px; padding-bottom: 20px; }
         .faq-item.active i { transform: rotate(180deg); transition: 0.3s; color: var(--neon-cyan); }
 
-        footer { background: #000; padding: 80px 0 30px; margin-top: 100px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.9rem; color: #888; }
+        footer { background: #000; padding: 80px 0 30px; margin-top: 100px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.95rem; color: #aaa; }
         .footer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; margin-bottom: 60px; }
         .footer-logo { font-size: 1.5rem; font-weight: 900; color: #fff; margin-bottom: 20px; display: block; font-family: 'Orbitron'; letter-spacing: 2px; }
         .footer-logo span { color: var(--neon-cyan); }
         .footer-col h4 { font-size: 1.1rem; color: #fff; margin-bottom: 20px; font-family: 'Orbitron'; letter-spacing: 1px; }
         .footer-links { list-style: none; }
         .footer-links li { margin-bottom: 12px; }
-        .footer-links a { color: #888; text-decoration: none; transition: 0.3s; font-family: 'Share Tech Mono'; }
+        .footer-links a { color: #aaa; text-decoration: none; transition: 0.3s; font-family: 'Share Tech Mono'; }
         .footer-links a:hover { color: var(--neon-cyan); text-shadow: 0 0 5px var(--neon-cyan); }
         .copyright { text-align: center; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); font-family: 'Share Tech Mono'; }
 
+        /* EASTER EGGS / CONSOLE */
         #god-console { position: fixed; bottom: -300px; left: 0; width: 100%; height: 250px; background: rgba(0, 0, 0, 0.95); border-top: 2px solid #0f0; color: #0f0; font-family: 'Share Tech Mono', monospace; z-index: 1000000; transition: bottom 0.5s; display: flex; flex-direction: column; }
         #god-console.active { bottom: 0; }
         .console-header { background: #0f0; color: #000; padding: 5px 10px; font-weight: bold; font-size: 12px; letter-spacing: 1px; }
@@ -307,9 +240,8 @@
             </svg>
             <h1 class="hud-title-internal">CALIXTO AI</h1>
         </div>
-
         <div class="hud-content-below">
-            <p class="hud-subtitle">INICIALIZANDO SISTEMA...</p>
+            <p class="hud-subtitle">INICIALIZANDO ...</p>
             <div class="loading-bar-frame">
                 <div class="loading-bar-fill"></div>
             </div>
@@ -325,8 +257,16 @@
     <nav>
         <div class="logo" id="secret-trigger">CALIXTO <span>AI</span></div>
         <div class="nav-right">
-            <a href="#ai-studio" class="social-link">AI STUDIO</a>
+            <a href="#funcionalidades" class="social-link">O SISTEMA</a>
             <a href="#precos" class="social-link">PLANOS</a>
+            
+            <a href="https://instagram.com/calixto.dev" target="_blank" class="social-link" style="font-size: 1.4rem; display: flex; align-items: center;" title="Instagram @calixto.dev">
+                <i class="ri-instagram-line"></i>
+            </a>
+            <a href="https://wa.me/5521990026871?text=Ol%C3%A1%21%20Estou%20no%20site%20da%20Calixto%20AI%20e%20gostaria%20de%20falar%20com%20um%20especialista." target="_blank" class="social-link" style="font-size: 1.4rem; display: flex; align-items: center;" title="Atendimento via WhatsApp">
+                <i class="ri-whatsapp-line"></i>
+            </a>
+
             <div style="width:1px; height:20px; background:rgba(255,255,255,0.2); margin:0 15px;"></div>
             <a href="/login" class="btn-login-nav">Área do Cliente</a>
         </div>
@@ -334,293 +274,113 @@
 
     <header class="hero">
         <div class="hero-content">
-            <div class="hero-badge">Protocolo V19.1 Ultimate</div>
+            <div class="hero-badge">Sua Nova Recepcionista 24/7</div>
             <h1>
                 <span class="outline">CALIXTO</span>
                 <strong><span id="secret-o">O</span>MNISYSTEM</strong>
             </h1>
-            <p>Domine o caos digital. Conecte seu WhatsApp a uma Automação de Elite. E agora, eleve sua marca com Produções Visuais Neurais e Contratos Automáticos.</p>
+            <p>Transforme seu WhatsApp em uma máquina de vendas e agendamentos automáticos. Elimine no-shows, feche contratos em PDF em segundos e repasse para sua equipe apenas os clientes prontos para comprar.</p>
             <div class="hero-btns">
-                <a href="#precos" class="cta-btn">Ver Planos</a>
-                <a href="#ai-studio" class="cta-btn" style="background: transparent; border: 1px solid var(--neon-purple); color: var(--neon-purple);">AI Studio</a>
+                <a href="https://wa.me/5521991593547?text=Oi" target="_blank" class="cta-btn">TESTAR O ROBÔ NA PRÁTICA</a>
+                <a href="#precos" class="cta-btn" style="background: transparent; border: 1px solid var(--neon-purple); color: var(--neon-purple);">VER PLANOS</a>
             </div>
         </div>
     </header>
 
-    <style>
-        .use-cases-section {
-            background-color: transparent;
-            padding: 80px 20px;
-            position: relative;
-            overflow: hidden;
-            border-bottom: 1px solid #1a1a1a;
-        }
-    
-        /* Efeito de Luz de Fundo */
-        .use-cases-section::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 600px;
-            height: 400px;
-            background: radial-gradient(circle, rgba(0, 243, 255, 0.05) 0%, rgba(0, 0, 0, 0) 70%);
-            z-index: 1;
-            pointer-events: none;
-        }
-    
-        .section-header {
-            text-align: center;
-            margin-bottom: 50px;
-            position: relative;
-            z-index: 2;
-        }
-    
-        .section-title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 2.5rem;
-            color: #fff;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 10px;
-        }
-    
-        .section-subtitle {
-            color: #888;
-            font-size: 1.1rem;
-            max-width: 600px;
-            margin: 0 auto;
-        }
-    
-        .highlight-text {
-            color: #00f3ff;
-            font-weight: bold;
-        }
-    
-        /* CARROSSEL */
-        .carousel-container {
-            max-width: 1200px;
-            margin: 0 auto;
-            position: relative;
-            z-index: 2;
-            display: flex;
-            gap: 30px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-    
-        .case-card {
-            background: rgba(20, 20, 20, 0.6);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            border: 1px solid #333;
-            border-radius: 12px;
-            padding: 30px;
-            width: 350px;
-            transition: all 0.4s ease;
-            position: relative;
-            overflow: hidden;
-        }
-    
-        /* Efeito Hover Cyberpunk */
-        .case-card:hover {
-            transform: translateY(-10px);
-            border-color: #00f3ff;
-            box-shadow: 0 0 30px rgba(0, 243, 255, 0.15);
-        }
-    
-        .case-card::after {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.1), transparent);
-            transition: 0.5s;
-        }
-    
-        .case-card:hover::after {
-            left: 100%;
-        }
-    
-        .card-icon {
-            font-size: 3rem;
-            margin-bottom: 20px;
-            display: inline-block;
-            padding: 15px;
-            background: rgba(0, 243, 255, 0.05);
-            border-radius: 50%;
-            border: 1px solid rgba(0, 243, 255, 0.2);
-        }
-    
-        .card-title {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.4rem;
-            color: #fff;
-            margin-bottom: 15px;
-        }
-    
-        .card-desc {
-            color: #aaa;
-            font-size: 0.95rem;
-            line-height: 1.6;
-            margin-bottom: 25px;
-        }
-    
-        .card-feature {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: #fff;
-            font-size: 0.9rem;
-            margin-top: 10px;
-            background: rgba(0, 0, 0, 0.3);
-            padding: 8px 12px;
-            border-radius: 4px;
-            border-left: 3px solid #00f3ff;
-        }
-    
-        .card-tag {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            letter-spacing: 1px;
-        }
-    
-        .tag-retail { background: rgba(255, 165, 0, 0.2); color: #ffa500; border: 1px solid rgba(255, 165, 0, 0.4); }
-        .tag-service { background: rgba(0, 255, 0, 0.2); color: #00ff00; border: 1px solid rgba(0, 255, 0, 0.4); }
-        .tag-high { background: rgba(0, 243, 255, 0.2); color: #00f3ff; border: 1px solid rgba(0, 243, 255, 0.4); }
-    
-        /* Responsivo */
-        @media (max-width: 768px) {
-            .carousel-container {
-                flex-direction: column;
-                align-items: center;
-            }
-            .case-card {
-                width: 100%;
-                max-width: 320px;
-            }
-            .section-title {
-                font-size: 1.8rem;
-            }
-        }
-    </style>
-    
-    <section class="use-cases-section">
-        <div class="section-header">
-            <h2 class="section-title">Um Sistema, <span class="highlight-text">Infinitos Nichos</span></h2>
-            <p class="section-subtitle">De pizzarias a escritórios de advocacia. Veja como a tecnologia de <strong style="color:#fff">Documentos Dinâmicos (PDF)</strong> transforma seu atendimento.</p>
+    <section id="funcionalidades" class="arsenal-section">
+        <div class="container text-center" style="margin-bottom: 50px;">
+            <h2 class="section-title">O ARSENAL <span style="color: var(--neon-cyan);">OMNISYSTEM</span></h2>
+            <p class="section-subtitle">A tecnologia definitiva para acabar com o caos no atendimento de Clínicas, E-commerces e Negócios de Alta Demanda.</p>
         </div>
     
-        <div class="carousel-container">
+        <div class="arsenal-grid">
+            <div class="arsenal-card">
+                <i class="ri-flow-chart-line arsenal-icon"></i>
+                <h3 class="arsenal-title">Funis Visuais de Atendimento</h3>
+                <p class="arsenal-desc">Desenhe o atendimento da sua empresa arrastando blocos. O robô atende, educa o cliente e faz a triagem 24h por dia, organizando o seu fluxo sem você precisar programar.</p>
+            </div>
             
-            <div class="case-card">
-                <span class="card-tag tag-retail">Delivery & Varejo</span>
-                <div class="card-icon">🍕</div>
-                <h3 class="card-title">Comanda Digital</h3>
-                <p class="card-desc">
-                    Chega de errar pedidos anotados à mão. O robô coleta os sabores, bebidas,endereço e <strong>gera a comanda pronta</strong> para a cozinha.
-                </p>
-                <div class="card-feature">
-                    <span>📄</span> Gera PDF do Pedido Instantâneo
-                </div>
-                <div class="card-feature">
-                    <span>⚡</span> Zero Erro de Produção
-                </div>
+            <div class="arsenal-card pink">
+                <i class="ri-calendar-check-line arsenal-icon"></i>
+                <h3 class="arsenal-title">Agendamento Inteligente</h3>
+                <p class="arsenal-desc">O cliente escolhe a data no WhatsApp e o robô cruza com sua agenda. Tentou marcar de madrugada? O sistema instrui educadamente a escolha dentro do seu expediente comercial.</p>
             </div>
-    
-            <div class="case-card">
-                <span class="card-tag tag-service">Serviços & Agenda</span>
-                <div class="card-icon">💈</div>
-                <h3 class="card-title">Voucher & Reserva</h3>
-                <p class="card-desc">
-                    Reduza o "bolo" na agenda. Ao confirmar o horário, seu cliente recebe um <strong>Voucher Oficial em PDF</strong>. Isso aumenta o compromisso e a percepção de valor.
-                </p>
-                <div class="card-feature">
-                    <span>📅</span> Confirmação Visual Profissional
-                </div>
-                <div class="card-feature">
-                    <span>💎</span> Ideal para Estética e Barbearias
-                </div>
+            
+            <div class="arsenal-card">
+                <i class="ri-notification-badge-line arsenal-icon"></i>
+                <h3 class="arsenal-title">Lembretes Anti-Falta</h3>
+                <p class="arsenal-desc">O pesadelo de quem marca e não aparece acabou. O sistema avisa o cliente automaticamente. Se ele desmarcar, o horário volta a ficar livre na sua agenda na hora.</p>
             </div>
-    
-            <div class="case-card" style="border-color: rgba(0,243,255,0.4);">
-                <span class="card-tag tag-high">Premium & B2B</span>
-                <div class="card-icon">⚖️</div>
-                <h3 class="card-title">Contratos Jurídicos</h3>
-                <p class="card-desc">
-                    O "Santo Graal" das vendas. Feche negócios de R$ 10k+ <strong>dentro do WhatsApp</strong>. O sistema coleta CPF, gera o contrato e entrega assinado na hora.
-                </p>
-                <div class="card-feature">
-                    <span>🔐</span> Validade Jurídica (IP + Log)
-                </div>
-                <div class="card-feature">
-                    <span>🚀</span> Acelera Vendas em 3x
-                </div>
+            
+            <div class="arsenal-card pink">
+                <i class="ri-file-pdf-2-line arsenal-icon"></i>
+                <h3 class="arsenal-title">Gerador de Contratos PDF</h3>
+                <p class="arsenal-desc">Feche vendas mais rápido. O robô coleta os dados do cliente na conversa, preenche o seu modelo timbrado e devolve um documento pronto para assinatura em 3 segundos.</p>
             </div>
-    
+            
+            <div class="arsenal-card">
+                <i class="ri-customer-service-2-line arsenal-icon"></i>
+                <h3 class="arsenal-title">Repasse Inteligente (Humano)</h3>
+                <p class="arsenal-desc">Quando o cliente está pronto, o robô pausa e avisa você ou seus atendentes. Você atende de onde estiver, recebendo apenas contatos quentes e qualificados.</p>
+            </div>
+            
+            <div class="arsenal-card pink">
+                <i class="ri-broadcast-line arsenal-icon"></i>
+                <h3 class="arsenal-title">Mensagens em Massa & Remarketing</h3>
+                <p class="arsenal-desc">Venda de novo para a mesma base. Envie mensagens programadas lembrando de retornos, cobranças ou crie campanhas promocionais para centenas de contatos em um clique.</p>
+            </div>
         </div>
     </section>
 
     <section id="ai-studio" class="section-padding container text-center" style="background: transparent; border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);">
         <h2 class="section-title" style="text-shadow: 0 0 15px var(--neon-purple);">NEURAL STUDIO</h2>
-        <p class="section-subtitle">Geração de Vídeo e Imagem por Inteligência Artificial de Alta Definição.</p>
+        <p class="section-subtitle">Geração de Vídeo e Imagem por Inteligência Artificial. Soluções de elite para seu marketing.</p>
 
-        <p class="ai-cta-text">FAÇA VOCÊ TAMBÉM</p>
+        <p class="ai-cta-text">CRIE O IMPOSSÍVEL</p>
 
         <div class="gallery-grid">
             <div class="gallery-item">
                 <video autoplay loop muted playsinline>
                     <source src="/uploads/leonidas.mp4" type="video/mp4">
                 </video>
-                <div class="gallery-overlay">⚡ VEO-3: RENDERIZAÇÃO CINEMÁTICA 4K</div>
+                <div class="gallery-overlay">⚡ RENDERIZAÇÃO CINEMÁTICA 4K</div>
             </div>
             <div class="gallery-item">
                 <img src="/uploads/tokyojpg.jpg" alt="AI Art Cyberpunk City">
-                <div class="gallery-overlay">🌆 FLUX-1: ESTILO CYBERPUNK REALISTA</div>
+                <div class="gallery-overlay">🌆 ESTILO REALISTA & COMERCIAL</div>
             </div>
             <div class="gallery-item">
                 <video autoplay loop muted playsinline>
                     <source src="/uploads/robot.mp4" type="video/mp4">
                 </video>
-                <div class="gallery-overlay">🤖 SORA-V2: GERAÇÃO DE MOVIMENTO COMPLEXO</div>
+                <div class="gallery-overlay">🤖 GERAÇÃO DE MOVIMENTO COMPLEXO</div>
             </div>
-        </div>
-        
-        <div style="margin-top: 40px;">
-           <a href="/registro" class="cta-btn" style="background: transparent; border: 2px solid var(--neon-pink); color: var(--neon-pink);">COMEÇAR AGORA</a>
         </div>
     </section>
 
     <section id="comparativo" class="section-padding container text-center">
         <h2 class="section-title">ECONOMIA INTELIGENTE</h2>
-        <p class="section-subtitle">Veja a diferença brutal de custo e eficiência.</p>
+        <p class="section-subtitle">A diferença brutal de custo e eficiência no fechamento de caixa.</p>
         <div class="comparison-wrapper">
             <div class="comparison-table">
                 <div class="comp-col comp-human">
-                    <div class="comp-title" style="color: #ff4444;">SECRETÁRIA HUMANA</div>
+                    <div class="comp-title" style="color: #ff4444;">ATENDIMENTO CONVENCIONAL</div>
                     <div class="comp-price" style="color: #ff4444;">R$ 3.500<small>/mês</small></div>
                     <ul class="comp-list">
-                        <li><i class="ri-close-line" style="color:#ff4444"></i> Salário + CLT + Benefícios</li>
-                        <li><i class="ri-close-line" style="color:#ff4444"></i> Horário limitado (8h/dia)</li>
-                        <li><i class="ri-close-line" style="color:#ff4444"></i> Férias e atestados</li>
+                        <li><i class="ri-close-line" style="color:#ff4444"></i> Salários, Encargos e Benefícios</li>
+                        <li><i class="ri-close-line" style="color:#ff4444"></i> Horário limitado (8h às 18h)</li>
+                        <li><i class="ri-close-line" style="color:#ff4444"></i> Perde vendas se demorar a responder</li>
+                        <li><i class="ri-close-line" style="color:#ff4444"></i> Falhas no envio de lembretes</li>
                     </ul>
                 </div>
                 <div class="comp-col comp-ai">
                     <div class="comp-title" style="color: var(--neon-cyan);">CALIXTO OMNISYSTEM</div>
-                    <div class="comp-price" style="color: var(--neon-cyan);">R$ 400<small>/mês</small></div>
+                    <div class="comp-price" style="color: var(--neon-cyan);">R$ 500<small>/mês</small></div>
                     <ul class="comp-list">
-                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Sem vínculo trabalhista</li>
-                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Atende 24h / 7 dias</li>
-                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Resposta Imediata</li>
+                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Sem CLT ou vínculo trabalhista</li>
+                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Atende e agenda 24h / 7 dias</li>
+                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Dispara Lembretes Anti-Falta automaticamente</li>
+                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Responde centenas de clientes ao mesmo tempo</li>
                     </ul>
                 </div>
             </div>
@@ -629,97 +389,110 @@
 
     <section id="depoimentos" class="section-padding container text-center">
         <h2 class="section-title">QUEM USA, APROVA</h2>
-        <p class="section-subtitle">Parceiros que transformaram seu atendimento com automação.</p>
+        <p class="section-subtitle">Empresas que escalaram suas operações com o nosso motor.</p>
         <div class="testimonials-grid">
-            
             <div class="testimonial-card">
-                <p class="test-text">"Antes, eu perdia ligações enquanto atendia pacientes. Agora, a secretária virtual faz a triagem, agenda e envia o preparo do exame automaticamente. Minha agenda lotou sem esforço."</p>
+                <p class="test-text">"Antes, a clínica perdia muito dinheiro com 'no-shows'. Hoje, o robô cobra presença 24h antes. Se o paciente desmarcar, a vaga é preenchida na hora. Minha agenda lotou sem esforço humano."</p>
                 <div class="test-author">
                     <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=33');"></div>
-                    <div class="test-info" style="text-align: left;"><h4>OsteoClinic</h4><p>Fisioterapia Integrada</p></div>
+                    <div class="test-info" style="text-align: left;"><h4>Dra. Helena</h4><p>Clínica Odontológica</p></div>
                 </div>
             </div>
-
             <div class="testimonial-card">
-                <p class="test-text">"Fechei uma locação em 15 minutos pelo WhatsApp. O robô coletou os dados do inquilino e gerou o contrato em PDF na hora. O cliente assinou impressionado com a velocidade."</p>
+                <p class="test-text">"O gerador de PDFs mudou meu jogo. O cliente chama no WhatsApp, o robô coleta os dados dele e já manda o contrato preenchido. O cliente assina impressionado com a velocidade."</p>
                 <div class="test-author">
                     <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=11');"></div>
-                    <div class="test-info" style="text-align: left;"><h4>Roberto Mendes</h4><p>Imobiliária Prime</p></div>
+                    <div class="test-info" style="text-align: left;"><h4>Roberto Mendes</h4><p>E-commerce / Varejo</p></div>
                 </div>
             </div>
-
             <div class="testimonial-card">
-                <p class="test-text">"O erro na cozinha caiu para zero. O cliente faz o pedido, o robô calcula o total e a comanda já sai pronta para impressão. Agilidade total na sexta à noite."</p>
+                <p class="test-text">"O repasse é fantástico. Eu não preciso ficar preso a um painel. O robô faz toda a triagem fria e só manda o link pro meu celular quando o cliente já está com o cartão na mão."</p>
                 <div class="test-author">
                     <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=60');"></div>
-                    <div class="test-info" style="text-align: left;"><h4>Pizzaria Donatello</h4><p>Delivery Premium</p></div>
+                    <div class="test-info" style="text-align: left;"><h4>Marcos Paulo</h4><p>Consultor Comercial</p></div>
                 </div>
             </div>
-
         </div>
     </section>
 
     <section id="precos" class="section-padding container text-center">
-        <h2 class="section-title">ESCOLHA SEU NÍVEL</h2>
-        <p class="section-subtitle">Planos desenhados para escalar sua operação.</p>
+        <h2 class="section-title">ACESSO TOTAL OMNISYSTEM</h2>
+        <p class="section-subtitle">Um único plano com <strong>todas as funcionalidades liberadas</strong>. Escolha apenas o seu ciclo de faturamento e economize.</p>
         
         <div class="pricing-grid">
-            
             <div class="price-card">
-                <div class="plan-name">ESSENTIAL</div>
-                <span class="price">R$ 400<span>/mês</span></span>
-                <span class="setup-fee">+ Setup Único: R$ 200,00</span>
+                <div class="plan-name">MENSAL</div>
+                <span class="price">R$ 650<span>/mês</span></span>
+                <span class="setup-fee">+ Implementação: R$ 100,00</span>
                 <ul class="features-list">
-                    <li><i class="ri-robot-line"></i> Atendimento 24h</li>
-                    <li><i class="ri-check-line"></i> Menu Interativo</li>
-                    <li><i class="ri-check-line"></i> Respostas Rápidas</li>
-                    <li><i class="ri-check-line"></i> Foto e Áudio</li>
+                    <li><i class="ri-check-double-line"></i> Robô de Atendimento 24/7</li>
+                    <li><i class="ri-check-double-line"></i> Agendamento & Repasse Humano</li>
+                    <li><i class="ri-check-double-line"></i> Lembretes Anti-Falta Automáticos</li>
+                    <li><i class="ri-check-double-line"></i> Gerador de Contratos PDF</li>
+                    <li><i class="ri-check-double-line"></i> Mensagens em Massa & Remarketing</li>
+                    <li style="color: #aaa; font-size: 0.85rem; border: none; padding-top: 15px;"><i class="ri-information-line" style="color: #aaa;"></i> Sem desconto de fidelidade.</li>
                 </ul>
-                <a href="/registro" class="btn-plan">Iniciar</a>
+                <a href="https://wa.me/5521990026871" class="btn-plan">Assinar Mensal</a>
+            </div>
+
+            <div class="price-card">
+                <div class="plan-name">TRIMESTRAL</div>
+                <span class="price">R$ 500<span>/mês</span></span>
+                <span class="setup-fee" style="color: var(--neon-cyan); font-weight: bold; background: rgba(0,243,255,0.1);">🔥 SETUP ISENTO (R$ 0,00)</span>
+                <ul class="features-list">
+                    <li><i class="ri-check-double-line"></i> Robô de Atendimento 24/7</li>
+                    <li><i class="ri-check-double-line"></i> Agendamento & Repasse Humano</li>
+                    <li><i class="ri-check-double-line"></i> Lembretes Anti-Falta Automáticos</li>
+                    <li><i class="ri-check-double-line"></i> Gerador de Contratos PDF</li>
+                    <li><i class="ri-check-double-line"></i> Mensagens em Massa & Remarketing</li>
+                    <li style="color: #ccc; font-size: 0.85rem; border: none; padding-top: 15px;"><i class="ri-refresh-line"></i> Faturado R$ 1.500 a cada 3 meses</li>
+                </ul>
+                <a href="https://wa.me/5521990026871" class="btn-plan">Assinar Trimestral</a>
             </div>
 
             <div class="price-card featured">
-                <div class="badge-popular">MAIS ESCOLHIDO</div>
-                <div class="plan-name">ADVANCED</div>
-                <span class="price">R$ 650<span>/mês</span></span>
-                <span class="setup-fee">+ Setup Único: R$ 250,00</span>
+                <div class="badge-popular">MAIOR ECONOMIA (R$ 1.500 OFF)</div>
+                <div class="plan-name">SEMESTRAL</div>
+                <span class="price">R$ 400<span>/mês</span></span>
+                <span class="setup-fee" style="color: var(--neon-pink); font-weight: bold; background: rgba(255,0,85,0.1);">🔥 SETUP ISENTO (R$ 0,00)</span>
                 <ul class="features-list">
-                    <li><i class="ri-shield-star-line"></i> <strong>Tudo do Essential</strong></li>
-                    <li><i class="ri-whatsapp-line"></i> Envio de Documentos e Arquivos(Pdf/Doc)</li>
-                    <li><i class="ri-file-list-3-line"></i> até 3 números</li>
+                    <li><i class="ri-check-double-line"></i> Robô de Atendimento 24/7</li>
+                    <li><i class="ri-check-double-line"></i> Agendamento & Repasse Humano</li>
+                    <li><i class="ri-check-double-line"></i> Lembretes Anti-Falta Automáticos</li>
+                    <li><i class="ri-check-double-line"></i> Gerador de Contratos PDF</li>
+                    <li><i class="ri-check-double-line"></i> Mensagens em Massa & Remarketing</li>
+                    <li style="color: #fff; font-size: 0.85rem; border: none; font-weight: bold; padding-top: 15px;"><i class="ri-money-dollar-circle-line" style="color: var(--neon-pink);"></i> Faturado 1x de R$ 2.400 / Semestre</li>
                 </ul>
-                <a href="/registro" class="btn-plan">Assinar Agora</a>
-            </div>
-
-            <div class="price-card">
-                <div class="plan-name">SIGNATURE</div>
-                <span class="price">R$ 1.690<span>/mês</span></span>
-                <span class="setup-fee">+ Setup Único: R$ 400,00</span>
-                <ul class="features-list">
-                    <li><i class="ri-vip-diamond-line"></i> <strong>Tudo do Advanced</strong></li>
-                    <li><i class="ri-mic-2-line"></i> Áudios Humanizados</li>
-                    <li><i class="ri-file-pdf-2-line"></i> <strong>Gerador de Contratos PDF</strong></li>
-                    <li><i class="ri-lock-2-line"></i> até 10 números</li>
-                </ul>
-                <a href="/registro" class="btn-plan">Contratar Elite</a>
+                <a href="https://wa.me/5521990026871" class="btn-plan">Garantir Desconto</a>
             </div>
         </div>
     </section>
+
+    <div class="container">
+        <div class="guarantee-block">
+            <i class="ri-shield-check-line guarantee-icon"></i>
+            <div class="guarantee-content">
+                <h3>Risco Zero: Sua Satisfação ou Seu Dinheiro de Volta</h3>
+                <p>Nós assumimos todo o risco. Se em até **7 dias** após a implementação você sentir que o Calixto OmniSystem não organizou seu atendimento ou não poupou o seu tempo, nós devolvemos 100% do valor pago. Sem perguntas, sem burocracia.</p>
+            </div>
+        </div>
+    </div>
+
 
     <section class="section-padding container">
         <h2 class="section-title text-center">DÚVIDAS FREQUENTES</h2>
         <div class="faq-grid" style="margin-top: 40px;">
             <div class="faq-item">
-                <button class="faq-question">Preciso deixar o PC ligado? <i class="ri-arrow-down-s-line"></i></button>
-                <div class="faq-answer"><p>Não! Nosso sistema roda na nuvem 24 horas por dia. Você conecta o WhatsApp uma vez e pode desligar seu computador.</p></div>
+                <button class="faq-question">Preciso deixar o PC ligado para o robô funcionar? <i class="ri-arrow-down-s-line"></i></button>
+                <div class="faq-answer"><p>Não! Nosso sistema roda em servidores 24 horas por dia. Você escaneia o QR Code do WhatsApp uma vez e o robô trabalha para você independentemente do seu celular ou PC estarem ligados.</p></div>
             </div>
             <div class="faq-item">
-                <button class="faq-question">Posso usar meu número atual? <i class="ri-arrow-down-s-line"></i></button>
-                <div class="faq-answer"><p>Sim, você usa seu próprio número de WhatsApp Business ou pessoal. A conexão é feita via QR Code, igual ao WhatsApp Web.</p></div>
+                <button class="faq-question">O robô agenda fora do meu horário comercial? <i class="ri-arrow-down-s-line"></i></button>
+                <div class="faq-answer"><p>Jamais. O OmniSystem possui uma trava inteligente. Se um cliente tentar marcar domingo de madrugada, o robô o instrui a escolher um horário válido no seu expediente.</p></div>
             </div>
             <div class="faq-item">
-                <button class="faq-question">Os contratos têm validade jurídica? <i class="ri-arrow-down-s-line"></i></button>
-                <div class="faq-answer"><p>Sim. O sistema registra o IP, data, hora e o número de telefone validado do aceitante, criando um rastro de auditoria robusto para fins de comprovação.</p></div>
+                <button class="faq-question">Como funciona a transferência para um atendente humano? <i class="ri-arrow-down-s-line"></i></button>
+                <div class="faq-answer"><p>Você não precisa ficar monitorando um painel no computador. O robô pausa o atendimento automático e manda uma notificação direto no seu celular. Você clica e assume a conversa com o cliente que já está qualificado.</p></div>
             </div>
         </div>
     </section>
@@ -730,15 +503,15 @@
                 
                 <div class="footer-col">
                     <span class="footer-logo">CALIXTO <span>AI</span></span>
-                    <p style="font-size: 0.9rem; color: #888; margin-top: 10px;">
-                        Transformando negócios através de automação inteligente e design de futuro.
+                    <p style="font-size: 0.95rem; color: #aaa; margin-top: 10px;">
+                        Transformando negócios de Alta Demanda através de automação inteligente de atendimento.
                     </p>
                 </div>
 
                 <div class="footer-col">
                     <h4>LINKS RÁPIDOS</h4>
                     <ul class="footer-links">
-                        <li><a href="#ai-studio">AI Studio</a></li>
+                        <li><a href="#funcionalidades">O Sistema</a></li>
                         <li><a href="#comparativo">Vantagens</a></li>
                         <li><a href="#precos">Planos</a></li>
                         <li><a href="/login">Área do Cliente</a></li>
@@ -765,21 +538,20 @@
             </div>
 
             <div style="border-top: 1px solid #222; margin-top: 40px; padding-top: 20px; text-align: center;">
-                <p style="font-size: 0.7rem; color: #555; max-width: 800px; margin: 0 auto; line-height: 1.5;">
+                <p style="font-size: 0.8rem; color: #666; max-width: 800px; margin: 0 auto; line-height: 1.5;">
                     <strong>Aviso Legal:</strong> O Calixto OmniSystem é um software independente desenvolvido para automação e gestão de atendimento. 
-                    Não somos afiliados, associados, autorizados, endossados ou de qualquer forma oficialmente conectados à Meta Platforms, Inc., 
-                    ou a qualquer uma de suas subsidiárias ou afiliadas. O nome WhatsApp, bem como nomes, marcas, emblemas e imagens relacionadas são marcas registradas de seus respectivos proprietários.
+                    Não somos afiliados, associados, autorizados ou de qualquer forma conectados à Meta Platforms, Inc. O nome WhatsApp e imagens relacionadas são marcas registradas de seus respectivos proprietários.
                 </p>
             </div>
 
-            <div class="copyright" style="margin-top: 20px;">
+            <div class="copyright" style="margin-top: 20px; color: #888;">
                 &copy; 2026 Calixto OmniSystem. Todos os direitos reservados.
             </div>
         </div>
     </footer>
     <script>
-        // LOADER (Tempo de 4 segundos para exibir a animação)
-        window.addEventListener('load', () => setTimeout(() => document.getElementById('jarvis-loader').classList.add('loaded'), 4000));
+        // LOADER (Tempo otimizado para não perder tráfego - 1 segundo)
+        window.addEventListener('load', () => setTimeout(() => document.getElementById('jarvis-loader').classList.add('loaded'), 1000));
 
         // FAQ
         document.querySelectorAll('.faq-question').forEach(button => {

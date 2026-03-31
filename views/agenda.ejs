@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Minha Agenda - Calixto OmniSystem</title>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    
+    <style>
+        :root {
+            --bg-color: #050505; --card-bg: #0f0f0f; --border-color: #222;
+            --primary-blue: #0066ff; --text-main: #ffffff; --text-muted: #888;
+        }
+
+        body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; margin: 0; padding: 20px; }
+        .agenda-wrapper { max-width: 1500px; margin: 0 auto; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
+        
+        #calendar { height: 800px; color: #fff; }
+
+        .fc-v-event { border-radius: 4px !important; transition: 0.2s; }
+        .event-bloqueado { background-color: #1a1a1a !important; border: 1px solid #444 !important; border-left: 5px solid #ff3333 !important; opacity: 0.8; }
+        .event-cliente { background-color: rgba(0, 102, 255, 0.15) !important; border: 1px solid var(--primary-blue) !important; border-left: 5px solid var(--primary-blue) !important; }
+
+        .swal2-popup { background: #0f0f0f !important; border: 1px solid #333 !important; color: #fff !important; }
+        
+        /* --- NOVO PAINEL DE CONFIGURAÇÕES SaaS --- */
+        .config-panel {
+            background: #111111;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+
+        .config-item {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .config-item label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .config-item label i {
+            color: var(--primary-blue);
+            margin-right: 5px;
+        }
+
+        .config-input {
+            background: #000;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 12px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .config-input:focus {
+            border-color: var(--primary-blue);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.2);
+        }
+
+        select.config-input {
+            appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            background-size: 15px;
+            padding-right: 40px;
+        }
+
+        .btn-salvar {
+            background: var(--primary-blue);
+            color: #fff;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            height: 43px; 
+        }
+
+        .btn-salvar:hover {
+            background: #0052cc;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="agenda-wrapper">
+        <div class="header-agenda" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <i class="ri-calendar-check-line" style="color:var(--primary-blue); font-size: 28px;"></i>
+                <h2 style="margin:0;">Gestão de Compromissos</h2>
+            </div>
+            <a href="/dashboard" style="background:#1a1a1a; color:#fff; padding:10px 20px; border-radius:6px; text-decoration:none; border:1px solid #333;">
+                <i class="ri-arrow-left-line"></i> Voltar
+            </a>
+        </div>
+
+        <div class="config-panel">
+            
+            <div class="config-item">
+                <label><i class="ri-whatsapp-line"></i> Notificar Gestor (WhatsApp)</label>
+                <input type="text" id="numeroDonoInput" class="config-input"
+                       placeholder="Ex: 5521988522582" 
+                       value="<%= (clientes && clientes.length > 0 && clientes[0].numeroNotificacao) ? clientes[0].numeroNotificacao.split('@')[0] : '' %>">
+            </div>
+
+            <div class="config-item" style="min-width: 150px;">
+                <label><i class="ri-notification-3-line"></i> 1º Lembrete (Horas)</label>
+                <input type="number" id="lembrete1Input" class="config-input"
+                       placeholder="Ex: 24" min="1" max="72"
+                       value="<%= (clientes && clientes.length > 0 && clientes[0].tempoLembrete1) ? clientes[0].tempoLembrete1 : '24' %>">
+            </div>
+
+            <div class="config-item" style="min-width: 150px;">
+                <label><i class="ri-alarm-warning-line"></i> 2º Lembrete (Horas)</label>
+                <input type="number" id="lembrete2Input" class="config-input"
+                       placeholder="0 p/ desativar" min="0" max="24"
+                       value="<%= (clientes && clientes.length > 0 && clientes[0].tempoLembrete2 !== undefined) ? clientes[0].tempoLembrete2 : '2' %>">
+            </div>
+
+            <div class="config-item">
+                <label><i class="ri-time-line"></i> Horário Restrito?</label>
+                <select id="horarioInput" class="config-input">
+                    <% const usarHorario = (clientes && clientes.length > 0 && clientes[0].usarHorarioComercial === false) ? false : true; %>
+                    <option value="true" <%= usarHorario ? 'selected' : '' %>>Sim (08h às 18h)</option>
+                    <option value="false" <%= !usarHorario ? 'selected' : '' %>>Não (Livre 24h)</option>
+                </select>
+            </div>
+
+            <div>
+                <button onclick="salvarConfigNotificacao()" class="btn-salvar">
+                    <i class="ri-save-3-line"></i> Salvar
+                </button>
+            </div>
+
+        </div>
+
+        <div id="calendar"></div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var calendarEl = document.getElementById('calendar');
+
+            // 🚩 LÊ A CONFIGURAÇÃO DE HORÁRIO DO BANCO/EJS
+            const usarRestricao = document.getElementById('horarioInput').value === 'true';
+
+            // Configuração base do calendário
+            var calendarConfig = {
+                initialView: 'timeGridWeek',
+                locale: 'pt-br',
+                slotDuration: '00:15:00',
+                selectable: true,
+                allDaySlot: false,
+                slotEventOverlap: false,
+                events: '/api/agendamentos/usuario',
+
+                eventDidMount: function(info) {
+                    if (info.event.extendedProps.cpf === 'BLOQUEIO') {
+                        info.el.classList.add('event-bloqueado');
+                    } else {
+                        info.el.classList.add('event-cliente');
+                    }
+                },
+
+                select: async function(info) {
+                    const confirm = await Swal.fire({
+                        title: 'Restringir horário?',
+                        text: `Deseja bloquear o horário das ${info.start.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}?`,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sim, Bloquear',
+                        confirmButtonColor: '#ff3333'
+                    });
+
+                    if (confirm.isConfirmed) {
+                        const res = await fetch('/api/agendamentos/bloquear', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ 
+                                start: info.start, 
+                                clienteId: '<%= (clientes && clientes.length > 0) ? clientes[0].id : "" %>' 
+                            })
+                        });
+                        if (res.ok) calendar.refetchEvents();
+                    }
+                },
+
+                eventClick: function(info) {
+                    const props = info.event.extendedProps;
+                    const isBloqueio = props.cpf === 'BLOQUEIO';
+                    
+                    const dataApenas = info.event.start.toLocaleDateString('pt-BR');
+                    const horaApenas = info.event.start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+                    const nomeReal = props.nome || props.mensagem || "Cliente";
+
+                    Swal.fire({
+                        title: isBloqueio ? 'Horário Restrito' : 'Gestão do Horário',
+                        html: `
+                            <div style="text-align: left; padding: 15px; background: #000; border-radius: 8px; border: 1px solid #222;">
+                                <p style="margin: 5px 0;"><b>👤 Nome:</b> ${nomeReal}</p>
+                                <hr style="border: 0; border-top: 1px solid #333; margin: 10px 0;">
+                                <p style="margin: 5px 0;"><b>📅 Data:</b> ${dataApenas}</p>
+                                <p style="margin: 5px 0;"><b>🕒 Horário:</b> ${horaApenas}</p>
+                                ${!isBloqueio ? `
+                                    <hr style="border: 0; border-top: 1px solid #333; margin: 10px 0;">
+                                    <p style="margin: 5px 0;"><b>🆔 CPF:</b> ${props.cpf || 'Não informado'}</p>
+                                    <p style="margin: 5px 0;"><b>📱 WhatsApp:</b> ${props.numero || 'Não informado'}</p>
+                                ` : '<p style="color:#ff3333; font-size:11px; margin-top:10px;">🔒 Bloqueio manual.</p>'}
+                            </div>
+                        `,
+                        showCancelButton: true,
+                        confirmButtonText: 'Manter',
+                        cancelButtonText: '🗑️ Remover',
+                        cancelButtonColor: '#ff3333',
+                        confirmButtonColor: '#1a1a1a'
+                    }).then((result) => {
+                        if (result.dismiss === Swal.DismissReason.cancel) {
+                            confirmarExclusao(info.event.id);
+                        }
+                    });
+                }
+            };
+
+            // 🚩 SE O GESTOR ESCOLHEU RESTRINGIR HORÁRIO, APLICA A TRAVA NO CALENDÁRIO
+            if (usarRestricao) {
+                calendarConfig.businessHours = {
+                    daysOfWeek: [ 1, 2, 3, 4, 5, 6 ], 
+                    startTime: '08:00',
+                    endTime: '18:00',
+                };
+                calendarConfig.selectConstraint = 'businessHours';
+            }
+
+            var calendar = new FullCalendar.Calendar(calendarEl, calendarConfig);
+
+            async function confirmarExclusao(id) {
+                if (!id) return;
+                const res = await fetch(`/api/agendamentos/${id}`, { method: 'DELETE' });
+                if (res.ok) calendar.refetchEvents();
+            }
+
+            calendar.render();
+            window.calendarRef = calendar;
+        });
+
+        // FUNÇÃO PARA SALVAR TODAS AS CONFIGURAÇÕES
+        async function salvarConfigNotificacao() {
+            const numero = document.getElementById('numeroDonoInput').value;
+            const lembrete1 = document.getElementById('lembrete1Input').value;
+            const lembrete2 = document.getElementById('lembrete2Input').value;
+            const usarHorario = document.getElementById('horarioInput').value === 'true'; // Pega se é true ou false
+            
+            const clienteId = '<%= (clientes && clientes.length > 0) ? clientes[0].id : "" %>';
+
+            if (!clienteId) return Swal.fire('Erro', 'Nenhum robô encontrado.', 'error');
+
+            const res = await fetch(`/api/clientes/${clienteId}/config-notificacao`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    numeroDono: numero,
+                    tempoLembrete1: lembrete1 ? parseInt(lembrete1) : 24,
+                    tempoLembrete2: lembrete2 ? parseInt(lembrete2) : 0,
+                    usarHorarioComercial: usarHorario // Envia para o backend
+                })
+            });
+
+            if (res.ok) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Guardado!',
+                    text: 'Configurações atualizadas. A página será recarregada.',
+                    background: '#0f0f0f',
+                    color: '#fff',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.reload(); // Recarrega para aplicar a trava/destrava no calendário
+                });
+            } else {
+                Swal.fire('Erro', 'Falha ao guardar as configurações.', 'error');
+            }
+        }
+    </script>
+</body>
+</html>

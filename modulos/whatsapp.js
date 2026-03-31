@@ -1,6 +1,7 @@
-// ============================================================
-// ARQUIVO: modulos/whatsapp.js (V11.0 - BLINDAGEM TOTAL / AUTO-CLEAN)
-// ============================================================
+    // ==========================================
+    // ARQUIVO: MODULOS/WHATSAPP.JS V20.0
+    // ==========================================
+
 const { 
     default: makeWASocket, 
     useMultiFileAuthState, 
@@ -18,6 +19,78 @@ const engine = require('./engine');
 
 const sessoes = new Map();
 
+async function conectarBot(clienteId) {
+    try {
+        // 1. Busca o cliente no banco para saber o nome da pasta
+        const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
+        if (!cliente) return console.error(`[ERRO] Cliente ${clienteId} não encontrado.`);
+
+        // 2. 🛡️ TRAVA ANTI-DUPLICIDADE: Mata o robô antigo se ele já estiver rodando
+        if (sessoes.has(clienteId)) {
+            console.log(`[AVISO] Encerrando instância anterior do robô: ${cliente.nome}`);
+            const sessaoAntiga = sessoes.get(clienteId);
+            sessaoAntiga.ev.removeAllListeners(); 
+            try { sessaoAntiga.end(undefined); } catch (e) {}
+            sessoes.delete(clienteId);
+        }
+
+        // 3. Configura a pasta de autenticação física
+        const authPath = path.join(__dirname, '..', 'public', 'sessions', `${cliente.nome}-${cliente.id}`);
+        const { state, saveCreds } = await useMultiFileAuthState(authPath);
+
+        // 4. Inicia o Socket do Baileys de verdade
+        const sock = makeWASocket({
+            auth: state,
+            printQRInTerminal: false, // Desativado para usar o Pairing Code do Dashboard
+            logger: pino({ level: 'silent' }),
+            browser: ["Ubuntu", "Chrome", "20.0.04"]
+        });
+
+        // Salva a sessão no Map global para controle
+        sessoes.set(clienteId, sock);
+
+        // 5. Gerenciamento de Conexão
+        sock.ev.on('connection.update', async (update) => {
+            const { connection, lastDisconnect, qr } = update;
+
+            if (qr) {
+                // Se precisar de QR Code, você pode emitir via socket aqui
+            }
+
+            if (connection === 'close') {
+                const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
+                console.log(`[${cliente.nome}] Conexão fechada. Tentando reconectar? ${shouldReconnect}`);
+                if (shouldReconnect) conectarBot(clienteId);
+            } else if (connection === 'open') {
+                console.log(`[${cliente.nome}] ✅ Conexão Estabelecida com Sucesso!`);
+                await prisma.cliente.update({ where: { id: clienteId }, data: { status: 'ONLINE' } });
+            }
+        });
+
+        // 6. Escuta de Mensagens (Envia para o seu engine.js)
+        sock.ev.on('messages.upsert', async (m) => {
+            if (m.type === 'notify') {
+                for (const msg of m.messages) {
+                    if (!msg.key.fromMe) {
+                        await engine.processarMensagem(clienteId, sock, msg);
+                    }
+                }
+            }
+        });
+
+        // 7. Salva as credenciais sempre que houver mudança
+        sock.ev.on('creds.update', saveCreds);
+
+        return sock;
+
+    } catch (err) {
+        console.error(`[ERRO CRÍTICO] Falha ao iniciar robô ${clienteId}:`, err);
+    }
+}
+
+// 🕒 Trava de Tempo: Define o momento exato em que o servidor iniciou
+const uptimeStart = Date.now();
+
 function unwrapMessage(msg) {
     if (!msg) return null;
     if (msg.ephemeralMessage) return unwrapMessage(msg.ephemeralMessage.message);
@@ -27,14 +100,22 @@ function unwrapMessage(msg) {
 }
 
 async function iniciarWhatsApp(cliente, io) {
-    // 1. Mata qualquer resquício de sessão na memória RAM
+    if (typeof cliente === 'string') {
+        cliente = await prisma.cliente.findUnique({ where: { id: cliente } });
+    }
+
+    if (!cliente || !cliente.id) {
+        console.error("❌ Erro: Dados do cliente inválidos.");
+        return;
+    }
+
+    // 1. Gestão de Memória: Limpa sessões fantasmas
     if (sessoes.has(cliente.id)) {
         const sessaoAntiga = sessoes.get(cliente.id);
         try { sessaoAntiga.end(undefined); } catch(e){}
         sessoes.delete(cliente.id);
     }
 
-    // 2. Valida se deve ligar
     const check = await prisma.cliente.findUnique({ where: { id: cliente.id } });
     if (!check || check.status === 'OFFLINE') return;
 
@@ -58,12 +139,15 @@ async function iniciarWhatsApp(cliente, io) {
         },
         browser: ["Ubuntu", "Chrome", "20.0.04"], 
         markOnlineOnConnect: true,
-        connectTimeoutMs: 60000, 
-        defaultQueryTimeoutMs: 60000,
-        syncFullHistory: false
+        generateHighQualityLinkPreview: false, // Otimização de performance
+        syncFullHistory: false, // 🚫 NÃO baixa o passado
+        shouldIgnoreJid: (jid) => jid?.includes('@broadcast') // 🚫 IGNORA STATUS e Listas de Transmissão
     });
 
-    // --- GERADOR DE CÓDIGO INTELIGENTE ---
+    global.socks = global.socks || {};
+    global.socks[cliente.id] = sock;
+
+    // --- GERADOR DE PAREAMENTO DINÂMICO ---
     if (!sock.authState.creds.registered) {
         setTimeout(async () => {
             try {
@@ -72,79 +156,86 @@ async function iniciarWhatsApp(cliente, io) {
                 if (!atual || atual.status !== 'ONLINE') return;
 
                 const phoneNumber = cliente.numero.replace(/[^0-9]/g, '');
-                console.log(`[${cliente.nome}] 📞 Solicitando código para ${phoneNumber}...`);
-                
                 const code = await sock.requestPairingCode(phoneNumber);
                 const codeFormatado = code?.match(/.{1,4}/g)?.join('-') || code;
                 
-                console.log(`\n✅ CÓDIGO: ${codeFormatado}\n`);
                 if (io) io.emit('pairingCode', { clienteId: cliente.id, code: codeFormatado });
-
-            } catch (erro) {
-                console.error(`[${cliente.nome}] ❌ Erro ao gerar código:`, erro.message);
-            }
-        }, 5000); // Delay maior para estabilizar o socket
+                console.log(`[PAREAMENTO] Código para ${cliente.nome}: ${codeFormatado}`);
+            } catch (erro) { console.error(`Erro código:`, erro.message); }
+        }, 5000);
     }
 
-    // --- SALVAMENTO BLINDADO ---
-    sock.ev.on('creds.update', async () => {
-        if (fs.existsSync(pathAuth)) await saveCreds();
-    });
+    sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', async (update) => {
         const { connection, lastDisconnect } = update;
-        
         if (connection === 'close') {
             const statusCode = lastDisconnect?.error?.output?.statusCode;
             sessoes.delete(cliente.id);
-            console.log(`[${cliente.nome}] 🔴 Desconectado. Código: ${statusCode}`);
-            
-            // --- BLINDAGEM ANTI-LOOP (CÓDIGO 401) ---
-            if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
-                console.log(`[${cliente.nome}] 🗑️ Credenciais inválidas. Limpando pasta...`);
-                
+            if (statusCode === 401) {
                 await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'OFFLINE' } });
                 if(io) io.emit('status', { clienteId: cliente.id, status: 'OFFLINE' });
-
-                // Tenta apagar a pasta para que na próxima vez ele peça um novo código
-                setTimeout(() => {
-                    try { if (fs.existsSync(pathAuth)) fs.rmSync(pathAuth, { recursive: true, force: true }); } catch(e){}
-                }, 2000);
-            
             } else {
-                // Reconexão apenas para quedas de internet
-                const checkReconnect = await prisma.cliente.findUnique({ where: { id: cliente.id } });
-                if (checkReconnect && checkReconnect.status === 'ONLINE') {
-                    console.log(`[${cliente.nome}] 🔄 Tentando reconectar...`);
-                    setTimeout(() => iniciarWhatsApp(cliente, io), 3000);
-                }
+                setTimeout(() => iniciarWhatsApp(cliente, io), 3000);
             }
-
         } else if (connection === 'open') {
-            console.log(`[${cliente.nome}] 🟢 CONECTADO COM SUCESSO!`);
             sessoes.set(cliente.id, sock);
             await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'ONLINE' } });
             if(io) io.emit('status', { clienteId: cliente.id, status: 'ONLINE' });
+            console.log(`[${cliente.nome}] ✅ Conexão Estabelecida.`);
         }
     });
 
+    // ==========================================
+    // 🛡️ ESCUTADOR DE MENSAGENS BLINDADO
+    // ==========================================
     sock.ev.on('messages.upsert', async ({ messages, type }) => {
         try {
             if (type !== 'notify') return;
             const msg = messages[0];
-            if (!msg.message || msg.key.fromMe || msg.key.remoteJid.includes('@g.us')) return;
+
+            // 1️⃣ TRAVA: Ignora se a mensagem não tem conteúdo ou se foi enviada pelo próprio robô (ANTI-LOOP)
+            if (!msg.message || msg.key.fromMe) return;
+
+            // 2️⃣ TRAVA: Ignora mensagens antigas (Enviadas antes do servidor ligar ou há mais de 25s)
+            const msgTimestamp = msg.messageTimestamp * 1000;
+            if (msgTimestamp < uptimeStart || (Date.now() - msgTimestamp) > 25000) return;
 
             const remoteJid = msg.key.remoteJid;
+            
+            // 3️⃣ TRAVA: Ignora Status e Grupos (Se configurado para chat privado)
+            if (remoteJid.includes('@broadcast') || remoteJid.includes('@g.us')) return;
+
             const realMessage = unwrapMessage(msg.message);
-            const nomePerfil = msg.pushName || "Cliente";
+            const texto = (realMessage.conversation || realMessage.extendedTextMessage?.text || "").trim();
+            if (!texto) return;
 
-            let texto = realMessage.conversation || realMessage.extendedTextMessage?.text || "";
-            if (!texto && realMessage.documentMessage) texto = "#ARQUIVO";
+            // ⚙️ LOG DE RECEBIMENTO
+            console.log(`[RECEBIDO] De: ${remoteJid} | Conteúdo: ${texto.substring(0, 20)}...`);
 
-            if (texto) {
-                await engine.processarMensagem(cliente.id, remoteJid, texto, sock, prisma, nomePerfil);
+            // 🗑️ LÓGICA DE CANCELAMENTO (PRIORITÁRIA)
+            if (texto.toUpperCase() === 'SIM') {
+                const numeroLimpo = remoteJid.replace(/[^0-9]/g, '');
+                const deleteResult = await prisma.lembrete.deleteMany({
+                    where: { numero: numeroLimpo, dataAgendada: { gte: new Date() } }
+                });
+
+                if (deleteResult.count > 0) {
+                    await sock.sendMessage(remoteJid, { text: "✅ Agendamentos cancelados com sucesso." });
+                    if(io) io.emit('atualizarAgenda');
+                } else {
+                    await sock.sendMessage(remoteJid, { text: "⚠️ Não encontrei agendamentos pendentes." });
+                }
+                return;
             }
-        } catch (error) { console.error(`Erro msg: ${error.message}`); }
+
+            // 🤖 MOTOR DE FLUXO (CHAMANDO O ENGINE)
+            // Os comandos #RESET e #BOT já são tratados dentro do engine.js conforme seu backup.
+            await engine.processarMensagem(cliente.id, remoteJid, texto, sock, prisma, msg.pushName || "Cliente");
+
+        } catch (error) { 
+            console.error(`[ERRO CRÍTICO MSG]: ${error.message}`); 
+        }
     });
 
     sessoes.set(cliente.id, sock);

@@ -39,16 +39,22 @@ model Usuario {
   criadoEm      DateTime  @default(now())
 }
 
-// --- MODELO CLIENTE ---
+// --- MODELO CLIENTE (O ROBÔ) ---
 model Cliente {
-  id        String   @id @default(uuid())
-  nome      String
-  numero    String?  @unique
-  ativo     Boolean  @default(false)
-  fluxoJson Json?
-  contratos  ContratoTemplate[]
-  status    String   @default("OFFLINE")
-  criadoEm  DateTime @default(now())
+  id                String   @id @default(uuid())
+  nome              String
+  numeroNotificacao String?
+  numero            String?  @unique
+  ativo             Boolean  @default(false)
+  fluxoJson         Json?
+  contratos         ContratoTemplate[]
+  status            String   @default("OFFLINE")
+  criadoEm          DateTime @default(now())
+
+
+  tempoLembrete1       Int      @default(24)   // Padrão: 24 horas antes
+  tempoLembrete2       Int      @default(0)    // Padrão: 0 (desativado)
+  usarHorarioComercial Boolean  @default(true) // Padrão: bloqueia agendamentos de madrugada
 
   // Vínculo com o Dono
   donoId    String?  
@@ -56,6 +62,9 @@ model Cliente {
 
   contatos      Contato[]
   sessoesAtivas SessaoAtiva[]
+
+  // Vínculos de Dados
+  lembretes     Lembrete[]
 }
 
 model SessaoAtiva {
@@ -98,4 +107,22 @@ model ContratoTemplate {
   // Relacionamento com o seu cliente (dono do bot)
   cliente   Cliente  @relation(fields: [clienteId], references: [id])
   clienteId String
+}
+
+model Lembrete {
+  id              String   @id @default(uuid())
+  numero          String   // WhatsApp do paciente/cliente (Ex: 5521...)
+  mensagem        String   // Texto do lembrete (Ex: "Confirmado: Vitor")
+  cpf             String?
+  nome            String?
+  dataAgendada    DateTime // Data e hora exata do compromisso
+  
+  status          String   @default("PENDENTE") // PENDENTE, ENVIADO, BLOQUEADO
+  lembreteEnviado Boolean  @default(false)      // Trava de segurança extra
+  
+  // Relação com o Bot (Cliente)
+  clienteId       String
+  cliente         Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
 }

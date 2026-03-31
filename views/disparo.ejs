@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Disparo em Massa - Calixto OmniSystem</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        :root { --bg: #050505; --card: #0f0f0f; --primary: #0066ff; --border: #222; }
+        body { background: var(--bg); color: #fff; font-family: 'Inter', sans-serif; padding: 40px; }
+        .container { max-width: 800px; margin: 0 auto; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 30px; }
+        textarea { width: 100%; background: #000; border: 1px solid var(--border); color: #fff; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-sizing: border-box; resize: vertical; }
+        .btn-disparo { background: var(--primary); color: #fff; border: none; padding: 15px; border-radius: 8px; cursor: pointer; font-weight: 600; width: 100%; font-size: 16px; transition: 0.3s; }
+        .btn-disparo:hover { background: #0052cc; }
+        .contact-box { margin-bottom: 20px; background: #0a0a0a; border: 1px solid #222; padding: 15px; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
+            <h2>🚀 Disparo em Massa</h2>
+            <a href="/dashboard" style="color: #888; text-decoration: none;"><i class="ri-arrow-left-line"></i> Voltar</a>
+        </div>
+
+        <label>📱 Lista de Números:</label>
+        <textarea id="listaNumeros" rows="4" placeholder="Ex: 5521999999999"></textarea>
+
+        <div class="contact-box">
+            <h4 style="color: var(--primary); font-size: 14px; margin: 0 0 10px 0;">
+                <i class="ri-contacts-book-line"></i> Clientes deste Robô na Base (<%= contatos.length %>)
+            </h4>
+            <div style="max-height: 150px; overflow-y: auto; font-size: 12px; color: #888;">
+                <% if (contatos.length > 0) { %>
+                    <% contatos.forEach(c => { %>
+                        <div style="padding: 8px; border-bottom: 1px solid #111; display: flex; justify-content: space-between; align-items: center;">
+                            <span><strong><%= c.nome %></strong> (<%= c.numero %>)</span>
+                            <button onclick="addNumero('<%= c.numero %>')" style="background: var(--primary); border: none; color: #fff; padding: 3px 8px; border-radius: 4px; cursor: pointer;">+ Add</button>
+                        </div>
+                    <% }) %>
+                <% } else { %> <p>Nenhum contato encontrado.</p> <% } %>
+            </div>
+        </div>
+
+        <label>📝 Mensagem da Campanha:</label>
+        <textarea id="mensagemCampanha" rows="4" placeholder="Olá!"></textarea>
+
+        <button class="btn-disparo" onclick="iniciarDisparo()">
+            <i class="ri-send-plane-fill"></i> Iniciar Campanha Agora
+        </button>
+    </div>
+
+    <script>
+        function addNumero(num) {
+            const campo = document.getElementById('listaNumeros');
+            campo.value = campo.value.trim() ? campo.value.trim() + ',\n' + num : num;
+        }
+
+
+        async function iniciarDisparo() {
+    // 1. Captura os valores dos campos
+    const contatos = document.getElementById('listaNumeros').value;
+    const mensagem = document.getElementById('mensagemCampanha').value;
+    
+    // 2. 🛡️ Pega o ID diretamente do EJS (Isso mata o erro de "ID não encontrado")
+    const clienteId = '<%= cliente.id %>'; 
+
+    // 3. Validações básicas
+    if (!clienteId) return Swal.fire('Erro', 'ID do robô não identificado!', 'error');
+    if (!contatos || !mensagem) return Swal.fire('Erro', 'Preencha a lista de números e a mensagem!', 'error');
+
+    // 4. Confirmação com o usuário
+    const confirmacao = await Swal.fire({
+        title: 'Iniciar Disparo?',
+        text: "O robô enviará as mensagens com intervalos de segurança para evitar banimento.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#6200ea', // Roxo Neon
+        confirmButtonText: 'Sim, disparar!'
+    });
+
+    if (confirmacao.isConfirmed) {
+        Swal.fire({
+            title: '🚀 Disparando...',
+            text: 'As mensagens estão sendo enviadas. Acompanhe os logs no terminal.',
+            icon: 'success',
+            background: '#111',
+            color: '#fff'
+        });
+
+        // 5. Envia para o Backend (index.js)
+        await fetch('/api/broadcast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contatos, mensagem, clienteId })
+        });
+    }
+}
+    </script>
+</body>
+</html>
