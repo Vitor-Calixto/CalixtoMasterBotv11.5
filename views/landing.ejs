@@ -416,54 +416,119 @@
     </section>
 
     <section id="precos" class="section-padding container text-center">
-        <h2 class="section-title">ACESSO TOTAL OMNISYSTEM</h2>
-        <p class="section-subtitle">Um único plano com <strong>todas as funcionalidades liberadas</strong>. Escolha apenas o seu ciclo de faturamento e economize.</p>
-        
-        <div class="pricing-grid">
+        <div class="hero-badge" style="margin-bottom: 10px;">Billing v2.0</div>
+        <h2 class="section-title">ESTAÇÕES DE <span style="color: var(--neon-pink);">COMBATE</span></h2>
+        <p class="section-subtitle">Escolha o seu poder de fogo. Sem contratos de fidelidade, cancele quando quiser.</p>
+    
+        <!-- Switcher de Canais -->
+        <div class="plan-switcher">
+            <button class="btn-tab wa-tab active" onclick="switchTab('wa')">
+                <i class="ri-whatsapp-line"></i> WHATSAPP
+            </button>
+            <button class="btn-tab ig-tab" onclick="switchTab('ig')">
+                <i class="ri-instagram-line"></i> INSTAGRAM
+            </button>
+            <button class="btn-tab combo-tab featured-tab" onclick="switchTab('combo')">
+                <i class="ri-flashlight-line"></i> COMBO OMNI
+            </button>
+        </div>
+    
+        <!-- WHATSAPP PLANS -->
+        <div id="wa-plans" class="pricing-grid plan-content active">
+            <!-- Mensal -->
             <div class="price-card">
                 <div class="plan-name">MENSAL</div>
-                <span class="price">R$ 650<span>/mês</span></span>
-                <span class="setup-fee">+ Implementação: R$ 100,00</span>
+                <span class="price">R$ 550<span>/mês</span></span>
                 <ul class="features-list">
-                    <li><i class="ri-check-double-line"></i> Robô de Atendimento 24/7</li>
-                    <li><i class="ri-check-double-line"></i> Agendamento & Repasse Humano</li>
-                    <li><i class="ri-check-double-line"></i> Lembretes Anti-Falta Automáticos</li>
-                    <li><i class="ri-check-double-line"></i> Gerador de Contratos PDF</li>
-                    <li><i class="ri-check-double-line"></i> Mensagens em Massa & Remarketing</li>
-                    <li style="color: #aaa; font-size: 0.85rem; border: none; padding-top: 15px;"><i class="ri-information-line" style="color: #aaa;"></i> Sem desconto de fidelidade.</li>
+                    <li><i class="ri-check-line"></i> 1 Conexão WhatsApp</li>
+                    <li><i class="ri-check-line"></i> Fluxos Ilimitados</li>
+                    <li><i class="ri-check-line"></i> Suporte via Ticket</li>
                 </ul>
-                <a href="https://wa.me/5521990026871" class="btn-plan">Assinar Mensal</a>
+                <a href="#" class="btn-plan">Assinar</a>
             </div>
-
+            <!-- Trimestral -->
             <div class="price-card">
                 <div class="plan-name">TRIMESTRAL</div>
-                <span class="price">R$ 500<span>/mês</span></span>
-                <span class="setup-fee" style="color: var(--neon-cyan); font-weight: bold; background: rgba(0,243,255,0.1);">🔥 SETUP ISENTO (R$ 0,00)</span>
+                <span class="price">R$ 480<span>/mês</span></span>
                 <ul class="features-list">
-                    <li><i class="ri-check-double-line"></i> Robô de Atendimento 24/7</li>
-                    <li><i class="ri-check-double-line"></i> Agendamento & Repasse Humano</li>
-                    <li><i class="ri-check-double-line"></i> Lembretes Anti-Falta Automáticos</li>
-                    <li><i class="ri-check-double-line"></i> Gerador de Contratos PDF</li>
-                    <li><i class="ri-check-double-line"></i> Mensagens em Massa & Remarketing</li>
-                    <li style="color: #ccc; font-size: 0.85rem; border: none; padding-top: 15px;"><i class="ri-refresh-line"></i> Faturado R$ 1.500 a cada 3 meses</li>
+                    <li><i class="ri-check-line"></i> Tudo do Mensal</li>
+                    <li><i class="ri-check-line"></i> Setup Prioritário</li>
+                    <li><i class="ri-subtract-line"></i> Economia de R$ 210</li>
                 </ul>
-                <a href="https://wa.me/5521990026871" class="btn-plan">Assinar Trimestral</a>
+                <a href="#" class="btn-plan">Assinar</a>
             </div>
-
-            <div class="price-card featured">
-                <div class="badge-popular">MAIOR ECONOMIA (R$ 1.500 OFF)</div>
+            <!-- Semestral -->
+            <div class="price-card featured wa-featured">
+                <div class="badge-popular">MELHOR CUSTO WA</div>
                 <div class="plan-name">SEMESTRAL</div>
-                <span class="price">R$ 400<span>/mês</span></span>
-                <span class="setup-fee" style="color: var(--neon-pink); font-weight: bold; background: rgba(255,0,85,0.1);">🔥 SETUP ISENTO (R$ 0,00)</span>
+                <span class="price">R$ 390<span>/mês</span></span>
                 <ul class="features-list">
-                    <li><i class="ri-check-double-line"></i> Robô de Atendimento 24/7</li>
-                    <li><i class="ri-check-double-line"></i> Agendamento & Repasse Humano</li>
-                    <li><i class="ri-check-double-line"></i> Lembretes Anti-Falta Automáticos</li>
-                    <li><i class="ri-check-double-line"></i> Gerador de Contratos PDF</li>
-                    <li><i class="ri-check-double-line"></i> Mensagens em Massa & Remarketing</li>
-                    <li style="color: #fff; font-size: 0.85rem; border: none; font-weight: bold; padding-top: 15px;"><i class="ri-money-dollar-circle-line" style="color: var(--neon-pink);"></i> Faturado 1x de R$ 2.400 / Semestre</li>
+                    <li><i class="ri-vip-crown-2-line"></i> Suporte VIP (WhatsApp)</li>
+                    <li><i class="ri-check-line"></i> Consultoria de Fluxos</li>
+                    <li><i class="ri-check-line"></i> Setup Isento</li>
                 </ul>
-                <a href="https://wa.me/5521990026871" class="btn-plan">Garantir Desconto</a>
+                <a href="#" class="btn-plan">Dominar Agora</a>
+            </div>
+        </div>
+    
+        <!-- INSTAGRAM PLANS -->
+        <div id="ig-plans" class="pricing-grid plan-content">
+            <div class="price-card">
+                <div class="plan-name">MENSAL</div>
+                <span class="price">R$ 450<span>/mês</span></span>
+                <ul class="features-list">
+                    <li><i class="ri-check-line"></i> 1 Conta Instagram</li>
+                    <li><i class="ri-check-line"></i> Automação de DMs</li>
+                    <li><i class="ri-check-line"></i> Resposta de Comentários</li>
+                </ul>
+                <a href="#" class="btn-plan">Assinar</a>
+            </div>
+            <div class="price-card featured ig-featured">
+                <div class="badge-popular">MAIS VENDIDO IG</div>
+                <div class="plan-name">TRIMESTRAL</div>
+                <span class="price">R$ 350<span>/mês</span></span>
+                <ul class="features-list">
+                    <li><i class="ri-check-line"></i> Tudo do Mensal</li>
+                    <li><i class="ri-check-line"></i> Automação de Stories</li>
+                    <li><i class="ri-check-line"></i> Dashboard de Leads</li>
+                </ul>
+                <a href="#" class="btn-plan">Assinar</a>
+            </div>
+            <div class="price-card">
+                <div class="plan-name">SEMESTRAL</div>
+                <span class="price">R$ 290<span>/mês</span></span>
+                <ul class="features-list">
+                    <li><i class="ri-check-line"></i> Tudo do Trimestral</li>
+                    <li><i class="ri-check-line"></i> Setup Isento</li>
+                    <li><i class="ri-subtract-line"></i> Foco Total em Escala</li>
+                </ul>
+                <a href="#" class="btn-plan">Assinar</a>
+            </div>
+        </div>
+    
+        <!-- COMBO PLANS -->
+        <div id="combo-plans" class="pricing-grid plan-content">
+            <div class="price-card">
+                <div class="plan-name">OMNI MENSAL</div>
+                <span class="price">R$ 850<span>/mês</span></span>
+                <ul class="features-list">
+                    <li><i class="ri-whatsapp-line"></i> WhatsApp Ativo</li>
+                    <li><i class="ri-instagram-line"></i> Instagram Ativo</li>
+                    <li><i class="ri-repeat-2-line"></i> Leads Sincronizados</li>
+                </ul>
+                <a href="#" class="btn-plan">Assinar</a>
+            </div>
+            <div class="price-card featured combo-featured">
+                <div class="badge-popular">O PODER TOTAL</div>
+                <div class="plan-name">OMNI SEMESTRAL</div>
+                <span class="price">R$ 590<span>/mês</span></span>
+                <ul class="features-list">
+                    <li><i class="ri-shield-flash-line"></i> WhatsApp + Instagram</li>
+                    <li><i class="ri-check-line"></i> Multi-atendentes</li>
+                    <li><i class="ri-check-line"></i> Treinamento Individual</li>
+                    <li><i class="ri-check-line"></i> Consultoria Estratégica</li>
+                </ul>
+                <a href="#" class="btn-plan">Garantir Vaga</a>
             </div>
         </div>
     </section>
@@ -530,8 +595,8 @@
                 <div class="footer-col">
                     <h4>CONTATO</h4>
                     <ul class="footer-links">
-                        <li><a href="https://wa.me/5521991593547" target="_blank"><i class="ri-whatsapp-line"></i> (21) 99159-3547</a></li>
-                        <li><a href="mailto:contato@calixto.dev"><i class="ri-mail-line"></i> contato@calixto.dev</a></li>
+                        <li><a href="https://wa.me/5521991593547" target="_blank"><i class="ri-whatsapp-line"></i> (21) 96635-4239</a></li>
+                        <li><a href="mailto:contato@calixto.dev"><i class="ri-mail-line"></i> vitorpedrocalixto@gmail.com</a></li>
                         <li><a href="#"><i class="ri-instagram-line"></i> @calixto.dev</a></li>
                     </ul>
                 </div>

@@ -9,9 +9,10 @@ const PLANOS = {
 };
 
 require('dotenv').config();
-const { iniciarMonitorDeLembretes } = require('./modulos/cron'); // Importa o vigia de lembretes
-const rateLimit = require('express-rate-limit'); 
-const helmet = require('helmet'); 
+
+// ============================================================================
+// 1. IMPORTAÇÕES DE BIBLIOTECAS (O telhado do sistema)
+// ============================================================================
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
@@ -23,17 +24,46 @@ const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs'); 
 const session = require('express-session'); 
 const flash = require('connect-flash'); 
+const rateLimit = require('express-rate-limit'); 
+const helmet = require('helmet'); 
+
+
+// ============================================================================
+// 2. IMPORTAÇÕES DE MÓDULOS INTERNOS (O motor do SaaS)
+// ============================================================================
+const { iniciarMonitorDeLembretes } = require('./modulos/cron');
 const whatsapp = require('./modulos/whatsapp');
 const iniciarBot = whatsapp.iniciarWhatsApp;
-const timeout = require('./modulos/timeout');
 
+const timeout = require('./modulos/timeout');
+ // 🚀 Só adicione o '.router' no final!
+
+// ============================================================================
+// 3. INICIALIZAÇÃO DA INFRAESTRUTURA (Levantando as paredes)
+// ============================================================================
 const app = express();
+
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
-// ...
+// ============================================================================
+// 4. MIDDLEWARES (O encanamento)
+// ============================================================================
+// 🚨 CRÍTICO: Sem essa linha, os Webhooks da Meta chegam vazios (undefined)
+app.use(express.json()); 
+app.use(bodyParser.urlencoded({ extended: true }));
+
+const rotasInstagram = require('./instagram');
+app.use('/instagram', rotasInstagram.router);
+// ============================================================================
+// 5. ROTAS (As portas da casa)
+// ============================================================================
+// Agora sim, com o "app" e a "rotaInstagram" criados, nós juntamos os dois:
+
+
+
 app.set('trust proxy', 1); // Se estiver atrás de um proxy (ex: Heroku, VPS com proxy reverso)
 // --- SEGURANÇA 1: HELMET (Esconde que é Express) ---
 // contentSecurityPolicy: false é necessário para não bloquear os scripts do Quill/CDN que usamos
@@ -94,6 +124,7 @@ function setSystemConfig(newConfig) {
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json());
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -171,6 +202,7 @@ const upload = multer({
         }
     }
 });
+
 // ================= ROTAS =================
 
 app.get('/', (req, res) => { res.render('landing', { usuario: req.session.usuario || null }); });
@@ -227,6 +259,8 @@ app.get('/dashboard', isAuth, async (req, res) => {
             usuario: userFresh, permissoes, systemMaintenance: sysConfig.maintenance 
         });
     } catch (error) { res.status(500).send("Erro dashboard"); }
+
+    
 });
 
 // ================= API DE CONTRATOS (V19.1) =================
@@ -352,77 +386,180 @@ app.delete('/api/contratos/:id', isAuth, async (req, res) => {
 
 // ================= API CLIENTES (BLINDADA) =================
 
-app.post('/api/clientes', isAuth, async (req, res) => {
+app.put('/api/clientes/:id', async (req, res) => {
     try {
-        const user = await prisma.usuario.findUnique({ where: { id: req.session.userId }, include: { clientes: true } });
-        const regras = PLANOS[user.plano] || PLANOS['ESSENTIAL'];
-        if (user.role !== 'ADMIN' && user.clientes.length >= regras.maxBots) return res.status(403).json({ error: 'Limite de bots atingido.' });
-        const novoBot = await prisma.cliente.create({ data: { nome: req.body.nome, numero: req.body.numero, donoId: req.session.userId, status: 'OFFLINE' } });
-        console.log(`\n[FLUXO] 💾 Novo desenho salvo com sucesso para: ${cliente.nome}`);
-    console.log(`[FLUXO] 📊 Total de nós registrados: ${Object.keys(fluxo.drawflow.Home.data).length}\n`);
-    res.sendStatus(200);
-        res.json({ success: true, id: novoBot.id });
-    } catch (e) { res.status(500).json({ error: "Erro criar" }); }
+        const { nome, numero, instagramUser } = req.body;
+        
+        // 🚨 Segurança: Garantir que o cliente pertence ao usuário logado
+        const clienteDb = await prisma.cliente.findUnique({ where: { id: req.params.id } });
+        if (!clienteDb || (req.session.role !== 'ADMIN' && clienteDb.donoId !== req.session.userId)) {
+            return res.status(403).json({ success: false, error: 'Acesso negado' });
+        }
+
+        await prisma.cliente.update({
+            where: { id: req.params.id },
+            data: { 
+                nome, 
+                numero,
+                instagramUser // 🚀 Aqui o dado do modal entra no banco!
+            }
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error("❌ Erro ao atualizar cliente:", error);
+        res.status(500).json({ success: false });
+    }
 });
 
-// --- EXCLUSÃO BLINDADA: Mata a sessão, apaga a pasta e limpa o banco ---
+app.post('/api/clientes', isAuth, async (req, res) => {
+    try {
+        const user = await prisma.usuario.findUnique({ 
+            where: { id: req.session.userId }, 
+            include: { clientes: true } 
+        });
+        const regras = PLANOS[user.plano] || PLANOS['ESSENTIAL'];
+        
+        if (user.role !== 'ADMIN' && user.clientes.length >= regras.maxBots) {
+            return res.status(403).json({ error: 'Limite de bots atingido.' });
+        }
+
+        // Pega os dados que o seu novo frontend lindo está enviando
+        const { nome, numero, plataforma } = req.body;
+
+        const novoBot = await prisma.cliente.create({ 
+            data: { 
+                nome: nome, 
+                numero: String(numero), // Garante que o número não quebre se for nulo
+                plataforma: plataforma || 'WHATSAPP', // Salva WPP ou INSTA
+                donoId: req.session.userId, 
+                status: 'OFFLINE' 
+            } 
+        });
+        
+        console.log(`[SISTEMA] Novo bot criado: ${novoBot.nome} (${novoBot.plataforma})`);
+        res.json({ success: true, id: novoBot.id });
+
+    } catch (e) { 
+        console.error("❌ Erro ao criar cliente no banco:", e); // Isso vai te mostrar o erro real no terminal
+        res.status(500).json({ error: "Erro ao criar no banco de dados." }); 
+    }
+});
+
+// --- EXCLUSÃO BLINDADA E RASTREADA ---
 app.delete('/api/clientes/:id', isAuth, async (req, res) => {
     try {
         const botId = req.params.id;
+        console.log(`\n[EXCLUSÃO] 🗑️ Iniciando exclusão do bot ID: ${botId}`);
         
-        // 1. Localiza o cliente para pegar o nome da pasta
         const cliente = await prisma.cliente.findUnique({ where: { id: botId } });
-        if (!cliente) return res.status(404).json({ error: "Bot não encontrado" });
+        if (!cliente) {
+            console.log(`[EXCLUSÃO] ❌ Bot não encontrado no banco.`);
+            return res.status(404).json({ error: "Bot não encontrado" });
+        }
 
-        // 2. Para o motor na memória RAM imediatamente
+        // 1. Derruba a conexão do WhatsApp se estiver rodando
         if (whatsapp.sessoes && whatsapp.sessoes.has(botId)) {
+            console.log(`[EXCLUSÃO] 🔌 Desconectando sessão ativa na memória RAM...`);
             const sessao = whatsapp.sessoes.get(botId);
             try { sessao.end(undefined); } catch (e) {}
             whatsapp.sessoes.delete(botId);
         }
 
-        // 3. Aguarda 1 segundo para o Windows liberar os arquivos (Evita erro de Permissão)
         await new Promise(r => setTimeout(r, 1000));
 
-        // 4. Define o caminho da pasta conforme o seu whatsapp.js
+        // 2. Apaga arquivos da sessão física
         const sessionsDir = path.join(__dirname, 'public', 'sessions', `${cliente.nome}-${cliente.id}`);
-
-        // 5. Deleta a pasta física (Força bruta para garantir conexão limpa no próximo bot)
         if (fs.existsSync(sessionsDir)) {
-            try {
-                fs.rmSync(sessionsDir, { recursive: true, force: true });
-                console.log(`[SISTEMA] Pasta de sessão removida com sucesso: ${sessionsDir}`);
-            } catch (fsErr) {
-                console.warn(`[AVISO] Não foi possível apagar a pasta agora: ${fsErr.message}`);
+            console.log(`[EXCLUSÃO] 📁 Apagando pasta de sessão física...`);
+            try { 
+                fs.rmSync(sessionsDir, { recursive: true, force: true }); 
+            } catch (fsErr) { 
+                console.warn(`[AVISO] Pasta em uso pelo Windows, ignorando por enquanto.`); 
             }
         }
 
-        // 6. Limpeza Hierárquica do Banco de Dados
-        // Remove os contratos primeiro para não dar erro de chave estrangeira
-        await prisma.contratoTemplate.deleteMany({ where: { clienteId: botId } });
+        // 3. Limpeza Hierárquica do Banco (Os filhos precisam morrer antes do pai)
+        console.log(`[EXCLUSÃO] 🧹 Limpando dados atrelados no banco...`);
+        
+        try { 
+            await prisma.lembrete.deleteMany({ where: { clienteId: botId } }); 
+            console.log(`[EXCLUSÃO] - Lembretes apagados.`);
+        } catch(e) {}
+
+        try { 
+            await prisma.contratoTemplate.deleteMany({ where: { clienteId: botId } }); 
+            console.log(`[EXCLUSÃO] - Contratos apagados.`);
+        } catch(e) {}
+
+        // 4. O Golpe Final: Apagar o Bot
+        console.log(`[EXCLUSÃO] 💥 Apagando bot do banco de dados...`);
         await prisma.cliente.delete({ where: { id: botId } });
         
+        console.log(`[EXCLUSÃO] ✅ Bot ${cliente.nome} excluído com sucesso!\n`);
         res.json({ success: true });
+        
     } catch (e) {
-        console.error("Erro crítico na exclusão:", e);
+        console.error("\n❌ ERRO CRÍTICO NA EXCLUSÃO DO BOT:");
+        console.error(e.message || e);
+        console.error("------------------------------------------------\n");
         res.status(500).json({ error: "Falha ao remover bot e arquivos" });
     }
 });
 
+//ON/OFF do Bot (Status ONLINE/OFFLINE) - Agora também inicia ou para o motor de WhatsApp
+
 app.post('/api/status', isAuth, async (req, res) => {
     try {
         const { clienteId, status } = req.body;
+        
+        // 1. Busca quem é o cliente ANTES de ligar/desligar para saber a plataforma
+        const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
+        
+        // 2. Atualiza o status no banco
         await prisma.cliente.update({ where: { id: clienteId }, data: { status: status } });
         io.emit('status', { clienteId, status });
+        
+        // 3. Separação de Rotas (A Mágica Multi-canal)
         if (status === 'ONLINE') {
-            const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
-            whatsapp.iniciarWhatsApp(cliente, io);
+            if (cliente.plataforma === 'WHATSAPP') {
+                whatsapp.iniciarWhatsApp(cliente, io);
+            } else if (cliente.plataforma === 'INSTAGRAM') {
+                console.log(`[SISTEMA] 🟣 Instagram ativado para o bot: ${cliente.nome}`);
+                // Se você tiver um módulo de insta, chame ele aqui. Exemplo:
+                // instagram.iniciarInstagram(cliente);
+            }
         } else {
-            const sessao = whatsapp.sessoes.get(clienteId);
-            if(sessao) { try { sessao.end(undefined); } catch(e){} whatsapp.sessoes.delete(clienteId); }
+            if (cliente.plataforma === 'WHATSAPP') {
+                const sessao = whatsapp.sessoes.get(clienteId);
+                if(sessao) { try { sessao.end(undefined); } catch(e){} whatsapp.sessoes.delete(clienteId); }
+            } else if (cliente.plataforma === 'INSTAGRAM') {
+                console.log(`[SISTEMA] 🟣 Instagram desligado para o bot: ${cliente.nome}`);
+                // Desligue a sessão do insta aqui, se necessário.
+            }
         }
+        
         res.json({ success: true });
-    } catch (e) { res.status(500).json({}); }
+    } catch (e) { 
+        console.error("Erro no /api/status:", e);
+        res.status(500).json({}); 
+    }
+});
+
+
+// 🚀 ROTA NOVA: Liga e Desliga o "Cérebro" do Bot no Banco de Dados
+app.post('/api/bot/ativo', async (req, res) => {
+    try {
+        const { clienteId, ativo } = req.body;
+        // Atualiza o Prisma (verdadeiro ou falso)
+        await prisma.cliente.update({ 
+            where: { id: clienteId }, 
+            data: { ativo: ativo } 
+        });
+        res.json({ success: true });
+    } catch (error) {
+        console.error("❌ Erro ao mudar status ATIVO do bot:", error.message);
+        res.status(500).json({ success: false });
+    }
 });
 
 app.get('/editor/:id', isAuth, async (req, res) => {
@@ -442,6 +579,8 @@ app.post('/upload', isAuth, upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Sem arquivo' });
     res.json({ url: `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}` });
 });
+
+
 
 // --- ADMIN API ---
 app.post('/api/admin/maintenance', isAuth, (req, res) => {
@@ -601,21 +740,23 @@ app.get('/disparo/:id', isAuth, async (req, res) => {
     }
 });
 
-
 async function religarRobosAtivos() {
     console.log("[SISTEMA] 🤖 Verificando robôs para auto-conexão...");
     const ativos = await prisma.cliente.findMany({ where: { status: 'ONLINE' } });
 
     for (const bot of ativos) {
-        console.log(`[SISTEMA] 🔌 Restaurando conexão do robô: ${bot.nome}`);
+        console.log(`[SISTEMA] 🔌 Restaurando conexão do robô: ${bot.nome} (${bot.plataforma})`);
         
-        // ✅ CORREÇÃO: Passamos o objeto 'bot' completo e o 'io' do socket
-        if (typeof iniciarBot === 'function') {
-            iniciarBot(bot, io); 
+        if (bot.plataforma === 'WHATSAPP') {
+            if (typeof iniciarBot === 'function') {
+                iniciarBot(bot, io); 
+            }
+        } else if (bot.plataforma === 'INSTAGRAM') {
+             console.log(`[SISTEMA] 🟣 Bot de Instagram ${bot.nome} está ATIVO.`);
+             // Se precisar injetar algo na memória pro Insta rodar, é aqui.
         }
     }
 }
-
 // ==========================================
 // 🚀 GESTÃO DA AGENDA 
 // ==========================================
@@ -766,8 +907,57 @@ app.get('/api/testar-lembrete/:id', isAuth, async (req, res) => {
     }
 });
 
+// ============================================================================
+// ⚖️ ROTAS JURÍDICAS E DE CONFORMIDADE (EXIGÊNCIAS DA META)
+// Instruções: Quando o sistema estiver online na sua VPS (Contabo), 
+// copie as URLs indicadas abaixo de cada rota e cole-as no painel da Meta 
+// em: Meus Apps > Configurações do App > Básico.
+// ============================================================================
 
+// 🔗 LINK PARA A META (URL da Política de Privacidade): 
+// Copie e cole -> https://calixtosystem.com.br/privacidade
+app.get('/privacidade', (req, res) => {
+    res.send(`
+        <div style="font-family: Arial; padding: 40px; background: #000; color: #fff;">
+            <h1>Política de Privacidade - Calixto OmniSystem</h1>
+            <p>A sua privacidade é importante para nós. 
+            O Calixto OmniSystem utiliza a API oficial da Meta apenas para 
+            ler e responder mensagens autorizadas pelo usuário.</p>
+            <p>Não vendemos, não compartilhamos e não utilizamos os dados
+             das conversas para nenhum outro fim que não seja o funcionamento do bot de atendimento.</p>
+        </div>
+    `);
+});
+
+// 🔗 LINK PARA A META (URL dos Termos de Serviço): 
+// Copie e cole -> https://calixtosystem.com.br/termos
+app.get('/termos', (req, res) => {
+    res.send(`
+        <div style="font-family: Arial; padding: 40px; background: #000; color: #fff;">
+            <h1>Termos de Serviço</h1>
+            <p>Ao utilizar o Calixto OmniSystem, você concorda em usar a automação 
+            de forma ética e em conformidade com as diretrizes da Meta.</p>
+        </div>
+    `);
+});
+
+// 🔗 LINK PARA A META (Instruções de Exclusão de Dados do Usuário): 
+// Copie e cole -> https://calixtosystem.com.br/exclusao-dados
+app.get('/exclusao-dados', (req, res) => {
+    res.send(`
+        <div style="font-family: Arial; padding: 40px; background: #000; color: #fff;">
+            <h1>Exclusão de Dados</h1>
+            <p>Se você deseja remover sua conta e todos os dados associados do nosso sistema,
+             envie um e-mail solicitando a exclusão para: suporte@calixtosystem.com.br.
+              Seus dados serão apagados em até 48 horas.</p>
+        </div>
+    `);
+});
+
+
+// ============================================================================
 // 🏁 4. INÍCIO DO SERVIDOR
+// ============================================================================
 server.listen(PORT, async () => {
     console.log(`🚀 CALIXTO OMNISYSTEM V19.1 ONLINE NA PORTA ${PORT}`);
     await religarRobosAtivos(); // Restaura as conexões antes de liberar o sistema

@@ -25,6 +25,7 @@
             --warning: #ff9900;
             --primary-purple: #bd00ff;
             --primary-purple-hover: #a000cc;
+            --ig-color: #E1306C; /* Cor oficial do Instagram */
         }
 
         body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; margin: 0; padding: 40px; }
@@ -61,12 +62,38 @@
         .edit-icon { color: #666; cursor: pointer; font-size: 14px; transition: 0.2s; }
         .edit-icon:hover { color: #fff; }
 
-        /* HEADER CONTROLS (Icone Ajuda + Switch) */
+        /* HEADER CONTROLS */
         .header-controls { display: flex; align-items: center; gap: 15px; }
         .help-btn { background: transparent; border: 1px solid #333; color: #666; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; cursor: pointer; transition: 0.2s; }
         .help-btn:hover { border-color: var(--primary-blue); color: var(--primary-blue); }
 
-        .bot-number { background: #000; border: 1px solid #222; padding: 10px; border-radius: 6px; color: #888; font-family: monospace; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+        /* CANAIS DE COMUNICAÇÃO (WA / IG) */
+        .channel-box { background: #000; border: 1px solid #222; padding: 10px; border-radius: 6px; color: #888; font-family: monospace; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+        .channel-info { display: flex; align-items: center; gap: 8px; }
+        .btn-connect-ig { background: var(--ig-color); color: #fff; border: none; padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-connect-ig:hover { filter: brightness(1.2); }
+        .btn-disconnect-ig { background: transparent; border: 1px solid var(--ig-color); color: var(--ig-color); padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .btn-disconnect-ig:hover { background: rgba(225, 48, 108, 0.1); }
+
+        /* Melhoria visual para o status de conexão */
+.channel-status {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+.status-connected { background: rgba(0, 224, 84, 0.1); color: #00e054; border: 1px solid #00e054; }
+.status-waiting { background: rgba(255, 153, 0, 0.1); color: #ff9900; border: 1px solid #ff9900; }
+
+/* Badge de Identificação do Canal */
+.channel-label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 11px;
+    font-weight: 600;
+}
 
         /* BOTÕES DO CARD */
         .btn-disparo { flex: 1; background-color: var(--primary-purple); color: #fff; border: none; padding: 12px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; }
@@ -159,6 +186,7 @@
         <% if (typeof clientes !== 'undefined' && clientes.length > 0) { %>
             <% clientes.forEach(c => { %>
                 <div class="card">
+                    <!-- Cabeçalho do Card -->
                     <div class="card-header">
                         <div class="bot-name">
                             <%= c.nome %> 
@@ -166,24 +194,57 @@
                         </div>
                         
                         <div class="header-controls">
-                            <div class="help-btn" onclick="showHelp()" title="Ajuda de Conexão"><i class="ri-question-line"></i></div>
+                            <div class="help-btn" onclick="showHelp()" title="Ajuda de Conexão">
+                                <i class="ri-question-line"></i>
+                            </div>
+                            
+                            <!-- Switch Universal (Agora visível para Instagram e WhatsApp) -->
                             <label class="switch">
                                 <input type="checkbox" id="check-<%= c.id %>" <%= c.status === 'ONLINE' ? 'checked' : '' %> onchange="toggleBot('<%= c.id %>', this)">
                                 <span class="slider"></span>
                             </label>
                         </div>
                     </div>
-
-                    <div class="bot-number">
-                        <i class="ri-whatsapp-line" style="color: #00e054;"></i>
-                        <%= c.numero || 'Sem número' %>
-                    </div>
-
-                    <div id="pairing-box-<%= c.id %>" class="pairing-box"></div>
-                    <div id="help-text-<%= c.id %>" class="help-text">WhatsApp > Aparelhos > Conectar</div>
-
-                    <div class="card-actions">
-
+    
+                    <!-- Conteúdo por Plataforma -->
+                    <% if (c.plataforma === 'INSTAGRAM') { %>
+                        <!-- Box Instagram -->
+                        <div class="channel-box" style="margin-bottom: 5px; border: 1px solid var(--border-color); padding: 10px; border-radius: 6px; background: #0a0a0a; display: flex; justify-content: space-between; align-items: center;">
+                            <div class="channel-info" style="display: flex; align-items: center; gap: 8px;">
+                                <i class="ri-instagram-line" style="color: var(--primary-purple); font-size: 16px;"></i>
+                                <span style="font-size: 12px; font-weight: 600; color: #fff;">Instagram</span>
+                                <span style="font-size: 11px; color: #888; margin-left: 5px;"><%= c.numero || 'Aguardando...' %></span>
+                            </div>
+                            
+                            <div>
+                                <% if (c.status === 'ONLINE') { %>
+                                    <span style="font-size: 10px; color: var(--success); border: 1px solid var(--success); padding: 2px 5px; border-radius: 3px; margin-right: 5px;">ATIVO</span>
+                                    <button onclick="toggleBot('<%= c.id %>', 'OFFLINE')" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); font-size: 10px; padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: 0.2s;">
+                                        SAIR
+                                    </button>
+                                <% } else { %>
+                                    <span style="font-size: 10px; color: var(--warning); border: 1px solid var(--warning); padding: 2px 5px; border-radius: 3px; margin-right: 5px;">OFF</span>
+                                    <button onclick="window.location.href='/instagram/setup?clienteId=<%= c.id %>'" style="background: var(--primary-purple); border: none; color: #fff; font-size: 10px; padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: 0.2s;">
+                                        CONECTAR
+                                    </button>
+                                <% } %>
+                            </div>
+                        </div>
+                    <% } else { %>
+                        <!-- Box WhatsApp -->
+                        <div class="channel-box" style="margin-bottom: 5px; border: 1px solid #222; padding: 10px; border-radius: 6px; background: #000;">
+                            <div class="channel-info" style="display: flex; align-items: center; gap: 8px;">
+                                <i class="ri-whatsapp-line" style="color: #00e054; font-size: 16px;"></i>
+                                <span style="font-size: 12px; font-weight: 600; color: #fff;">WhatsApp</span>
+                                <span style="font-size: 11px; color: #888; margin-left: 5px;"><%= c.numero || 'Sem número' %></span>
+                            </div>
+                        </div>
+                        <div id="pairing-box-<%= c.id %>" class="pairing-box"></div>
+                        <div id="help-text-<%= c.id %>" class="help-text">WhatsApp > Aparelhos > Conectar</div>
+                    <% } %>
+    
+                    <!-- Ações do Card -->
+                    <div class="card-actions" style="margin-top: 15px;">
                         <button class="btn-disparo" onclick="window.location.href='/disparo/<%= c.id %>'">
                             <i class="ri-megaphone-line"></i> Disparo
                         </button>
@@ -197,6 +258,7 @@
                 </div>
             <% }) %>
         <% } else { %>
+            <!-- Estado Vazio -->
             <div style="grid-column: 1/-1; text-align: center; color: #444; padding: 60px; border: 1px dashed #333; border-radius: 8px;">
                 <i class="ri-robot-line" style="font-size: 40px; margin-bottom: 10px;"></i><br>
                 Nenhum bot criado.
@@ -237,7 +299,7 @@
         </div>
 
         <script>
-            // --- SCRIPT DO ADMIN ---
+            // --- SCRIPT DO ADMIN (MANTIDO INTACTO) ---
             async function toggleMaintenance() {
                 const btn = document.getElementById('btnMaintenance');
                 const isMaintenance = btn.innerText.includes('DESATIVAR');
@@ -271,7 +333,6 @@
                     if (res.headers.get("content-type").indexOf("json") === -1) { window.location.href = '/login'; return; }
                     const users = await res.json();
                     
-                    // --- CABEÇALHO DA TABELA ---
                     let html = `<table><thead><tr>
                         <th>Usuário</th>
                         <th>Plano</th>
@@ -319,7 +380,6 @@
                             else { dataFormatada += ` <br><span style="color:#00e054; font-size:10px;">(${dias} dias)</span>`; }
                         }
 
-                        // --- LÓGICA DO CAMPO JURÍDICO (FONTE AUMENTADA PARA 12px) ---
                         let juridicoHtml = '';
                         if (u.termsAccepted) {
                             const dataAceite = u.termsAcceptedAt ? new Date(u.termsAcceptedAt).toLocaleDateString('pt-BR') + ' ' + new Date(u.termsAcceptedAt).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : 'N/A';
@@ -443,19 +503,13 @@
             }
         });
 
-        // ==========================================
-        // 🚨 CORREÇÃO CRÍTICA AQUI!
-        // REMOVI O: "setTimeout(() => location.reload(), 1000);"
-        // AGORA A PÁGINA NÃO RECARREGA SOZINHA!
-        // ==========================================
-        
         socket.on('status', (data) => { 
-    if(data.status === 'ONLINE') {
-        const check = document.getElementById(`check-${data.clienteId}`);
-        if(check) check.checked = true;
-        // setTimeout(() => location.reload(), 1000); 
-    }
-});
+            if(data.status === 'ONLINE') {
+                const check = document.getElementById(`check-${data.clienteId}`);
+                if(check) check.checked = true;
+            }
+        });
+        
         function showHelp() {
             swalDark.fire({
                 title: 'CENTRAL DE AJUDA',
@@ -479,68 +533,269 @@
         }
 
         async function novoBot() {
-            const { value: form } = await swalDark.fire({
-                title: 'Novo Cliente',
-                html: '<input id="nome" class="swal2-input" placeholder="Nome"><input id="num" class="swal2-input" placeholder="55..." type="number">',
-                preConfirm: () => [document.getElementById('nome').value, document.getElementById('num').value]
+    const { value: form } = await swalDark.fire({
+        title: 'Novo Cliente',
+        width: 500, // Deixa o modal um pouco mais largo para acomodar os inputs
+        html: `
+            <style>
+                .swal-custom-container { text-align: left; padding: 0 5px; margin-top: 15px; }
+                
+                /* Toggles de Seleção */
+                .platform-selector { display: flex; gap: 10px; justify-content: center; margin-bottom: 25px; }
+                .platform-btn { flex: 1; padding: 12px; border: 1px solid #333; background: #0a0a0a; color: #666; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.3s; font-weight: 600; font-size: 14px; }
+                .platform-btn:hover { background: #111; border-color: #555; }
+                
+                /* Cores Ativas */
+                .platform-btn.active-wpp { background: rgba(0, 224, 84, 0.1); border-color: #00e054; color: #00e054; }
+                .platform-btn.active-insta { background: rgba(189, 0, 255, 0.1); border-color: var(--primary-purple); color: var(--primary-purple); }
+                
+                /* Inputs com Ícone Embutido */
+                .input-group { display: flex; align-items: stretch; background: #111; border: 1px solid #333; border-radius: 8px; overflow: hidden; margin-bottom: 15px; width: 100%; transition: 0.3s; }
+                .input-group:focus-within { border-color: var(--primary-blue); }
+                .input-icon { width: 50px; font-size: 20px; background: #0a0a0a; border-right: 1px solid #333; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+                .custom-input { flex: 1; background: transparent; border: none; color: #fff; padding: 15px; outline: none; font-size: 14px; font-family: 'Inter', sans-serif; }
+                .custom-input::placeholder { color: #555; }
+            </style>
+            
+            <div class="swal-custom-container">
+                <div class="platform-selector">
+                    <div id="btn-wpp" class="platform-btn active-wpp"><i class="ri-whatsapp-line" style="font-size: 18px;"></i> WhatsApp</div>
+                    <div id="btn-insta" class="platform-btn"><i class="ri-instagram-line" style="font-size: 18px;"></i> Instagram</div>
+                </div>
+                
+                <input type="hidden" id="plataforma" value="WHATSAPP">
+                
+                <div class="input-group">
+                    <div class="input-icon"><i class="ri-robot-2-line" style="color: #888;"></i></div>
+                    <input id="nome" class="custom-input" placeholder="Nome do Bot (Ex: Suporte, Vendas...)">
+                </div>
+
+                <div class="input-group">
+                    <div id="dynamic-icon" class="input-icon"><i class="ri-whatsapp-line" style="color: #00e054;"></i></div>
+                    <input id="num" class="custom-input" type="text" placeholder="Número (Ex: 5511999999999)">
+                </div>
+            </div>
+        `,
+        didOpen: () => {
+            // Lógica que roda assim que o modal abre (para fazer a troca dinâmica)
+            const btnWpp = document.getElementById('btn-wpp');
+            const btnInsta = document.getElementById('btn-insta');
+            const inputPlataforma = document.getElementById('plataforma');
+            const icon = document.getElementById('dynamic-icon');
+            const inputNum = document.getElementById('num');
+
+            btnWpp.addEventListener('click', () => {
+                inputPlataforma.value = 'WHATSAPP';
+                btnWpp.classList.add('active-wpp');
+                btnInsta.classList.remove('active-insta');
+                icon.innerHTML = '<i class="ri-whatsapp-line" style="color: #00e054;"></i>';
+                inputNum.placeholder = 'Número (Ex: 5511999999999)';
             });
-            if (form) {
-                const res = await fetch('/api/clientes', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ nome: form[0], numero: form[1] }) });
-                const data = await res.json();
-                if (data.success) {
-                    swalDark.fire({ title: 'Sucesso!', text: 'Configurar fluxo?', icon: 'success', showCancelButton: true, confirmButtonText: 'Sim' }).then((r) => {
-                        if (r.isConfirmed) window.location.href = '/editor/' + data.id; else window.location.reload();
+
+            btnInsta.addEventListener('click', () => {
+                inputPlataforma.value = 'INSTAGRAM';
+                btnInsta.classList.add('active-insta');
+                btnWpp.classList.remove('active-wpp');
+                icon.innerHTML = '<i class="ri-instagram-line" style="color: var(--primary-purple);"></i>';
+                inputNum.placeholder = 'Username (Ex: @calixto.dev)';
+            });
+        },
+        preConfirm: () => {
+            const nome = document.getElementById('nome').value.trim();
+            const num = document.getElementById('num').value.trim();
+            const plat = document.getElementById('plataforma').value;
+            
+            // Validação para não criar bot vazio
+            if (!nome || !num) {
+                Swal.showValidationMessage('Por favor, preencha o nome e o contato!');
+                return false;
+            }
+            return [nome, num, plat];
+        }
+    });
+
+    if (form) {
+        // Envia para o Backend
+        const res = await fetch('/api/clientes', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ nome: form[0], numero: form[1], plataforma: form[2] }) 
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+            swalDark.fire({ 
+                title: 'Bot Criado!', 
+                text: 'Deseja configurar o fluxo de automação agora?', 
+                icon: 'success', 
+                showCancelButton: true, 
+                confirmButtonText: 'Editar Fluxo',
+                cancelButtonText: 'Mais Tarde',
+                confirmButtonColor: '#0066ff'
+            }).then((r) => {
+                if (r.isConfirmed) window.location.href = '/editor/' + data.id; 
+                else window.location.reload();
+            });
+        } else {
+            swalDark.fire('Erro', data.error || 'Erro ao criar o cliente.', 'error');
+        }
+    }
+}
+
+
+
+        async function editarBot(id, nome, num, igUser) {
+    const { value: form } = await swalDark.fire({
+        title: 'Editar Cliente',
+        html: `
+            <div style="text-align: left; font-size: 12px; color: #888; margin-bottom: 5px;">Nome do Projeto:</div>
+            <input id="ed-nome" class="swal2-input" placeholder="Nome" value="${nome}" style="margin-top: 0;">
+            
+            <div style="text-align: left; font-size: 12px; color: #00e054; margin-top: 15px; margin-bottom: 5px;">WhatsApp:</div>
+            <input id="ed-num" class="swal2-input" placeholder="5521999999999" value="${num}" type="number" style="margin-top: 0;">
+            
+            <div style="text-align: left; font-size: 12px; color: #E1306C; margin-top: 15px; margin-bottom: 5px;">@ do Instagram (Visual):</div>
+            <input id="ed-ig" class="swal2-input" placeholder="usuario_do_insta" value="${igUser === 'null' || !igUser ? '' : igUser}" style="margin-top: 0;">
+        `,
+        preConfirm: () => [
+            document.getElementById('ed-nome').value,
+            document.getElementById('ed-num').value,
+            document.getElementById('ed-ig').value
+        ]
+    });
+    
+    if(form) {
+        await fetch(`/api/clientes/${id}`, { 
+            method: 'PUT', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ 
+                nome: form[0], 
+                numero: form[1],
+                instagramUser: form[2]
+            }) 
+        });
+        location.reload();
+    }
+}
+
+
+async function excluirBot(id) {
+    // 1. O console do navegador vai avisar se o clique funcionou
+    console.log("🗑️ Botão excluir clicado! ID do Bot:", id); 
+
+    try {
+        // 2. Chama a caixa de confirmação
+        const confirmacao = await swalDark.fire({ 
+            title: 'Excluir Cliente?', 
+            text: 'Isso apagará o bot, os contratos e os lembretes atrelados a ele. Não tem volta.', 
+            icon: 'warning', 
+            showCancelButton: true, 
+            confirmButtonColor: '#ff3333',
+            cancelButtonColor: '#333',
+            confirmButtonText: 'Sim, excluir!',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (confirmacao.isConfirmed) {
+            console.log("⏳ Enviando ordem de exclusão para o servidor...");
+            
+            // 3. Faz o pedido de exclusão para a rota que arrumamos
+            const resposta = await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
+            const dados = await resposta.json();
+
+            // 4. Analisa a resposta
+            if (dados.success) {
+                await swalDark.fire({
+                    title: 'Excluído!', 
+                    text: 'O bot foi apagado com sucesso.', 
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                });
+                window.location.reload();
+            } else {
+                console.error("❌ O servidor recusou a exclusão:", dados);
+                swalDark.fire('Erro no Servidor', dados.error || 'Falha ao excluir o bot.', 'error');
+            }
+        }
+    } catch (erro) {
+        // Se o JavaScript do navegador quebrar, ele cai aqui
+        console.error("❌ Erro no código do navegador:", erro);
+        alert("Ocorreu um erro interno no seu navegador. Aperte F12 e olhe a aba Console.");
+    }
+}
+
+
+async function toggleBot(id, elementoOuStatus) {
+    // Se recebeu uma String ('ONLINE' ou 'OFFLINE'), é o Instagram. Se não, é o Checkbox do WhatsApp.
+    const status = typeof elementoOuStatus === 'string' ? elementoOuStatus : (elementoOuStatus.checked ? 'ONLINE' : 'OFFLINE');
+    
+    // Se for o checkbox do Wpp, bloqueia ele temporariamente para evitar cliques duplos
+    if (typeof elementoOuStatus !== 'string') {
+        elementoOuStatus.disabled = true;
+        const box = document.getElementById(`pairing-box-${id}`);
+        if(box && status === 'ONLINE') { box.style.display = 'block'; box.innerText = "Conectando..."; }
+    }
+
+    try {
+        const res = await fetch('/api/status', { 
+            method: 'POST', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ clienteId: id, status }) 
+        });
+        
+        const data = await res.json();
+        
+        if (data.success) {
+            // Sucesso! Recarrega a tela suavemente para atualizar os botões e cores
+            setTimeout(() => { window.location.reload(); }, 600);
+        } else {
+            throw new Error("Falha na resposta");
+        }
+    } catch (e) {
+        if (typeof elementoOuStatus !== 'string') elementoOuStatus.checked = !elementoOuStatus.checked;
+        swalDark.fire('Erro', 'Falha ao tentar mudar o status.', 'error');
+    }
+
+    if (typeof elementoOuStatus !== 'string') {
+        setTimeout(() => { elementoOuStatus.disabled = false; }, 3000);
+    }
+}
+        // ==========================================
+        // 🚀 INTEGRAÇÃO INSTAGRAM V12
+        // ==========================================
+        
+        function conectarInstagram(clienteId) {
+            // Salva o ID do cliente temporariamente para o back-end saber quem está conectando
+            window.location.href = `/instagram/auth/login?clienteId=${clienteId}`;
+        }
+
+        async function desconectarInstagram(clienteId) {
+            if((await swalDark.fire({ title: 'Desconectar Instagram?', text:'O bot deixará de responder nesta conta.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#E1306C' })).isConfirmed) {
+                try {
+                    const res = await fetch(`/instagram/auth/desconectar`, { 
+                        method: 'POST', 
+                        headers: {'Content-Type': 'application/json'}, 
+                        body: JSON.stringify({ clienteId }) 
                     });
+                    if (res.ok) window.location.reload();
+                } catch (e) {
+                    swalDark.fire('Erro', 'Falha ao desconectar.', 'error');
                 }
             }
         }
+        async function desconectarInsta(clienteId) {
+    if(confirm("Tem certeza que deseja desconectar o Instagram deste bot?")) {
+        // Envia um comando vazio para limpar os dados no banco
+        await fetch(`/api/clientes/${clienteId}`, { 
+            method: 'PUT', 
+            headers: {'Content-Type': 'application/json'}, 
+            body: JSON.stringify({ instagramUser: null, instagramId: null, instagramToken: null }) 
+        });
+        location.reload();
+    }
+}
 
-        async function editarBot(id, nome, num) {
-            const { value: form } = await swalDark.fire({
-                title: 'Editar',
-                html: `<input id="ed-nome" class="swal2-input" value="${nome}"><input id="ed-num" class="swal2-input" value="${num}">`,
-                preConfirm: () => [document.getElementById('ed-nome').value, document.getElementById('ed-num').value]
-            });
-            if(form) {
-                await fetch(`/api/clientes/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ nome: form[0], numero: form[1] }) });
-                location.reload();
-            }
-        }
-
-        async function toggleBot(id, checkbox) {
-            const status = checkbox.checked ? 'ONLINE' : 'OFFLINE';
-            const box = document.getElementById(`pairing-box-${id}`);
-            const help = document.getElementById(`help-text-${id}`);
-
-            checkbox.disabled = true;
-
-            if (status === 'ONLINE') {
-                if(box) { box.style.display = 'block'; box.innerText = "AGUARDE..."; if(help) help.style.display = 'block'; }
-            } else {
-                if(box) { box.style.display = 'none'; box.innerText = ""; }
-                if(help) help.style.display = 'none';
-            }
-
-            try {
-                await fetch('/api/status', { 
-                    method: 'POST', 
-                    headers: {'Content-Type': 'application/json'}, 
-                    body: JSON.stringify({ clienteId: id, status }) 
-                });
-            } catch (e) {
-                checkbox.checked = !checkbox.checked;
-                swalDark.fire('Erro', 'Falha na conexão', 'error');
-            }
-
-            setTimeout(() => { checkbox.disabled = false; }, 3000);
-        }
-
-        async function excluirBot(id) {
-            if((await swalDark.fire({ title: 'Excluir?', text:'Não tem volta.', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33' })).isConfirmed) {
-                await fetch(`/api/clientes/${id}`, { method: 'DELETE' });
-                window.location.reload();
-            }
-        }
     </script>
 </body>
 </html>

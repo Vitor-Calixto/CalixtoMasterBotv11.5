@@ -1029,17 +1029,39 @@
 
                         if (node.name === 'midia') { 
                             const img = el.querySelector('img'); 
-                            if (img) { 
-                                img.src = url; 
-                                img.style.display = 'block'; 
-                                area.style.display = 'none'; 
+                            const fileUrl = url.toLowerCase();
+                            const fileName = url.split('/').pop(); // Pega só o nome do arquivo no final do link
+
+                            if (fileUrl.endsWith('.pdf')) {
+                                if (img) img.style.display = 'none';
+                                area.innerHTML = `<div style="text-align: center; padding: 10px;">
+                                                    <i class="fas fa-file-pdf" style="font-size: 24px; color: #ff4757; margin-bottom: 5px;"></i><br>
+                                                    <span style="font-size: 10px;">${fileName.substring(0, 15)}...</span>
+                                                  </div>`;
+                                area.style.display = 'block';
                             } 
+                            else if (fileUrl.endsWith('.mp4')) {
+                                if (img) img.style.display = 'none';
+                                area.innerHTML = `<div style="text-align: center; padding: 10px;">
+                                                    <i class="fas fa-file-video" style="font-size: 24px; color: #70a1ff; margin-bottom: 5px;"></i><br>
+                                                    <span style="font-size: 10px;">${fileName.substring(0, 15)}...</span>
+                                                  </div>`;
+                                area.style.display = 'block';
+                            } 
+                            else {
+                                // É imagem (jpg, png, etc)
+                                if (img) { 
+                                    img.src = url; 
+                                    img.style.display = 'block'; 
+                                    area.style.display = 'none'; 
+                                } 
+                            }
                         } else if (node.name === 'audio') { 
                             area.innerHTML = '<i class="fas fa-check"></i> Áudio Salvo!'; 
                         }
                     }
                 }
-
+                
                 // Sincronização forçada dos Contratos
                 else if (node.name === 'gerar_documento') {
                     setTimeout(() => {
@@ -1212,7 +1234,9 @@
                 editor.updateNodeDataFromId(nodeId, data);
             }
         });
-        // =========================================================
+
+
+    // =========================================================
         // 23. SISTEMA DE UPLOAD DE ARQUIVOS (MÍDIA/ÁUDIO/PDF)
         // Faz o upload, injeta a URL e avisa o Drawflow
         // =========================================================
@@ -1258,11 +1282,30 @@
                         area.innerHTML = `<span><i class="fas fa-check"></i> Áudio Salvo!</span>`; 
                     } 
                     else { 
-                        area.innerHTML = `
-                            <span>Substituir</span>
-                            <img src="${data.url}" style="display:block; max-height: 100px; margin-top: 5px;">
-                        `; 
-                        area.querySelector('span').style.display = 'none'; 
+                        // Lógica Dinâmica para o Nó de Mídia (Imagens, PDFs e Vídeos)
+                        const fileUrl = data.url.toLowerCase();
+                        const fileName = data.url.split('/').pop();
+
+                        if (fileUrl.endsWith('.pdf')) {
+                            area.innerHTML = `<div style="text-align: center; padding: 10px;">
+                                                <i class="fas fa-file-pdf" style="font-size: 24px; color: #ff4757; margin-bottom: 5px;"></i><br>
+                                                <span style="font-size: 10px;">${fileName.substring(0, 15)}...</span>
+                                              </div>`;
+                        } 
+                        else if (fileUrl.endsWith('.mp4')) {
+                            area.innerHTML = `<div style="text-align: center; padding: 10px;">
+                                                <i class="fas fa-file-video" style="font-size: 24px; color: #70a1ff; margin-bottom: 5px;"></i><br>
+                                                <span style="font-size: 10px;">${fileName.substring(0, 15)}...</span>
+                                              </div>`;
+                        } 
+                        else {
+                            // É imagem (.jpg, .png, etc) - Mantém o preview visual
+                            area.innerHTML = `
+                                <span>Substituir</span>
+                                <img src="${data.url}" style="display:block; max-height: 100px; margin-top: 5px;">
+                            `; 
+                            area.querySelector('span').style.display = 'none'; 
+                        }
                     }
                 }
             } catch (e) { 
@@ -1271,6 +1314,7 @@
                 Swal.fire('Upload Falhou', 'Não foi possível enviar o arquivo para o servidor.', 'error');
             }
         }
+
 
         // =========================================================
         // 24. SALVAMENTO DO FLUXO NO BANCO DE DADOS

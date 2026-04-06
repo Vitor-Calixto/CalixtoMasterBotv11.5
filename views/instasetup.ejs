@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Conectar Instagram - Calixto OmniSystem</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #050505; --card-bg: #0f0f0f; --border-color: #222;
+            --primary-purple: #bd00ff; --primary-hover: #a000cc;
+            --text-main: #ffffff; --text-muted: #888;
+            --alert-bg: rgba(189, 0, 255, 0.1); --alert-border: rgba(189, 0, 255, 0.3);
+        }
+        body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; margin: 0; padding: 40px; display: flex; justify-content: center; }
+        .container { max-width: 800px; width: 100%; }
+        
+        /* Header */
+        .header-title { display: flex; align-items: center; gap: 15px; margin-bottom: 10px; font-size: 24px; font-weight: 700; color: var(--primary-purple); }
+        .subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 25px; line-height: 1.5; }
+        
+        /* Imagem Mapa Mental (Hero Image) */
+        .hero-image-container { margin-bottom: 35px; border-radius: 12px; overflow: hidden; border: 1px solid var(--border-color); box-shadow: 0 8px 20px rgba(0,0,0,0.6); text-align: center; background: #fff; }
+        .hero-image-container img { width: 100%; height: auto; display: block; object-fit: cover; }
+
+        /* Box de Requisitos */
+        .alert-box { background: var(--alert-bg); border: 1px solid var(--alert-border); border-radius: 8px; padding: 20px; margin-bottom: 30px; }
+        .alert-box h4 { margin: 0 0 10px 0; color: #fff; display: flex; align-items: center; gap: 8px; font-size: 16px; }
+        .alert-box ul { margin: 0; padding-left: 20px; color: #ddd; font-size: 14px; line-height: 1.6; }
+        .alert-box li strong { color: var(--primary-purple); }
+
+        /* Cards de Tutorial */
+        .tutorial-step { background: #0a0a0a; border: 1px solid var(--border-color); border-radius: 12px; padding: 25px; margin-bottom: 25px; display: flex; flex-direction: column; gap: 15px; }
+        .step-header { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 16px; color: #fff; }
+        .step-number { background: var(--primary-purple); color: #fff; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 14px; font-weight: 700; flex-shrink: 0; }
+        .step-content { color: #aaa; font-size: 14px; line-height: 1.6; margin-left: 38px; }
+        .step-content a { color: var(--primary-purple); text-decoration: none; font-weight: bold; }
+        .step-content a:hover { text-decoration: underline; }
+        
+        /* Imagens Ilustrativas Menores */
+        .step-image-container { margin-top: 15px; border-radius: 8px; overflow: hidden; border: 1px solid #333; background: #000; text-align: center; }
+        .step-image-container img { max-width: 100%; max-height: 350px; height: auto; display: block; margin: 0 auto; opacity: 0.85; transition: 0.3s; object-fit: contain; }
+        .step-image-container img:hover { opacity: 1; }
+        
+        /* Copy Box */
+        .copy-box-wrapper { display: flex; align-items: stretch; margin-top: 15px; }
+        .copy-box { flex: 1; background: #000; border: 1px dashed #444; border-right: none; padding: 12px 15px; font-family: monospace; color: #00e054; border-radius: 6px 0 0 6px; overflow-x: auto; white-space: nowrap; font-size: 13px; }
+        .btn-copy { background: #222; border: 1px solid #444; color: #fff; padding: 0 20px; border-radius: 0 6px 6px 0; cursor: pointer; transition: 0.2s; display: flex; align-items: center; justify-content: center; }
+        .btn-copy:hover { background: #333; color: var(--primary-purple); }
+
+        /* Formulário Final */
+        .form-card { background: var(--card-bg); border: 1px solid var(--primary-purple); border-radius: 12px; padding: 30px; margin-top: 40px; box-shadow: 0 0 20px rgba(189, 0, 255, 0.05); }
+        .form-card h3 { margin-top: 0; color: #fff; font-size: 18px; margin-bottom: 20px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #aaa; }
+        input { width: 100%; box-sizing: border-box; background: #000; border: 1px solid #333; color: #fff; padding: 14px; border-radius: 6px; font-size: 14px; outline: none; transition: 0.3s; }
+        input:focus { border-color: var(--primary-purple); box-shadow: 0 0 0 3px rgba(189, 0, 255, 0.1); }
+        input::placeholder { color: #444; }
+        
+        .btn-submit { background: var(--primary-purple); color: #fff; border: none; width: 100%; padding: 16px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.3s; font-size: 14px; margin-top: 10px; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-submit:hover { background: var(--primary-hover); transform: translateY(-2px); }
+        .btn-voltar { color: #666; text-decoration: none; font-size: 13px; display: inline-flex; align-items: center; gap: 5px; margin-bottom: 30px; transition: 0.2s; }
+        .btn-voltar:hover { color: #fff; }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/dashboard" class="btn-voltar"><i class="ri-arrow-left-line"></i> Voltar ao Dashboard</a>
+        
+        <div class="header-title">
+            <i class="ri-instagram-fill" style="font-size: 32px;"></i> Conexão Oficial da Meta
+        </div>
+        <div class="subtitle">
+            Para garantir total segurança dos seus dados e zero risco de bloqueios, utilizamos o método <strong>Aplicativo Próprio (BYOA)</strong>. O seu robô vai rodar sob as regras oficiais do Instagram. Siga o passo a passo com atenção.
+        </div>
+
+        <!-- 🚀 MAPA MENTAL INSERIDO AQUI -->
+        <div class="hero-image-container">
+            <img src="/uploads/mapamental.png" alt="Mapa Mental da Conexão Instagram BYOA">
+        </div>
+
+        <!-- PRÉ-REQUISITOS -->
+        <div class="alert-box">
+            <h4><i class="ri-error-warning-line"></i> Requisitos Iniciais Obrigatórios</h4>
+            <ul>
+                <li>O seu perfil do Instagram <strong>precisa ser Profissional</strong> (Empresa ou Criador de Conteúdo).</li>
+                <li>O seu perfil do Instagram <strong>precisa estar vinculado a uma Página do Facebook</strong>. Se não estiver, vá em "Editar Perfil" no Instagram e adicione uma Página.</li>
+            </ul>
+        </div>
+
+        <!-- PASSO 1: CELULAR -->
+        <div class="tutorial-step">
+            <div class="step-header">
+                <div class="step-number">1</div>
+                Prepare o seu Instagram no Celular
+            </div>
+            <div class="step-content">
+                No app do Instagram, vá em <strong>Configurações e atividade</strong> > <strong>Tipo e ferramentas da conta</strong>.<br>
+                Certifique-se de que sua conta esteja como <strong>Profissional</strong>. Se a sua conta for pessoal, basta clicar no link azul <strong>"Mudar tipo de conta"</strong> e seguir os passos da tela.
+                <br><br>
+                Em seguida, ainda nas Configurações, vá em <strong>Mensagens e respostas ao story</strong> > <strong>Controles de mensagens</strong> e <strong>ative</strong> a opção "Permitir acesso às mensagens". Isso permite que o robô leia as mensagens que chegam.
+                
+                <div class="step-image-container">
+                    <img src="/uploads/tipocontaInsta.jpeg" alt="Transformando conta em Profissional no Instagram">
+                </div>
+            </div>
+        </div>
+
+        <!-- PASSO 2: CRIAR APP -->
+        <div class="tutorial-step">
+            <div class="step-header">
+                <div class="step-number">2</div>
+                Crie seu Aplicativo na Meta for Developers
+            </div>
+            <div class="step-content">
+                Pelo computador, acesse a <a href="https://developers.facebook.com/apps/" target="_blank">Página de Desenvolvedores da Meta</a> e faça login com seu Facebook pessoal.<br>
+                Clique no botão verde <strong>"Criar Aplicativo"</strong>.<br>
+                Selecione a opção <strong>"Outro"</strong> (ou Avançar) e, na tela seguinte, escolha o tipo <strong>"Empresa"</strong>. Dê um nome ao seu aplicativo (ex: Meu Atendimento) e conclua a criação.
+            </div>
+        </div>
+
+        <!-- PASSO 3: URL REDIRECIONAMENTO -->
+        <div class="tutorial-step">
+            <div class="step-header">
+                <div class="step-number">3</div>
+                Configure o Login do Facebook
+            </div>
+            <div class="step-content">
+                Na página inicial do seu aplicativo recém-criado, desça a tela e procure o card <strong>"Login do Facebook para Empresas"</strong>. Clique em <strong>"Configurar"</strong>.<br>
+                No menu lateral, vá em "Configurações" dentro de Login do Facebook. Encontre o campo <strong>"URIs de redirecionamento do OAuth válidos"</strong> e cole o link exato abaixo:
+                
+                <div class="copy-box-wrapper">
+                    <div class="copy-box" id="urlBox"><%= callbackUrl %></div>
+                    <button class="btn-copy" onclick="copiarUrl()" title="Copiar URL"><i class="ri-file-copy-line"></i></button>
+                </div>
+                <div style="margin-top: 10px; font-size: 12px; color: #888;">
+                    * Não se esqueça de clicar em "Salvar alterações" no rodapé da página da Meta após colar a URL.
+                </div>
+            </div>
+        </div>
+
+      <!-- PASSO 4: CREDENCIAIS -->
+      <div class="tutorial-step">
+        <div class="step-header">
+            <div class="step-number">4</div>
+            Copie suas Credenciais de Conexão
+        </div>
+        <div class="step-content">
+            Ao clicar no botão escuro abaixo, você verá a tela com os seus aplicativos. <strong>Clique no card do aplicativo que você acabou de criar</strong>.<br><br>
+            Já dentro do painel do seu aplicativo, olhe o menu lateral esquerdo e clique em <strong>Configurações do app</strong> > <strong>Básico</strong>.<br>
+            Lá você encontrará o <strong>ID do aplicativo</strong> e a <strong>Chave Secreta do aplicativo</strong> (clique no botão "Mostrar" e digite sua senha do Facebook para revelá-la). Copie esses dois códigos e cole-os no formulário da nossa plataforma logo abaixo.
+
+            <div class="step-image-container">
+                <img src="/uploads/telaaapp2.jpeg" alt="Tela da lista de Aplicativos">
+                
+                <!-- Faixa divisória elegante entre as imagens -->
+                <div style="padding: 12px; color: #aaa; font-size: 13px; font-weight: 600; border-top: 1px solid #333; border-bottom: 1px solid #333; background: #111;">
+                    <i class="ri-arrow-down-line" style="color: var(--primary-purple);"></i> Após clicar no seu app, você será redirecionado para a tela abaixo:
+                </div>
+                
+                <img src="/uploads/TelaBasicaMeta.jpeg" alt="Tela de configurações básicas da Meta">
+            </div>
+
+            <div style="text-align: center; margin-top: 15px;">
+                <a href="https://developers.facebook.com/apps/" target="_blank" style="display: inline-flex; align-items: center; gap: 8px; background: #1a1a1a; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 13px; border: 1px solid #333; transition: 0.3s;" onmouseover="this.style.background='#bd00ff'; this.style.borderColor='#bd00ff';" onmouseout="this.style.background='#1a1a1a'; this.style.borderColor='#333';">
+                    <i class="ri-external-link-line" style="font-size: 16px;"></i> Acessar meus Aplicativos na Meta
+                </a>
+            </div>
+        </div>
+    </div>
+
+        <!-- FORMULÁRIO FINAL -->
+        <div class="form-card">
+            <h3><i class="ri-key-2-line" style="color: var(--primary-purple); margin-right: 8px;"></i> Insira suas Credenciais e Conecte</h3>
+            <p style="color: #888; font-size: 13px; margin-bottom: 25px; line-height: 1.5;">
+                Após preencher os dados abaixo, você será redirecionado para o Facebook para autorizar as permissões finais do robô na sua página.
+            </p>
+
+            <form action="/instagram/auth/login" method="POST">
+                <input type="hidden" name="clienteId" value="<%= clienteId %>">
+                
+                <div class="form-group">
+                    <label>ID do Aplicativo (App ID)</label>
+                    <input type="text" name="appId" placeholder="Ex: 1456157699509257" required autocomplete="off" spellcheck="false">
+                </div>
+
+                <div class="form-group">
+                    <label>Chave Secreta do Aplicativo (App Secret)</label>
+                    <input type="password" name="appSecret" placeholder="••••••••••••••••••••••••••••" required autocomplete="new-password">
+                </div>
+
+                <button type="submit" class="btn-submit">Salvar e Conectar <i class="ri-instagram-line" style="vertical-align: middle; margin-left: 5px;"></i></button>
+            </form>
+        </div>
+
+    </div>
+
+    <script>
+        function copiarUrl() {
+            const urlText = document.getElementById("urlBox").innerText;
+            navigator.clipboard.writeText(urlText).then(() => {
+                const btn = document.querySelector('.btn-copy');
+                const originalIcon = btn.innerHTML;
+                btn.innerHTML = '<i class="ri-check-line" style="color: #00e054;"></i>';
+                setTimeout(() => { btn.innerHTML = originalIcon; }, 2000);
+            });
+        }
+    </script>
+
+
+<!-- ESTILOS DO MODAL DE LANÇAMENTO -->
+<style>
+    .btn-launcher-info {
+        position: fixed; bottom: 30px; right: 30px; background: #111; color: #fff; border: 1px solid var(--primary-purple);
+        padding: 12px 20px; border-radius: 50px; cursor: pointer; display: flex; align-items: center; gap: 10px;
+        font-size: 13px; font-weight: 600; box-shadow: 0 0 20px rgba(189, 0, 255, 0.2); transition: 0.3s; z-index: 999;
+    }
+    .btn-launcher-info:hover { background: var(--primary-purple); transform: scale(1.05); }
+
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9);
+        display: none; justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(5px);
+    }
+    .modal-content-admin {
+        background: #0f0f0f; border: 1px solid #333; width: 90%; max-width: 600px; max-height: 85vh;
+        border-radius: 16px; padding: 30px; overflow-y: auto; position: relative;
+    }
+    .modal-close { position: absolute; top: 20px; right: 20px; color: #666; cursor: pointer; font-size: 24px; }
+    .modal-close:hover { color: #fff; }
+    
+    .check-item { background: #1a1a1a; border: 1px solid #222; padding: 15px; border-radius: 8px; margin-bottom: 15px; }
+    .check-item h5 { margin: 0 0 8px 0; color: var(--primary-purple); display: flex; align-items: center; gap: 8px; font-size: 14px; }
+    .check-item p { margin: 0; font-size: 13px; color: #aaa; line-height: 1.5; }
+    .badge-dev { background: #333; color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+    
+    .copy-area { background: #000; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 11px; color: #00e054; margin-top: 10px; border: 1px solid #222; }
+</style>
+
+<!-- BOTÃO FLUTUANTE -->
+<button class="btn-launcher-info" onclick="toggleLauncherModal()">
+    <i class="ri-rocket-2-fill"></i> Roteiro de Lançamento (CNPJ & VPS)
+</button>
+
+<!-- JANELA DO MODAL -->
+<div class="modal-overlay" id="launcherModal">
+    <div class="modal-content-admin">
+        <i class="ri-close-line modal-close" onclick="toggleLauncherModal()"></i>
+        
+        <h2 style="margin-top:0; font-size: 20px; color: #fff;">🚀 Checklist de Lançamento Oficial</h2>
+        <p style="color: #888; font-size: 14px; margin-bottom: 25px;">Siga este roteiro quando o seu <strong>MEI</strong> e a <strong>Contabo</strong> estiverem ativos.</p>
+
+        <!-- PASSO 1: CNPJ -->
+        <div class="check-item">
+            <h5><i class="ri-building-line"></i> 1. Verificação de Empresa (CNPJ)</h5>
+            <p>Acesse <b>Configurações do App > Básico</b> no Painel da Meta. No final da página, em "Verificação da Empresa", envie seu Certificado de MEI. Isso libera o limite de mensagens e remove o aviso de "Não Verificado".</p>
+        </div>
+
+        <!-- PASSO 2: VPS -->
+        <div class="check-item">
+            <h5><i class="ri-server-line"></i> 2. Ativar Servidor e URLs Jurídicas</h5>
+            <p>Suba o código na VPS. Garanta que <b>calixtosystem.com.br/privacidade</b> está abrindo. No painel da Meta, troque os links temporários (Google Docs) pelos links oficiais do seu domínio.</p>
+        </div>
+
+        <!-- PASSO 3: VÍDEO -->
+        <div class="check-item">
+            <h5><i class="ri-video-chat-line"></i> 3. Enviar Screencast (Aprovação)</h5>
+            <p>Vá em <b>Análise do App > Solicitações</b>. Peça acesso para <code>instagram_manage_messages</code>. Faça o upload do vídeo que você já gravou mostrando o bot respondendo no Insta.</p>
+        </div>
+
+        <!-- PASSO 4: TEXTOS -->
+        <div class="check-item">
+            <h5><i class="ri-file-text-line"></i> 4. Justificativas (Copie e Cole)</h5>
+            <p>Use estes textos na solicitação de análise da Meta:</p>
+            <div class="copy-area">
+                Our platform provides an automated omnichannel customer service tool. We need the 'instagram_manage_messages' permission to allow our business clients to receive messages in our unified dashboard and reply via bots.
+            </div>
+        </div>
+
+        <button class="btn-submit" onclick="toggleLauncherModal()" style="margin-top: 10px;">Entendido, fechar</button>
+    </div>
+</div>
+
+<script>
+    function toggleLauncherModal() {
+        const modal = document.getElementById('launcherModal');
+        modal.style.display = (modal.style.display === 'flex') ? 'none' : 'flex';
+    }
+    // Fecha se clicar fora da caixa
+    window.onclick = function(event) {
+        const modal = document.getElementById('launcherModal');
+        if (event.target == modal) { modal.style.display = "none"; }
+    }
+</script>
+</body>
+</html>
