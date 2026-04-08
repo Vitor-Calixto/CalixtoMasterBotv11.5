@@ -1,5 +1,5 @@
 // ============================================================
-// ARQUIVO: modulos/sessions.js v6.0 (DATA-READY)
+// ARQUIVO: modulos/sessions.js v6.1 (SILENCIADO)
 // ============================================================
 const Redis = require('ioredis');
 const redis = new Redis(process.env.REDIS_URL || { host: '127.0.0.1', port: 6379 });
@@ -42,10 +42,10 @@ async function getSessaoCompleta(userNum) {
     return JSON.parse(data);
 }
 
-// --- GESTÃO DE VARIÁVEIS (CONTRATOS) ---
+// --- GESTÃO DE VARIÁVEIS (CONTRATOS E TIMEOUTS) ---
 
 /**
- * Salva um dado capturado (ex: nome, cpf) no dicionário do usuário
+ * Salva um dado capturado (ex: nome, cpf, ou controle de timeout) no dicionário do usuário
  */
 async function salvarDadosUsuario(userNum, variavel, valor) {
     const key = `${PREFIX_DADOS}${userNum}`;
@@ -58,7 +58,14 @@ async function salvarDadosUsuario(userNum, variavel, valor) {
     
     await redis.set(key, JSON.stringify(dados));
     await redis.expire(key, 86400); // Mantém por 24h
-    console.log(`[REDIS] 📥 Dado salvo (${userNum}): ${variavel} = ${valor}`);
+    
+    // ===========================================================
+    // 🤫 O SILENCIADOR
+    // ===========================================================
+    // Só imprime no terminal se NÃO for a atualização invisível de timeout
+    if (variavel !== 'timeoutAt') {
+        console.log(`[REDIS] 📥 Dado salvo (${userNum}): ${variavel} = ${valor}`);
+    }
 }
 
 /**
@@ -79,8 +86,14 @@ async function getDadosUsuario(userNum) {
 async function limparSessao(userNum) {
     const keySessao = `${PREFIX}${userNum}`;
     const keyDados = `${PREFIX_DADOS}${userNum}`;
+    
+    // Vamos silenciar também a limpeza caso seja aquela faxina automática silenciosa!
+    // Se a gente precisar descobrir por que tá limpando, a gente usa o log lá do engine.js
     await redis.del(keySessao);
     await redis.del(keyDados);
+    
+    // (Opcional) Podemos deixar o log de limpeza ativo porque ele ocorre 1x por conversa,
+    // mas se achar chato depois, é só comentar essa linha abaixo:
     console.log(`[REDIS] 🧹 Sessão e Dados limpos para ${userNum}`);
 }
 

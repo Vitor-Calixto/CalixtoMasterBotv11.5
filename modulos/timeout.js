@@ -5,57 +5,75 @@ const sessions = require('./sessions');
 const engine = require('./engine');
 const whatsapp = require('./whatsapp'); 
 
-// ⚠️ ATENÇÃO: Nunca dê um "new PrismaClient()" aqui dentro se o arquivo principal
-// (index.js) já fez isso. Use a mesma instância global para não estourar conexões!
-// O ideal é passar o Prisma via parâmetro na hora do iniciar(), mas como este é um Cron
-// isolado e você já exporta o Prisma no db.js (ou similar), recomendo usar o centralizado.
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient(); // (Se possível, importe do seu arquivo de banco central)
+const prisma = new PrismaClient(); 
 
-
-//  Função varredora: Roda a cada 5 segundos olhando o Redis
+// 🚦 SEMÁFORO ANTI-ENGARRAFAMENTO
+// Impede que o cron rode uma nova varredura se a anterior ainda não terminou
+let isRodando = false;
 
 async function verificarTimeouts() {
+   // Se o sinal estiver vermelho (já tem uma varredura acontecendo), cancela essa!
+   if (isRodando) return; 
+   isRodando = true; // Acende o sinal vermelho
+
    try {
-       // 1. Pega todo mundo que está conversando com o robô no momento (Redis)
        const chaves = await sessions.listarSessoesAtivas();
        const agora = Date.now();
+       
+       // Filtro de duplicação: Garante que não processe a mesma pessoa 2x no mesmo segundo
+       const processados = new Set(); 
 
-       // 2. Varre cada conversa
        for (const chave of chaves) {
-           // A chave vem como 'sessao:551199999999', a gente extrai só o número
            const userNum = chave.split(':')[1];
            
-           // 3. Pega a prancheta completa desse cliente
+           if (processados.has(userNum)) continue;
+           processados.add(userNum);
+
            const sessao = await sessions.getSessaoCompleta(userNum);
+           if (!sessao) continue; // Prevenção contra sessões corrompidas
            
-           if (sessao && sessao.timeoutAt) {
-               // 4. BINGO! O relógio virou. O tempo de limite chegou.
-               if (agora > sessao.timeoutAt) {
+           // ========================================================
+           // 🛡️ TRAVA DE OURO: BLINDAGEM DO MODO #PAUSE
+           // ========================================================
+           const estaPausado = await sessions.isPausado(userNum);
+           if (estaPausado) {
+               // Converte para texto com segurança para o IF nunca falhar
+               const tempoAtual = String(sessao.timeoutAt || '').trim();
+               
+               // Só salva se não estiver desativado!
+               if (tempoAtual !== 'DESATIVADO') {
+                   await sessions.salvarDadosUsuario(userNum, 'timeoutAt', 'DESATIVADO');
+               }
+               continue; // Pula o cliente pausado e mantém silêncio no terminal
+           }
+
+           // ========================================================
+           // ⏰ VERIFICAÇÃO DO RELÓGIO (SÓ PARA QUEM NÃO ESTÁ PAUSADO)
+           // ========================================================
+           const tempoAtual = String(sessao.timeoutAt || '').trim();
+           if (tempoAtual && tempoAtual !== 'DESATIVADO' && tempoAtual !== 'null') {
+               
+               const tempoLimite = Number(tempoAtual);
+               if (isNaN(tempoLimite)) continue; // Segurança extra
+
+               // 4. BINGO! O relógio virou.
+               if (agora > tempoLimite) {
                    
-                   // ========================================================
-                   // 🛡️ TRAVA 1: FANTASMAS DO PASSADO (MANUTENÇÃO)
-                   // Se passou mais de 10 minutos do tempo previsto, o bot estava desligado.
-                   // Limpamos a sessão em silêncio para não assustar o cliente horas depois!
-                   // ========================================================
-                   const tempoEstourado = agora - sessao.timeoutAt;
+                   // TRAVA 1: FANTASMAS DO PASSADO (QUEDAS DE SERVIDOR)
+                   const tempoEstourado = agora - tempoLimite;
                    if (tempoEstourado > 600000) { // 600.000 ms = 10 minutos
                        console.log(`[CRON TIMEOUT] 👻 Sessão fantasma de ${userNum} ignorada silenciosamente.`);
                        await sessions.limparSessao(userNum);
-                       continue; // Pula para o próximo cliente
+                       continue;
                    }
 
-                   // ========================================================
-                   // 🛡️ TRAVA 2: ANTI-REPETIÇÃO
-                   // Remove o timeout IMEDIATAMENTE para o ciclo de 5 segundos não pegar ele de novo
-                   // ========================================================
-                   await sessions.salvarDadosUsuario(userNum, 'timeoutAt', null);
+                   // TRAVA 2: ANTI-LOOP (Finaliza a conversa e bloqueia repetição)
+                   await sessions.salvarDadosUsuario(userNum, 'timeoutAt', 'DESATIVADO');
 
-                   // Procura o celular (socket) da empresa logada que estava falando com ele
                    const sock = whatsapp.sessoes.get(sessao.clienteId);
                    
                    if (sock) {
-                       // 5. Acorda o cérebro (engine.js) para processar o fim da linha
                        await engine.executarTimeout(
                            userNum, 
                            sessao.clienteId, 
@@ -63,27 +81,25 @@ async function verificarTimeouts() {
                            sessao.nodeId, 
                            prisma, 
                            sock,
-                           "Cliente" // pushName default
+                           "Cliente"
                        );
                    } else {
-                       // Se o celular da empresa desconectou do QR Code, a gente mata a sessão do cliente
                        await sessions.limparSessao(userNum);
                    }
                }
            }
        }
    } catch (e) {
-       console.error("[CRON TIMEOUT] Erro ao varrer sessões:", e.message);
+       console.error("[CRON TIMEOUT] ❌ Erro ao varrer sessões:", e.message);
+   } finally {
+       // A varredura acabou. Fica verde para a próxima rodada!
+       isRodando = false; 
    }
 }
 
-/**
- * Liga o motor de varredura
- */
 function iniciar() {
-    // Fica rodando em loop a cada 5 segundos (5000 milissegundos)
-    setInterval(verificarTimeouts, 5000); 
-    console.log('⏰ [CRON] Monitor de Timeouts e Delays V12 ativado e rodando.');
+   setInterval(verificarTimeouts, 5000); 
+   console.log('⏰ [CRON] Monitor de Timeouts e Delays V12 ativado e rodando.');
 }
 
 module.exports = { iniciar };

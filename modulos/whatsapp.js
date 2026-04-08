@@ -162,48 +162,101 @@ async function iniciarWhatsApp(clienteDado, io) {
           }
       });
 
-        // ====================================================================
+//         // ====================================================================
+//         // 🛡️ G. ESCUTADOR DE MENSAGENS E ROTEAMENTO (GATEKEEPER)
+//         // ====================================================================
+//         sock.ev.on('messages.upsert', async ({ messages, type }) => {
+//             try {
+//                 if (type !== 'notify') return; 
+//                 const msg = messages[0];
+
+//                 // Travas de Segurança (Impede loops e histórico)
+//                 if (!msg.message || msg.key.fromMe) return;
+//                 const msgTimestamp = msg.messageTimestamp * 1000;
+//                 if (msgTimestamp < uptimeStart || (Date.now() - msgTimestamp) > 30000) return;
+
+//                 const remoteJid = msg.key.remoteJid;
+//                 if (isJidBroadcast(remoteJid) || isJidGroup(remoteJid)) return;
+
+//                 const realMessage = unwrapMessage(msg.message);
+//                 const texto = (realMessage.conversation || realMessage.extendedTextMessage?.text || realMessage.imageMessage?.caption || realMessage.videoMessage?.caption || "").trim();
+                
+//                 if (!texto) return;
+
+//                 console.log(`[WPP RECEBIDO] De: ${remoteJid.split('@')[0]} | Msg: "${texto.substring(0, 30)}..."`);
+
+//                 // ATALHO: Cancelamento direto de agendamentos
+//                 if (texto.toUpperCase() === 'SIM') {
+//                     const numeroLimpo = remoteJid.replace(/\D/g, '');
+//                     const deleteResult = await prisma.lembrete.deleteMany({
+//                         where: { 
+//                             clienteId: cliente.id, 
+//                             numero: { endsWith: numeroLimpo.slice(-8) }, 
+//                             dataAgendada: { gte: new Date() } 
+//                         }
+//                     });
+
+//                     if (deleteResult.count > 0) {
+//                         await sock.sendMessage(remoteJid, { text: "✅ Sua consulta foi cancelada com sucesso. Agradecemos o aviso." });
+//                         if(io) io.emit('atualizarAgenda');
+//                     }
+//                     return; // Encerra o fluxo aqui.
+//                 }
+
+//                 // 🚀 DESPACHANTE FINAL: Joga para o Cérebro V12 (Engine)
+//                 await engine.processarMensagem(cliente.id, remoteJid, texto, sock, prisma, msg.pushName || "Cliente");
+
+//             } catch (error) { 
+//                 console.error(`[ERRO CRÍTICO WHATSAPP]:`, error.message); 
+//             }
+//         });
+
+//         sessoes.set(cliente.id, sock);
+
+//     } catch (errorGlobal) {
+//         console.error(`[FALHA DE IGNIÇÃO] Não foi possível inicializar WhatsApp:`, errorGlobal);
+//     }
+// }
+
+// ====================================================================
         // 🛡️ G. ESCUTADOR DE MENSAGENS E ROTEAMENTO (GATEKEEPER)
         // ====================================================================
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
             try {
                 if (type !== 'notify') return; 
                 const msg = messages[0];
+                if (!msg.message) return;
 
-                // Travas de Segurança (Impede loops e histórico)
-                if (!msg.message || msg.key.fromMe) return;
+                // --- 🚀 NOVO FILTRO DE SEGURANÇA (PERMITE COMANDOS DO GESTOR) ---
+                const fromMe = msg.key.fromMe;
+                const realMessage = unwrapMessage(msg.message);
+                const texto = (realMessage?.conversation || realMessage?.extendedTextMessage?.text || realMessage?.imageMessage?.caption || "").trim();
+
+                // Se a mensagem for MINHA (do gestor), eu só deixo passar se for um comando (#)
+                // Se eu digitar "Oi", "Tudo bem", o bot ignora (evita loop).
+                // Se eu digitar "#PAUSE", "#RESET", ele processa!
+                if (fromMe && !texto.startsWith('#')) return;
+                
+                // Se NÃO for minha e NÃO tiver texto, ignora
+                if (!fromMe && !texto) return;
+
+                // --- TRAVAS TEMPORAIS ---
                 const msgTimestamp = msg.messageTimestamp * 1000;
                 if (msgTimestamp < uptimeStart || (Date.now() - msgTimestamp) > 30000) return;
 
                 const remoteJid = msg.key.remoteJid;
                 if (isJidBroadcast(remoteJid) || isJidGroup(remoteJid)) return;
 
-                const realMessage = unwrapMessage(msg.message);
-                const texto = (realMessage.conversation || realMessage.extendedTextMessage?.text || realMessage.imageMessage?.caption || realMessage.videoMessage?.caption || "").trim();
-                
-                if (!texto) return;
-
                 console.log(`[WPP RECEBIDO] De: ${remoteJid.split('@')[0]} | Msg: "${texto.substring(0, 30)}..."`);
 
-                // ATALHO: Cancelamento direto de agendamentos
-                if (texto.toUpperCase() === 'SIM') {
-                    const numeroLimpo = remoteJid.replace(/\D/g, '');
-                    const deleteResult = await prisma.lembrete.deleteMany({
-                        where: { 
-                            clienteId: cliente.id, 
-                            numero: { endsWith: numeroLimpo.slice(-8) }, 
-                            dataAgendada: { gte: new Date() } 
-                        }
-                    });
-
-                    if (deleteResult.count > 0) {
-                        await sock.sendMessage(remoteJid, { text: "✅ Sua consulta foi cancelada com sucesso. Agradecemos o aviso." });
-                        if(io) io.emit('atualizarAgenda');
-                    }
-                    return; // Encerra o fluxo aqui.
+                // ATALHO: Cancelamento direto de agendamentos (Para clientes)
+                if (texto.toUpperCase() === 'SIM' && !fromMe) {
+                    // ... seu código de deleteMany ...
+                    return; 
                 }
 
                 // 🚀 DESPACHANTE FINAL: Joga para o Cérebro V12 (Engine)
+                // Agora ele vai enviar o #PAUSE do gestor para a engine processar!
                 await engine.processarMensagem(cliente.id, remoteJid, texto, sock, prisma, msg.pushName || "Cliente");
 
             } catch (error) { 
@@ -213,10 +266,10 @@ async function iniciarWhatsApp(clienteDado, io) {
 
         sessoes.set(cliente.id, sock);
 
-    } catch (errorGlobal) {
-        console.error(`[FALHA DE IGNIÇÃO] Não foi possível inicializar WhatsApp:`, errorGlobal);
-    }
-}
+            } catch (errorGlobal) {
+                console.error(`[FALHA DE IGNIÇÃO] Não foi possível inicializar WhatsApp:`, errorGlobal);
+            }
+        }
 
 // 📦 5. EXPORTAÇÃO
 module.exports = { iniciarWhatsApp, sessoes };

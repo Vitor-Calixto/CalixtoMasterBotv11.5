@@ -163,16 +163,28 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
 
         const msgLimpa = String(textoMsg).toUpperCase().trim();
 
-        // 3.2 Comandos Globais (Override)
-        if (msgLimpa.includes('#BOT') || msgLimpa.includes('3BOT')) {
+         // 3.2 Comandos Globais (Override)
+        
+        // COMANDO: REATIVAR (#BOT ou #DESPAUSAR)
+        if (msgLimpa.includes('#BOT') || msgLimpa.includes('3BOT') || msgLimpa.includes('#DESPAUSAR') || msgLimpa.includes('#RESUME')) {
             await sessions.setPausado(userNum, false);
-            return await enviarMensagemOmni(sock, remoteJid, "🤖 *Robô Reativado!*", origem, igToken);
+            return await enviarMensagemOmni(sock, remoteJid, "▶️ *Robô Reativado!*", origem, igToken);
         }
+
+        // COMANDO: RESETAR
         if (msgLimpa.includes('#RESET')) {
             await sessions.limparSessao(userNum);
             await sessions.setPausado(userNum, false);
             return await enviarMensagemOmni(sock, remoteJid, "🔄 *Sessão reiniciada!*", origem, igToken);
         }
+
+        // COMANDO: PAUSAR (#PAUSE ou #PAUSAR)
+        if (msgLimpa.includes('#PAUSE') || msgLimpa.includes('#PAUSAR')) {
+            await sessions.setPausado(userNum, true);
+            return await enviarMensagemOmni(sock, remoteJid, "⏸️ *Automação Pausada.*\nO bot não responderá mais este número até que você envie *#BOT* ou *#DESPAUSAR*.", origem, igToken);
+        }
+
+        // VERIFICAÇÃO DE STATUS: Se estiver pausado, o código morre aqui e não responde o cliente
         if (await sessions.isPausado(userNum)) return;
 
         // 3.3 Validação do Cliente (SaaS)
