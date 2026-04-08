@@ -203,34 +203,41 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
                 const textoLimpo = textoMsg.trim();
                 let cpfValido = true; // Flag para saber se podemos salvar
 
-                // ==========================================
+              // ==========================================
                 // 🔒 1. MOTOR DE VALIDAÇÃO DE CPF
                 // ==========================================
                 if (variavel === 'cpf_cliente' || variavel === 'cpf_consulta') {
                     
-                    // ESCAPE: O cliente quer cancelar a digitação
-                    if (textoLimpo === '0') {
-                        await enviarMensagemOmni(sock, remoteJid, "↩️ Operação cancelada.", origem, igToken);
-                        await sessions.salvarDadosUsuario(userNum, variavel, null);
-                        proximoId = getNextNodeId(noAtual);
+                    // 🛡️ INTERCEPTADOR: Se o cliente está no menu de cancelar, NÃO valida os 11 dígitos!
+                    if (dadosSessao.lista_cancelamento) {
+                        // Deixamos cpfValido como false para ele NÃO sobrescrever o CPF antigo com o "1" na memória
                         cpfValido = false; 
                     } 
-                    // ERRO: Tem letras, espaços, pontos, ou não tem 11 números
-                    else if (!/^\d{11}$/.test(textoLimpo)) {
-                        await enviarMensagemOmni(sock, remoteJid, "❌ *CPF Inválido!*\n\nPor favor, digite exatamente *11 números*, sem espaços, pontos ou traços.\n\nExemplo: *12345678900*", origem, igToken);
-                        return; // 🛑 Para a execução aqui. O cliente fica preso até acertar.
-                    } 
-                    // SUCESSO: É um CPF perfeito de 11 dígitos
                     else {
-                        // Se for cadastro, envia a confirmação bonitinha
-                        if (variavel === 'cpf_cliente') {
-                            const cpfFormatado = textoLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
-                            await enviarMensagemOmni(sock, remoteJid, `✅ CPF *${cpfFormatado}* validado e registrado com sucesso!`, origem, igToken);
+                        // ESCAPE: O cliente quer cancelar a digitação
+                        if (textoLimpo === '0') {
+                            await enviarMensagemOmni(sock, remoteJid, "↩️ Operação cancelada.", origem, igToken);
+                            await sessions.salvarDadosUsuario(userNum, variavel, null);
+                            proximoId = getNextNodeId(noAtual);
+                            cpfValido = false; 
+                        } 
+                        // ERRO: Tem letras, espaços, pontos, ou não tem 11 números
+                        else if (!/^\d{11}$/.test(textoLimpo)) {
+                            await enviarMensagemOmni(sock, remoteJid, "❌ *CPF Inválido!*\n\nPor favor, digite exatamente *11 números*, sem espaços, pontos ou traços.\n\nExemplo: *12345678900*", origem, igToken);
+                            return; // 🛑 Para a execução aqui. O cliente fica preso até acertar.
+                        } 
+                        // SUCESSO: É um CPF perfeito de 11 dígitos
+                        else {
+                            // Se for cadastro, envia a confirmação bonitinha
+                            if (variavel === 'cpf_cliente') {
+                                const cpfFormatado = textoLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+                                await enviarMensagemOmni(sock, remoteJid, `✅ CPF *${cpfFormatado}* validado e registrado com sucesso!`, origem, igToken);
+                            }
                         }
                     }
                 }
 
-                // Só salva no banco se não tiver sido cancelado pelo escape '0'
+                // Só salva no banco se não tiver sido cancelado pelo escape '0' E se não for resposta de menu
                 if (cpfValido) {
                     await sessions.salvarDadosUsuario(userNum, variavel, textoLimpo);
                     dadosSessao[variavel] = textoLimpo; 
@@ -287,9 +294,8 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
                         await sessions.salvarDadosUsuario(userNum, 'lista_cancelamento', JSON.stringify(idsParaCancelar));
                         return await enviarMensagemOmni(sock, remoteJid, lista, origem, igToken);
                     }
-                } 
+                }
                 
-                // Gatilho: Criação de Agendamento
 
                 // ==========================================
                 // 📅 Gatilho: Consultar Horários Disponíveis
