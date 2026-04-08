@@ -3,7 +3,7 @@
 // ============================================================
 
 const PLANOS = {
-    'ESSENTIAL': { maxBots: 1, permissoes: { midia: true, transferencia: true, agendamento: true, audioIA: true, contratos: false } },
+    'ESSENTIAL': { maxBots: 2, permissoes: { midia: true, transferencia: true, agendamento: true, audioIA: true, contratos: false } },
     'ADVANCED': { maxBots: 3, permissoes: { midia: true, transferencia: true, agendamento: true, audioIA: false, contratos: false } },
     'SIGNATURE': { maxBots: 10, permissoes: { midia: true, transferencia: true, agendamento: true, audioIA: true, contratos: true } }
 };
@@ -812,7 +812,6 @@ app.post('/api/clientes/:id/config-notificacao', isAuth, async (req, res) => {
 
 // 3. API: Busca eventos para o calendário (VERSÃO SINCRONIZADA V30.9)
 
-// DENTRO DO SEU INDEX.JS
 app.get('/api/agendamentos/usuario', isAuth, async (req, res) => {
     try {
         const meusRobos = await prisma.cliente.findMany({ where: { donoId: req.session.userId }, select: { id: true } });
@@ -831,7 +830,8 @@ app.get('/api/agendamentos/usuario', isAuth, async (req, res) => {
                 cpf: ag.cpf,
                 // 🚩 Garante que o número não vai como undefined
                 numero: ag.numero || 'Sem número',
-                mensagem: ag.mensagem
+                mensagem: ag.mensagem,
+                clienteId: ag.clienteId
             }
         })));
     } catch (e) { res.status(500).json([]); }
@@ -852,6 +852,33 @@ app.delete('/api/agendamentos/:id', isAuth, async (req, res) => {
         await prisma.lembrete.delete({ where: { id: req.params.id } });
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/agendamentos/manual', isAuth, async (req, res) => {
+    try {
+        const { nome, whatsapp, data, clienteId } = req.body;
+
+        // Limpa o número e garante o 55 (Brasil) para o Baileys não dar erro
+        let numLimpo = String(whatsapp).replace(/\D/g, '');
+        if (numLimpo.length === 10 || numLimpo.length === 11) {
+            numLimpo = '55' + numLimpo;
+        }
+
+        await prisma.lembrete.create({
+            data: {
+                nome: nome,
+                numero: numLimpo,
+                dataAgendada: new Date(data),
+                clienteId: clienteId, // Se o ID no Prisma for número, troque para parseInt(clienteId)
+                status: 'PENDENTE',
+                mensagem: 'Agendamento Manual'
+            }
+        });
+
+        res.json({ success: true });
+    } catch (e) { 
+        res.status(500).json({ error: e.message }); 
+    }
 });
 
 // Executa a verificação de novos lembretes a cada 2 minutos

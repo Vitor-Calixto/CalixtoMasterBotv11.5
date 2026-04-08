@@ -155,7 +155,6 @@ async function enviarMensagemOmni(sock, remoteJid, texto, origem, igToken) {
  * Ponto de entrada de todas as mensagens. Analisa o estado do usuário,
  * verifica regras de negócio, salva variáveis e decide o próximo passo.
  */
-// 🚀 Adicionamos 'origem' e 'igToken' no final da assinatura
 async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, pushName, origem = 'WHATSAPP', igToken = null) {
     try {
         // 3.1 Sanitização do Número
@@ -201,43 +200,82 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
             // --- TRATAMENTO DE NÓ TIPO: PERGUNTA ---
             if (noAtual.name === 'pergunta') {
                 const variavel = noAtual.data?.variable || 'resposta';
-                await sessions.salvarDadosUsuario(userNum, variavel, textoMsg);
-                dadosSessao[variavel] = textoMsg; 
+                const textoLimpo = textoMsg.trim();
+                let cpfValido = true; // Flag para saber se podemos salvar
 
-                // Gatilho: Cancelamento
-                if (dadosSessao.lista_cancelamento && !isNaN(textoMsg.trim())) {
+                // ==========================================
+                // 🔒 1. MOTOR DE VALIDAÇÃO DE CPF
+                // ==========================================
+                if (variavel === 'cpf_cliente' || variavel === 'cpf_consulta') {
+                    
+                    // ESCAPE: O cliente quer cancelar a digitação
+                    if (textoLimpo === '0') {
+                        await enviarMensagemOmni(sock, remoteJid, "↩️ Operação cancelada.", origem, igToken);
+                        await sessions.salvarDadosUsuario(userNum, variavel, null);
+                        proximoId = getNextNodeId(noAtual);
+                        cpfValido = false; 
+                    } 
+                    // ERRO: Tem letras, espaços, pontos, ou não tem 11 números
+                    else if (!/^\d{11}$/.test(textoLimpo)) {
+                        await enviarMensagemOmni(sock, remoteJid, "❌ *CPF Inválido!*\n\nPor favor, digite exatamente *11 números*, sem espaços, pontos ou traços.\n\nExemplo: *12345678900*", origem, igToken);
+                        return; // 🛑 Para a execução aqui. O cliente fica preso até acertar.
+                    } 
+                    // SUCESSO: É um CPF perfeito de 11 dígitos
+                    else {
+                        // Se for cadastro, envia a confirmação bonitinha
+                        if (variavel === 'cpf_cliente') {
+                            const cpfFormatado = textoLimpo.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.$2.$3-$4");
+                            await enviarMensagemOmni(sock, remoteJid, `✅ CPF *${cpfFormatado}* validado e registrado com sucesso!`, origem, igToken);
+                        }
+                    }
+                }
+
+                // Só salva no banco se não tiver sido cancelado pelo escape '0'
+                if (cpfValido) {
+                    await sessions.salvarDadosUsuario(userNum, variavel, textoLimpo);
+                    dadosSessao[variavel] = textoLimpo; 
+                }
+
+                // ==========================================
+                // 🎯 2. GATILHOS DE NEGÓCIO E TRANSAÇÕES
+                // ==========================================
+                
+                // Gatilho: Cancelamento de Consulta
+                if (dadosSessao.lista_cancelamento && !isNaN(textoLimpo)) {
                     try {
-                        const index = parseInt(textoMsg.trim()) - 1;
+                        const index = parseInt(textoLimpo) - 1;
                         const ids = JSON.parse(dadosSessao.lista_cancelamento);
                         
-                        if (parseInt(textoMsg.trim()) === 0) {
+                        if (parseInt(textoLimpo) === 0) {
                             await sessions.salvarDadosUsuario(userNum, 'lista_cancelamento', null);
-                            await enviarMensagemOmni(sock, remoteJid, "Operação encerrada.", origem, igToken);
+                            await enviarMensagemOmni(sock, remoteJid, "Operação de cancelamento encerrada.", origem, igToken);
                             proximoId = getNextNodeId(noAtual);
                         } else if (index >= 0 && index < ids.length) {
                             await prisma.lembrete.delete({ where: { id: ids[index] } });
                             await sessions.salvarDadosUsuario(userNum, 'lista_cancelamento', null);
-                            await enviarMensagemOmni(sock, remoteJid, "✅ *Agendamento cancelado!*", origem, igToken);
+                            await enviarMensagemOmni(sock, remoteJid, "✅ *Agendamento cancelado com sucesso!*", origem, igToken);
                             proximoId = getNextNodeId(noAtual);
                         } else {
-                            return await enviarMensagemOmni(sock, remoteJid, "❌ Número inválido. Tente novamente.", origem, igToken);
+                            return await enviarMensagemOmni(sock, remoteJid, "❌ Número inválido na lista. Tente novamente.", origem, igToken);
                         }
                     } catch (errJson) {
-                        console.error("Erro no parse do cancelamento:", errJson);
                         await sessions.salvarDadosUsuario(userNum, 'lista_cancelamento', null);
                         proximoId = getNextNodeId(noAtual);
                     }
                 } 
-                // Gatilho: Busca de CPF
-                else if (variavel === 'cpf_consulta') {
-                    const cpfB = String(textoMsg).replace(/\D/g, ''); 
+                
+                // Gatilho: Busca de CPF (Consulta de Horários do Paciente)
+                else if (variavel === 'cpf_consulta' && cpfValido) {
+                    const cpfB = textoLimpo; 
                     const agends = await prisma.lembrete.findMany({ 
                         where: { cpf: cpfB, clienteId }, orderBy: { dataAgendada: 'asc' } 
                     });
                     
                     if (agends.length === 0) {
-                        await enviarMensagemOmni(sock, remoteJid, `❌ Nenhum agendamento futuro para o CPF ${cpfB}.`, origem, igToken);
-                        proximoId = getNextNodeId(noAtual);
+                        // 🛑 Alternativa de Erro: Não achou o CPF, prende o usuário aqui até acertar ou desistir
+                        await enviarMensagemOmni(sock, remoteJid, `❌ *CPF não encontrado!*\n\nNão achamos nenhum agendamento futuro para o CPF *${cpfB}*.\n\n👉 *Digite o CPF novamente* (só números) para corrigir, ou envie *0* para sair.`, origem, igToken);
+                        await sessions.salvarDadosUsuario(userNum, variavel, null); // Limpa para forçar re-digitação
+                        return; // Trava o fluxo aqui
                     } else {
                         let lista = `📅 *SEUS AGENDAMENTOS (CPF: ${cpfB}):*\n\n`;
                         const idsParaCancelar = [];
@@ -245,54 +283,154 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
                             lista += `${getEmojiNumber(i+1)} 🕒 *${item.dataAgendada.toLocaleString('pt-BR')}*\n`;
                             idsParaCancelar.push(item.id);
                         });
-                        lista += "\n👉 Digite o número para **CANCELAR** ou *0* para sair.";
+                        lista += "\n👉 Digite o número correspondente para **CANCELAR** ou envie *0* para sair do menu.";
                         await sessions.salvarDadosUsuario(userNum, 'lista_cancelamento', JSON.stringify(idsParaCancelar));
                         return await enviarMensagemOmni(sock, remoteJid, lista, origem, igToken);
                     }
                 } 
-       // Gatilho: Criação de Agendamento
-       else if (variavel === 'data_agendamento') {
-        try {
-            const textoLimpo = textoMsg.trim();
-            
-            // 🔒 TRAVA DE FORMATO: Valida exatamente "DD/MM HH:mm" (ex: 14/03 15:00)
-            const regexData = /^\d{2}\/\d{2}\s\d{2}:\d{2}$/;
-            
-            if (!regexData.test(textoLimpo)) {
-                await enviarMensagemOmni(sock, remoteJid, "❌ *Formato Inválido!*\n\nPor favor, digite exatamente no formato de data e hora.\nExemplo: *14/03 15:00*", origem, igToken);
-                return; // Para a execução aqui e espera o cliente tentar de novo
-            }
+                
+                // Gatilho: Criação de Agendamento
 
-            // Se passou pelo Regex, tenta converter a data
-            let dataC = tratarDataAmigavel(textoLimpo);
-            
-            // Verifica se a data faz sentido no calendário (ex: recusa 32/13 25:00)
-            if (!dataC || isNaN(dataC.getTime())) {
-                await enviarMensagemOmni(sock, remoteJid, "❌ *Data Inexistente!*\n\nEssa data não é válida no calendário. Tente novamente.\nExemplo: *31/03 14:00*", origem, igToken);
-                return; 
-            }
-            
-            dataC.setSeconds(0);
-            
-            // 🏢 Regra de Horário Comercial
-            if (cliente.usarHorarioComercial === true) {
-                const diaSemana = dataC.getDay(); 
-                const hora = dataC.getHours();
-                if (diaSemana === 0 || hora < 8 || hora >= 18) {
-                    await enviarMensagemOmni(sock, remoteJid, "🏢 *Fora do Horário!*\n\nAtendemos de *Seg a Sáb, das 08:00 às 18:00*.\nEnvie outro horário, por favor.", origem, igToken);
-                    return;
+                // ==========================================
+                // 📅 Gatilho: Consultar Horários Disponíveis
+                // ==========================================
+                else if (variavel === 'ver_disponibilidade') {
+                    try {
+                        const textoData = textoMsg.trim();
+                        
+                        // Valida se o cliente digitou algo parecido com data (Ex: 15/04 ou 15/04/2026)
+                        const regexDataCurta = /^(\d{2}\/\d{2})(?:\/\d{4})?$/; 
+                        
+                        if (!regexDataCurta.test(textoData)) {
+                            await enviarMensagemOmni(sock, remoteJid, "❌ *Formato Inválido!*\n\nPara ver a agenda, digite apenas a data desejada.\nExemplo: *15/04*", origem, igToken);
+                            return; // Prende o cliente aqui até ele mandar a data certa
+                        }
+
+                        // Converte o texto para um objeto Date do JavaScript (Colocamos 12:00 fixo para evitar bug de fuso horário na conversão do dia)
+                        let dataConsulta = tratarDataAmigavel(`${textoData} 12:00`);
+                        
+                        if (!dataConsulta || isNaN(dataConsulta.getTime())) {
+                            await enviarMensagemOmni(sock, remoteJid, "❌ *Data Inválida!* Essa data não existe no calendário. Tente novamente.", origem, igToken);
+                            return;
+                        }
+
+                        // Se tiver horário restrito, já barra se a pessoa tentar consultar num Domingo
+                        if (cliente.usarHorarioComercial && dataConsulta.getDay() === 0) {
+                            await enviarMensagemOmni(sock, remoteJid, "🏢 *Fechado!*\n\nNós não temos atendimento aos Domingos. Por favor, digite a data de um dia útil.", origem, igToken);
+                            return;
+                        }
+
+                        // 1. Define o intervalo (Das 00:00 às 23:59 do dia solicitado)
+                        const inicioDia = new Date(dataConsulta); inicioDia.setHours(0,0,0,0);
+                        const fimDia = new Date(dataConsulta); fimDia.setHours(23,59,59,999);
+
+                        // 2. Busca no banco todos os agendamentos daquele dia específico
+                        const ocupados = await prisma.lembrete.findMany({
+                            where: { clienteId: clienteId, dataAgendada: { gte: inicioDia, lte: fimDia } },
+                            select: { dataAgendada: true }
+                        });
+
+                        // Extrai apenas as strings de hora (Ex: "14:00", "15:30") dos horários ocupados
+                        const horariosOcupados = ocupados.map(ag => 
+                            ag.dataAgendada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                        );
+
+                        // 3. Monta a grade teórica de horários da clínica (De 30 em 30 min)
+                        const gradeVirtual = [];
+                        const horaInicio = cliente.usarHorarioComercial ? 8 : 0;  // 08h ou Meia-noite
+                        const horaFim = cliente.usarHorarioComercial ? 17 : 23;   // 17h ou 23h (ultimo agendamento)
+
+                        for (let h = horaInicio; h <= horaFim; h++) {
+                            let hStr = h.toString().padStart(2, '0');
+                            gradeVirtual.push(`${hStr}:00`);
+                            gradeVirtual.push(`${hStr}:30`); // Remove essa linha se sua clínica atende de 1 em 1 hora
+                        }
+
+                        // 4. A Mágica: Filtra a grade removendo os horários que já estão no banco
+                        const horariosLivres = gradeVirtual.filter(hora => !horariosOcupados.includes(hora));
+
+                        // Se a lista de livres ficar vazia, o dia lotou!
+                        if (horariosLivres.length === 0) {
+                            await enviarMensagemOmni(sock, remoteJid, `❌ *Agenda Lotada!*\n\nNão temos mais nenhum horário livre para o dia *${textoData}*.\n\nPor favor, digite outra data para consultar.`, origem, igToken);
+                            return;
+                        }
+
+                        // 5. Monta a mensagem final bonitinha para o WhatsApp
+                        let msgDisponivel = `📅 *Horários Livres para ${textoData}:*\n\n`;
+                        
+                        // Quebra em linhas com um check verde
+                        msgDisponivel += horariosLivres.map(h => `✅ ${h}`).join('\n');
+                        
+                        msgDisponivel += `\n\n👉 *Deseja agendar?* Siga as instruções da próxima mensagem!`;
+
+                        // Envia a lista e avança o fluxo para o próximo nó (onde você pode colocar a pergunta de data_agendamento)
+                        await enviarMensagemOmni(sock, remoteJid, msgDisponivel, origem, igToken);
+                        proximoId = getNextNodeId(noAtual);
+
+                    } catch (e) {
+                        console.error("[CONSULTA_DISP] Erro:", e.message);
+                        await enviarMensagemOmni(sock, remoteJid, "⚠️ Erro ao consultar a agenda. Tente novamente.", origem, igToken);
+                        return;
+                    }
                 }
-            }
-            
-            // 🚫 Conflito de Horário (Double Booking)
-            const horarioOcupado = await prisma.lembrete.findFirst({ 
-                where: { clienteId: clienteId, dataAgendada: dataC } 
-            });
-            
-            if (horarioOcupado) {
-                await enviarMensagemOmni(sock, remoteJid, "❌ *Horário Indisponível!*\n\nEste horário já foi reservado por outra pessoa. Envie uma nova data/hora.", origem, igToken);
-                return;
-            }
+                else if (variavel === 'data_agendamento') {
+                    try {
+                        const textoData = textoMsg.trim();
+                        
+                        // 🔒 TRAVA DE FORMATO
+                        const regexData = /^\d{2}\/\d{2}\s\d{2}:\d{2}$/;
+                        if (!regexData.test(textoData)) {
+                            // Informa o horário de funcionamento já na dica de erro
+                            await enviarMensagemOmni(sock, remoteJid, "❌ *Formato Inválido!*\n\nPor favor, digite exatamente no formato de data e hora.\nExemplo: *14/03 15:00*\n\n💡 *Dica:* Nosso horário de atendimento é de *Seg a Sáb, das 08h às 18h*.", origem, igToken);
+                            return; 
+                        }
+
+                        let dataC = tratarDataAmigavel(textoData);
+                        
+                        if (!dataC || isNaN(dataC.getTime())) {
+                            await enviarMensagemOmni(sock, remoteJid, "❌ *Data Inexistente!*\n\nEssa data não é válida no calendário. Tente novamente.\nExemplo: *31/03 14:00*", origem, igToken);
+                            return; 
+                        }
+                        
+                        dataC.setSeconds(0);
+                        
+                        // 🏢 Regra de Horário Comercial
+                        if (cliente.usarHorarioComercial === true) {
+                            const diaSemana = dataC.getDay(); 
+                            const hora = dataC.getHours();
+                            if (diaSemana === 0 || hora < 8 || hora >= 18) {
+                                await enviarMensagemOmni(sock, remoteJid, "🏢 *Fora do Expediente!*\n\nAtendemos exclusivamente de *Segunda a Sábado, das 08:00 às 18:00*.\n\nEnvie outro horário que esteja dentro do funcionamento, por favor. 😊", origem, igToken);
+                                return;
+                            }
+                        }
+                        
+                        // 🚫 Conflito de Horário (Double Booking) + MOSTRAR AGENDA COMPLETA DO DIA
+                        const horarioOcupado = await prisma.lembrete.findFirst({ 
+                            where: { clienteId: clienteId, dataAgendada: dataC } 
+                        });
+                        
+                        if (horarioOcupado) {
+                            // Puxa a agenda do dia para orientar o paciente
+                            const inicioDia = new Date(dataC); inicioDia.setHours(0,0,0,0);
+                            const fimDia = new Date(dataC); fimDia.setHours(23,59,59,999);
+                            
+                            const ocupadosDia = await prisma.lembrete.findMany({
+                                where: { clienteId: clienteId, dataAgendada: { gte: inicioDia, lte: fimDia } },
+                                orderBy: { dataAgendada: 'asc' }
+                            });
+
+                            let msgAgenda = `❌ *Horário Indisponível!*\n\nEste horário já foi reservado. Para te ajudar, veja os horários que já estão ocupados no dia *${dataC.toLocaleDateString('pt-BR')}*:\n\n`;
+                            
+                            ocupadosDia.forEach(ag => {
+                                msgAgenda += `🚫 ${ag.dataAgendada.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} - Ocupado\n`;
+                            });
+
+                            msgAgenda += `\n✅ Os demais horários entre *08h e 18h* estão livres e disponíveis para você!\n\n👉 Por favor, envie uma nova data e hora.`;
+
+                            await enviarMensagemOmni(sock, remoteJid, msgAgenda, origem, igToken);
+                            return;
+                        }
+
                         // Gravação no Banco
                         const nomeF = dadosSessao.nome_cliente || dadosSessao.nome || pushName || "Cliente";
                         let cleanN = dadosSessao.telefone_lembrete ? String(dadosSessao.telefone_lembrete).replace(/\D/g, '') : userNum.split('@')[0].replace(/\D/g, '');
@@ -305,12 +443,12 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
                         const dataPt = dataC.toLocaleDateString('pt-BR');
                         const horaPt = dataC.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-                        // Confirma para o cliente IMEDIATAMENTE (No canal certo)
+                        // Confirmação IMEDIATA
                         await enviarMensagemOmni(sock, remoteJid, `✅ *AGENDAMENTO CONFIRMADO!*\n\nSua consulta ficou para o dia *${dataPt}* às *${horaPt}*. Te enviaremos um lembrete. Até lá! 👋`, origem, igToken);
 
                         proximoId = getNextNodeId(noAtual);
 
-                        // Notifica o gestor EM SEGUNDO PLANO (Sempre no WhatsApp, então usa sock.sendMessage)
+                        // Notifica o gestor EM SEGUNDO PLANO
                         if (cliente.numeroNotificacao && sock) {
                             let numG = String(cliente.numeroNotificacao).replace(/\D/g, '');
                             if (numG.length === 10 || numG.length === 11) numG = '55' + numG;
@@ -348,19 +486,13 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
                 } 
                 else {
                     proximoId = getNextNodeId(noAtual);
-                    console.log("🚨 [DEBUG GESTOR] Valor no banco:", cliente.numeroNotificacao); 
-
-                    // Aviso silencioso
-                    if (cliente.numeroNotificacao) {
-                        let numG = cliente.numeroNotificacao.replace(/\D/g, '');
-                    }
                 }
             } 
+            
             // --- TRATAMENTO DE NÓ TIPO: MENU ---
             else if (noAtual.name === 'menu') {
                 const entrada = String(textoMsg).trim();
                 const indexDigitado = parseInt(entrada) - 1; 
-                // 🛡️ Proteção: Garante que noAtual.data existe
                 const chavesOpcoes = Object.keys(noAtual.data || {})
                     .filter(k => k.startsWith('opcao'))
                     .sort((a, b) => parseInt(a.replace('opcao', '')) - parseInt(b.replace('opcao', '')));
@@ -377,6 +509,7 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
                 }
                 
                 proximoId = getNextNodeId(noAtual, key);
+                
                 // Fallback para porta de erro/inválido
                 if (!proximoId) {
                     proximoId = getNextNodeId(noAtual, `output_${chavesOpcoes.length + 2}`);
@@ -387,7 +520,7 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
             }
         }
 
-        // LOG DE DEPURAÇÃO (Adicione aqui)
+        // LOG DE DEPURAÇÃO
         console.log(`🔍 [DEBUG ENGINE] Estado Atual: ${estadoAtualId || 'Início'}`);
         console.log(`🎯 [DEBUG ENGINE] Próximo Nó ID: ${proximoId}`);
 
@@ -398,13 +531,10 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
             console.log("⚠️ [DEBUG ENGINE] Fluxo parou: Nenhum próximo nó encontrado.");
         }
 
-
     } catch (error) {
         console.error(`[ENGINE] Erro Geral no Processamento:`, error.message);
     }
 }
-
-
 // ============================================================================
 // 4. TRADUTOR DE VARIÁVEIS E EXECUTOR RECURSIVO (A MÁQUINA DE ESTADOS)
 // ============================================================================

@@ -3,316 +3,646 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Minha Agenda - Calixto OmniSystem</title>
+    <title>Agenda - Calixto OmniSystem</title>
     
+    <!-- Fontes e Ícones -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
     
+    <!-- Dependências Externas -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales-all.global.min.js'></script>
     
     <style>
+        /* --- 🎨 TEMA DARK NEON (Padrão CalixtoOS) --- */
         :root {
-            --bg-color: #050505; --card-bg: #0f0f0f; --border-color: #222;
-            --primary-blue: #0066ff; --text-main: #ffffff; --text-muted: #888;
+            --bg-color: #050505;
+            --card-bg: #0f0f0f;
+            --border-color: #222;
+            --primary-blue: #0066ff;
+            --primary-hover: #0052cc;
+            --text-main: #ffffff;
+            --text-muted: #888;
+            --danger: #ff3333;
+            --success: #00e054;
+            --warning: #ff9900;
         }
 
-        body { background-color: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; margin: 0; padding: 20px; }
-        .agenda-wrapper { max-width: 1500px; margin: 0 auto; background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.8); }
-        
-        #calendar { height: 800px; color: #fff; }
-
-        .fc-v-event { border-radius: 4px !important; transition: 0.2s; }
-        .event-bloqueado { background-color: #1a1a1a !important; border: 1px solid #444 !important; border-left: 5px solid #ff3333 !important; opacity: 0.8; }
-        .event-cliente { background-color: rgba(0, 102, 255, 0.15) !important; border: 1px solid var(--primary-blue) !important; border-left: 5px solid var(--primary-blue) !important; }
-
-        .swal2-popup { background: #0f0f0f !important; border: 1px solid #333 !important; color: #fff !important; }
-        
-        /* --- NOVO PAINEL DE CONFIGURAÇÕES SaaS --- */
-        .config-panel {
-            background: #111111;
-            border: 1px solid #333;
-            border-radius: 12px;
-            padding: 20px;
-            margin-bottom: 25px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 20px;
-            align-items: flex-end;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-
-        .config-item {
+        /* RESET BÁSICO */
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            font-family: 'Inter', sans-serif; 
+            margin: 0; 
+            padding: 40px; 
+            height: 100vh;
+            box-sizing: border-box;
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            flex: 1;
-            min-width: 200px;
         }
 
-        .config-item label {
-            font-size: 12px;
-            color: var(--text-muted);
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        /* --- 🏷️ BANNER DE MANUTENÇÃO --- */
+        .maintenance-banner { 
+            background: #ff3333; 
+            color: #fff; 
+            text-align: center; 
+            padding: 5px; 
+            font-size: 12px; 
+            font-weight: bold; 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            z-index: 9999; 
+        }
+        .mt-banner { margin-top: 30px; }
+
+        /* --- 🏛️ HEADER SUPERIOR (Menu de Navegação - INTÁCTO) --- */
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 40px; 
+        }
+        
+        .logo { 
+            font-size: 20px; 
+            font-weight: 700; 
+            color: #fff; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+        }
+        
+        .plan-badge { 
+            font-size: 11px; 
+            background: #1a1a1a; 
+            border: 1px solid #333; 
+            padding: 3px 10px; 
+            border-radius: 4px; 
+            color: #666; 
+            margin-left: 10px; 
+            text-transform: uppercase; 
+            letter-spacing: 1px; 
         }
 
-        .config-item label i {
-            color: var(--primary-blue);
-            margin-right: 5px;
-        }
-
-        .config-input {
-            background: #000;
-            border: 1px solid #444;
-            color: #fff;
-            padding: 12px 15px;
-            border-radius: 8px;
-            font-size: 14px;
-            transition: all 0.3s ease;
-            width: 100%;
-            box-sizing: border-box;
-        }
-
-        .config-input:focus {
-            border-color: var(--primary-blue);
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.2);
-        }
-
-        select.config-input {
-            appearance: none;
-            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-            background-repeat: no-repeat;
-            background-position: right 15px center;
-            background-size: 15px;
-            padding-right: 40px;
-        }
-
-        .btn-salvar {
-            background: var(--primary-blue);
-            color: #fff;
-            border: none;
-            padding: 12px 25px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 14px;
+        .btn-logout { 
+            color: #666; 
+            text-decoration: none; 
+            font-size: 13px; 
+            font-weight: 500; 
+            margin-right: 20px; 
             transition: 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            height: 43px; 
+        }
+        .btn-logout:hover { color: #fff; }
+
+        /* --- 🗂️ ABAS DE SELEÇÃO DE BOT --- */
+        .bot-tabs { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 25px; 
+            border-bottom: 1px solid var(--border-color); 
+            padding-bottom: 15px; 
+            overflow-x: auto; 
+        }
+        
+        .tab-btn { 
+            background: var(--card-bg); 
+            color: var(--text-muted); 
+            border: 1px solid var(--border-color); 
+            padding: 10px 20px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            transition: all 0.2s; 
+            white-space: nowrap; 
+        }
+        
+        .tab-btn:hover { 
+            background: #1a1a1a; 
+            color: #fff; 
+            border-color: #333;
+        }
+        
+        .tab-btn.active { 
+            background: rgba(0, 102, 255, 0.1); 
+            border-color: var(--primary-blue); 
+            color: var(--primary-blue); 
         }
 
-        .btn-salvar:hover {
-            background: #0052cc;
-            transform: translateY(-2px);
+        /* --- ⚙️ CARD DE CONFIGURAÇÕES --- */
+        .config-card { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border-color); 
+            border-radius: 8px; 
+            padding: 20px; 
+            margin-bottom: 25px; 
+        }
+        
+        .form-row { 
+            display: flex; 
+            gap: 20px; 
+            align-items: flex-end; 
+            flex-wrap: wrap; 
+        }
+        
+        .form-group { 
+            flex: 1; 
+            min-width: 200px; 
+        }
+        
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-size: 11px; 
+            color: #aaa; 
+            text-transform: uppercase; 
+            font-weight: 600; 
+        }
+        
+        input, select { 
+            width: 100%; 
+            background: #000; 
+            border: 1px solid var(--border-color); 
+            color: white; 
+            padding: 10px; 
+            border-radius: 6px; 
+            outline: none; 
+            box-sizing: border-box;
+            transition: 0.2s;
+        }
+        
+        input:focus, select:focus { 
+            border-color: var(--primary-blue); 
+        }
+
+        .btn-salvar { 
+            background-color: var(--primary-blue); 
+            color: #fff; 
+            border: none; 
+            padding: 10px 20px; 
+            border-radius: 6px; 
+            font-weight: 600; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            font-size: 13px; 
+            transition: 0.2s; 
+            height: 38px;
+        }
+        
+        .btn-salvar:hover { 
+            background-color: var(--primary-hover); 
+        }
+
+        /* --- 📅 FULLCALENDAR (Estilo Google Agenda Dark Mode) --- */
+        #calendar-container { 
+            background: #121212; 
+            border: 1px solid var(--border-color); 
+            border-radius: 8px; 
+            padding: 20px; 
+            flex: 1; 
+            min-height: 500px; 
+        }
+        
+        /* Linhas da grade mais sutis */
+        .fc-theme-standard td, .fc-theme-standard th { 
+            border-color: #2a2a2a !important; 
+        }
+        
+        /* Cabeçalho dos dias da semana (Estilo Limpo) */
+        .fc-col-header-cell { 
+            background-color: transparent !important; 
+            color: #888; 
+            padding: 12px 0; 
+            font-weight: 500; 
+            border-bottom: 1px solid #333 !important;
+        }
+
+        /* Número do dia no cabeçalho */
+        .fc .fc-col-header-cell-cushion {
+            display: inline-block;
+            padding: 4px 8px;
+            text-decoration: none !important;
+            color: #e0e0e0;
+        }
+        
+        /* Bolinha Azul no Dia Atual (Exato estilo Google Agenda) */
+        .fc-day-today .fc-col-header-cell-cushion {
+            background-color: var(--primary-blue);
+            color: #fff;
+            border-radius: 50%;
+            font-weight: bold;
+        }
+        
+        /* Fundo do dia atual (Sutil) */
+        .fc-day-today { 
+            background-color: rgba(0, 102, 255, 0.03) !important; 
+        }
+        
+        /* Estilo dos botões de navegação (Hoje, <, >) */
+        .fc .fc-button-primary { 
+            background-color: #1a1a1a; 
+            border-color: var(--border-color); 
+            color: #fff; 
+        }
+        
+        .fc .fc-button-primary:hover { 
+            background-color: #222; 
+            border-color: #444; 
+        }
+        
+        .fc .fc-button-primary:not(:disabled).fc-button-active { 
+            background-color: var(--primary-blue); 
+            color: #fff; 
+            border-color: var(--primary-blue); 
+        }
+
+        /* 🚫 Bloqueio Visual (Fora do Horário Comercial - DESTAQUE MÁXIMO) */
+        .fc-non-business {
+            background-color: #0a0a0a !important; /* Fundo bem escuro */
+            background-image: repeating-linear-gradient(
+                135deg,
+                #0a0a0a,
+                #0a0a0a 6px,
+                #111111 6px,
+                #111111 12px
+            ) !important; /* Listras diagonais elegantes */
+            opacity: 1 !important; /* Retira transparência para destacar */
+        }
+
+        /* Área editável (Horário de trabalho) */
+        .fc-timegrid-col-frame {
+            background-color: #161616; 
         }
     </style>
 </head>
 <body>
 
-    <div class="agenda-wrapper">
-        <div class="header-agenda" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px;">
-            <div style="display: flex; align-items: center; gap: 12px;">
-                <i class="ri-calendar-check-line" style="color:var(--primary-blue); font-size: 28px;"></i>
-                <h2 style="margin:0;">Gestão de Compromissos</h2>
-            </div>
-            <a href="/dashboard" style="background:#1a1a1a; color:#fff; padding:10px 20px; border-radius:6px; text-decoration:none; border:1px solid #333;">
-                <i class="ri-arrow-left-line"></i> Voltar
-            </a>
+    <!-- ⚠️ Banner de Manutenção -->
+    <% if (typeof systemMaintenance !== 'undefined' && systemMaintenance) { %>
+        <div class="maintenance-banner">
+            ⚠️ MODO MANUTENÇÃO ATIVO - CLIENTES ESTÃO BLOQUEADOS
         </div>
+    <% } %>
 
-        <div class="config-panel">
+    <!-- 🏛️ Header Principal (Menu) -->
+    <div class="header <%= (typeof systemMaintenance !== 'undefined' && systemMaintenance) ? 'mt-banner' : '' %>">
+        <div class="logo">
+            <i class="ri-dashboard-3-line"></i> Calixto OmniSystem 
+            <% if (usuario) { %> <span class="plan-badge"><%= usuario.plano %></span> <% } %>
+        </div>
+    
+        <div style="display: flex; gap: 15px; align-items: center;">
             
-            <div class="config-item">
-                <label><i class="ri-whatsapp-line"></i> Notificar Gestor (WhatsApp)</label>
-                <input type="text" id="numeroDonoInput" class="config-input"
-                       placeholder="Ex: 5521988522582" 
-                       value="<%= (clientes && clientes.length > 0 && clientes[0].numeroNotificacao) ? clientes[0].numeroNotificacao.split('@')[0] : '' %>">
-            </div>
+            <a href="/dashboard" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
+                <i class="ri-home-line"></i> Dashboard
+            </a>
 
-            <div class="config-item" style="min-width: 150px;">
-                <label><i class="ri-notification-3-line"></i> 1º Lembrete (Horas)</label>
-                <input type="number" id="lembrete1Input" class="config-input"
-                       placeholder="Ex: 24" min="1" max="72"
-                       value="<%= (clientes && clientes.length > 0 && clientes[0].tempoLembrete1) ? clientes[0].tempoLembrete1 : '24' %>">
-            </div>
-
-            <div class="config-item" style="min-width: 150px;">
-                <label><i class="ri-alarm-warning-line"></i> 2º Lembrete (Horas)</label>
-                <input type="number" id="lembrete2Input" class="config-input"
-                       placeholder="0 p/ desativar" min="0" max="24"
-                       value="<%= (clientes && clientes.length > 0 && clientes[0].tempoLembrete2 !== undefined) ? clientes[0].tempoLembrete2 : '2' %>">
-            </div>
-
-            <div class="config-item">
-                <label><i class="ri-time-line"></i> Horário Restrito?</label>
-                <select id="horarioInput" class="config-input">
-                    <% const usarHorario = (clientes && clientes.length > 0 && clientes[0].usarHorarioComercial === false) ? false : true; %>
-                    <option value="true" <%= usarHorario ? 'selected' : '' %>>Sim (08h às 18h)</option>
-                    <option value="false" <%= !usarHorario ? 'selected' : '' %>>Não (Livre 24h)</option>
-                </select>
-            </div>
-
-            <div>
-                <button onclick="salvarConfigNotificacao()" class="btn-salvar">
-                    <i class="ri-save-3-line"></i> Salvar
-                </button>
-            </div>
-
+            <a href="/dashboard/contratos" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
+                <i class="ri-file-text-line"></i> Meus Contratos
+            </a>
+    
+            <span style="color: #333;">|</span>
+            <a href="/logout" class="btn-logout">Sair</a>
         </div>
-
-        <div id="calendar"></div>
     </div>
 
+    <!-- 🚫 Tela Vazia (Caso o usuário não tenha robôs) -->
+    <% if (clientes.length === 0) { %>
+        <div style="text-align: center; color: #444; padding: 60px; border: 1px dashed var(--border-color); border-radius: 8px;">
+            <i class="ri-robot-line" style="font-size: 40px; margin-bottom: 10px;"></i><br>
+            Você não possui nenhum robô cadastrado.
+        </div>
+    <% } else { %>
+
+        <!-- 🗂️ Abas de Seleção de Bot -->
+        <div class="bot-tabs" id="bot-tabs-container">
+            <% clientes.forEach((c, index) => { %>
+                <button class="tab-btn <%= index === 0 ? 'active' : '' %>" id="tab-<%= c.id %>" onclick="selecionarBot('<%= c.id %>')">
+                    <i class="ri-robot-line"></i> <%= c.nome %>
+                </button>
+            <% }) %>
+        </div>
+
+        <!-- ⚙️ Formulário de Configuração -->
+        <div class="config-card">
+            <form id="form-settings" onsubmit="salvarConfiguracoes(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label><i class="ri-whatsapp-line"></i> Notificar Gestor</label>
+                        <input type="text" id="config-numero" placeholder="Ex: 5511999999999">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="ri-notification-3-line"></i> 1º Lembrete (Horas antes)</label>
+                        <input type="number" id="config-t1" placeholder="Ex: 24">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="ri-notification-3-line"></i> 2º Lembrete (Horas antes)</label>
+                        <input type="number" id="config-t2" placeholder="0 para desativar">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="ri-time-line"></i> Horário Restrito?</label>
+                        <select id="config-horario">
+                            <option value="true">Sim (Apenas horário comercial)</option>
+                            <option value="false">Não (Livre 24h)</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="flex: 0;">
+                        <button type="submit" class="btn-salvar" id="btn-salvar">
+                            <i class="ri-save-line"></i> Salvar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- 📅 Container do FullCalendar -->
+        <div id="calendar-container"></div>
+
+    <% } %>
+
+    <!-- ========================================== -->
+    <!-- 💾 INJEÇÃO DE DADOS SEGURA -->
+    <!-- ========================================== -->
+    <script id="clientes-data" type="application/json">
+        <%- JSON.stringify(clientes) %>
+    </script>
+
+   
     <script>
+        // ==========================================
+        // 💾 1. VARIÁVEIS GLOBAIS E CACHE
+        // ==========================================
+        const rawData = document.getElementById('clientes-data').textContent;
+        const clientesFromServer = JSON.parse(rawData);
+        
+        const botsData = {};
+        
+        clientesFromServer.forEach(c => {
+            botsData[c.id] = {
+                numeroDono: (c.numeroNotificacao || "").replace("@s.whatsapp.net", ""),
+                tempoLembrete1: c.tempoLembrete1 ?? 24,
+                tempoLembrete2: c.tempoLembrete2 ?? 0,
+                usarHorarioComercial: Boolean(c.usarHorarioComercial)
+            };
+        });
+
+        let currentBotId = clientesFromServer.length > 0 ? String(clientesFromServer[0].id) : "";
+        let todosEventos = [];
+        let calendar;
+
+        // ==========================================
+        // 🚀 2. INICIALIZAÇÃO DA PÁGINA E CALENDÁRIO
+        // ==========================================
         document.addEventListener('DOMContentLoaded', function() {
-            var calendarEl = document.getElementById('calendar');
+            if (!currentBotId) return;
 
-            // 🚩 LÊ A CONFIGURAÇÃO DE HORÁRIO DO BANCO/EJS
-            const usarRestricao = document.getElementById('horarioInput').value === 'true';
+            var calendarEl = document.getElementById('calendar-container');
 
-            // Configuração base do calendário
-            var calendarConfig = {
+            calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: 'timeGridWeek',
                 locale: 'pt-br',
-                slotDuration: '00:15:00',
-                selectable: true,
-                allDaySlot: false,
-                slotEventOverlap: false,
-                events: '/api/agendamentos/usuario',
-
-                eventDidMount: function(info) {
-                    if (info.event.extendedProps.cpf === 'BLOQUEIO') {
-                        info.el.classList.add('event-bloqueado');
-                    } else {
-                        info.el.classList.add('event-cliente');
-                    }
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
                 },
+                allDaySlot: false,
+                slotMinTime: '00:00:00',
+                slotMaxTime: '24:00:00',
+                contentHeight: 'auto',
+                slotDuration: '00:30:00',
+                
+                selectable: true,      
+                selectMirror: true,    
+                editable: true,        
 
-                select: async function(info) {
-                    const confirm = await Swal.fire({
-                        title: 'Restringir horário?',
-                        text: `Deseja bloquear o horário das ${info.start.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}?`,
-                        icon: 'question',
-                        showCancelButton: true,
-                        confirmButtonText: 'Sim, Bloquear',
-                        confirmButtonColor: '#ff3333'
-                    });
-
-                    if (confirm.isConfirmed) {
-                        const res = await fetch('/api/agendamentos/bloquear', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                                start: info.start, 
-                                clienteId: '<%= (clientes && clientes.length > 0) ? clientes[0].id : "" %>' 
-                            })
-                        });
-                        if (res.ok) calendar.refetchEvents();
-                    }
+                select: function(info) {
+                    abrirModalCriacao(info.start);
                 },
 
                 eventClick: function(info) {
                     const props = info.event.extendedProps;
-                    const isBloqueio = props.cpf === 'BLOQUEIO';
-                    
-                    const dataApenas = info.event.start.toLocaleDateString('pt-BR');
-                    const horaApenas = info.event.start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    const eventId = info.event.id;
 
-                    const nomeReal = props.nome || props.mensagem || "Cliente";
+                    const temCpf = props.cpf && props.cpf !== 'S/N' && props.cpf !== 'BLOQUEIO';
+                    const cpfPaciente = temCpf ? props.cpf : 'Não informado';
+                    const dataFormatada = info.event.start.toLocaleString('pt-BR', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                    }).replace(', ', ' às ');
 
                     Swal.fire({
-                        title: isBloqueio ? 'Horário Restrito' : 'Gestão do Horário',
                         html: `
-                            <div style="text-align: left; padding: 15px; background: #000; border-radius: 8px; border: 1px solid #222;">
-                                <p style="margin: 5px 0;"><b>👤 Nome:</b> ${nomeReal}</p>
-                                <hr style="border: 0; border-top: 1px solid #333; margin: 10px 0;">
-                                <p style="margin: 5px 0;"><b>📅 Data:</b> ${dataApenas}</p>
-                                <p style="margin: 5px 0;"><b>🕒 Horário:</b> ${horaApenas}</p>
-                                ${!isBloqueio ? `
-                                    <hr style="border: 0; border-top: 1px solid #333; margin: 10px 0;">
-                                    <p style="margin: 5px 0;"><b>🆔 CPF:</b> ${props.cpf || 'Não informado'}</p>
-                                    <p style="margin: 5px 0;"><b>📱 WhatsApp:</b> ${props.numero || 'Não informado'}</p>
-                                ` : '<p style="color:#ff3333; font-size:11px; margin-top:10px;">🔒 Bloqueio manual.</p>'}
+                            <div style="text-align: left;">
+                                <h3 style="color: #fff; border-bottom: 1px solid #333; padding-bottom: 15px; margin-top: 0;">
+                                    <i class="ri-calendar-check-line" style="color: var(--primary-blue); vertical-align: middle;"></i> Detalhes
+                                </h3>
+                                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px; color: #ccc;">
+                                    <span><i class="ri-user-3-line"></i> <b>Paciente:</b> ${props.nome}</span>
+                                    <span><i class="ri-id-card-line"></i> <b>CPF:</b> ${cpfPaciente}</span>
+                                    <span><i class="ri-whatsapp-line" style="color: #00e054;"></i> <b>WhatsApp:</b> ${props.numero}</span>
+                                    <span><i class="ri-time-line" style="color: var(--primary-blue);"></i> <b>Data:</b> ${dataFormatada}</span>
+                                </div>
                             </div>
                         `,
+                        background: '#141414',
                         showCancelButton: true,
-                        confirmButtonText: 'Manter',
-                        cancelButtonText: '🗑️ Remover',
-                        cancelButtonColor: '#ff3333',
-                        confirmButtonColor: '#1a1a1a'
+                        showConfirmButton: true,
+                        confirmButtonText: '<i class="ri-delete-bin-line"></i> Apagar',
+                        confirmButtonColor: '#ff3333',
+                        cancelButtonText: 'Fechar',
+                        cancelButtonColor: '#333'
                     }).then((result) => {
-                        if (result.dismiss === Swal.DismissReason.cancel) {
-                            confirmarExclusao(info.event.id);
+                        if (result.isConfirmed) {
+                            apagarAgendamento(eventId);
                         }
                     });
                 }
+            });
+
+            calendar.render();
+            atualizarFormularioConfig(currentBotId);
+            buscarEventosDoServidor();
+        });
+
+        // ==========================================
+        // 🛠️ FUNÇÕES DE APOIO (ADICIONAR E APAGAR)
+        // ==========================================
+        async function abrirModalCriacao(dataSelecionada) {
+            const { value: formValues } = await Swal.fire({
+                title: 'Novo Agendamento',
+                background: '#141414',
+                color: '#fff',
+                html: `
+                    <div style="display: flex; flex-direction: column; gap: 10px; text-align: left;">
+                        <label style="font-size: 11px; color: #888; font-weight: bold;">NOME DO PACIENTE</label>
+                        <input id="swal-nome" class="swal2-input" style="margin:0; width: 90%; font-size: 14px;" placeholder="Ex: João da Silva">
+                        
+                        <label style="font-size: 11px; color: #888; font-weight: bold; margin-top: 10px;">WHATSAPP (COM DDD)</label>
+                        <input id="swal-whats" type="number" class="swal2-input" style="margin:0; width: 90%; font-size: 14px;" placeholder="Ex: 11999999999">
+                        
+                        <label style="font-size: 11px; color: #888; font-weight: bold; margin-top: 10px;">DATA E HORA SELECIONADA</label>
+                        <input class="swal2-input" style="margin:0; width: 90%; font-size: 14px; background: #222; color: #aaa;" value="${dataSelecionada.toLocaleString('pt-BR')}" disabled>
+                    </div>
+                `,
+                focusConfirm: false,
+                showCancelButton: true,
+                cancelButtonText: 'Cancelar',
+                cancelButtonColor: '#333',
+                confirmButtonText: 'Agendar',
+                confirmButtonColor: '#0066ff',
+                preConfirm: () => {
+                    return {
+                        nome: document.getElementById('swal-nome').value,
+                        whatsapp: document.getElementById('swal-whats').value,
+                        data: dataSelecionada
+                    }
+                }
+            });
+
+            if (formValues) {
+                if (!formValues.nome || !formValues.whatsapp) {
+                    Swal.fire({title: 'Erro', text: 'Preencha Nome e WhatsApp!', icon: 'error', background: '#141414', color: '#fff'});
+                    return;
+                }
+                salvarNovoAgendamento(formValues);
+            }
+        }
+
+        async function salvarNovoAgendamento(dados) {
+            try {
+                const res = await fetch('/api/agendamentos/manual', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ...dados, clienteId: currentBotId })
+                });
+
+                if (res.ok) {
+                    Swal.fire({ title: 'Agendado!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#111', color: '#fff' });
+                    buscarEventosDoServidor();
+                } else {
+                    throw new Error();
+                }
+            } catch (e) {
+                Swal.fire({title: 'Erro', text: 'Falha ao salvar agendamento.', icon: 'error', background: '#141414', color: '#fff'});
+            }
+        }
+
+        async function apagarAgendamento(id) {
+            try {
+                if (!id) {
+                    Swal.fire({title: 'Erro', text: 'ID do agendamento não encontrado.', icon: 'error', background: '#141414', color: '#fff'});
+                    return;
+                }
+                const res = await fetch(`/api/agendamentos/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    Swal.fire({ title: 'Apagado!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#111', color: '#fff' });
+                    buscarEventosDoServidor();
+                } else {
+                    throw new Error();
+                }
+            } catch (e) {
+                Swal.fire({title: 'Erro', text: 'Falha ao excluir agendamento.', icon: 'error', background: '#141414', color: '#fff'});
+            }
+        }
+
+        // ==========================================
+        // 🔄 3. LÓGICA DE TROCA DE ABAS (BOTS)
+        // ==========================================
+        function selecionarBot(id) {
+            currentBotId = id;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-' + id).classList.add('active');
+            atualizarFormularioConfig(id);
+            filtrarEAtualizarCalendario();
+        }
+
+        function atualizarFormularioConfig(id) {
+            const data = botsData[id];
+            document.getElementById('config-numero').value = data.numeroDono;
+            document.getElementById('config-t1').value = data.tempoLembrete1;
+            document.getElementById('config-t2').value = data.tempoLembrete2;
+            document.getElementById('config-horario').value = data.usarHorarioComercial;
+        }
+
+        async function buscarEventosDoServidor() {
+            try {
+                const res = await fetch('/api/agendamentos/usuario');
+                todosEventos = await res.json();
+                filtrarEAtualizarCalendario();
+            } catch (e) {
+                console.error("Erro ao buscar agendamentos da API", e);
+            }
+        }
+
+        async function salvarConfiguracoes(e) {
+            e.preventDefault(); 
+            const btn = document.getElementById('btn-salvar');
+            btn.innerHTML = 'Salvando...'; 
+            btn.disabled = true;
+
+            const payload = {
+                numeroDono: document.getElementById('config-numero').value,
+                tempoLembrete1: document.getElementById('config-t1').value,
+                tempoLembrete2: document.getElementById('config-t2').value,
+                usarHorarioComercial: document.getElementById('config-horario').value === 'true'
             };
 
-            // 🚩 SE O GESTOR ESCOLHEU RESTRINGIR HORÁRIO, APLICA A TRAVA NO CALENDÁRIO
-            if (usarRestricao) {
-                calendarConfig.businessHours = {
+            try {
+                const res = await fetch(`/api/clientes/${currentBotId}/config-notificacao`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (res.ok) {
+                    botsData[currentBotId] = payload;
+                    Swal.fire({ title: 'Sucesso!', text: 'Configurações salvas.', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, background: '#111', color: '#fff' });
+                    filtrarEAtualizarCalendario();
+                } else {
+                    throw new Error();
+                }
+            } catch (error) {
+                Swal.fire({ title: 'Erro', text: 'Falha ao salvar configurações.', icon: 'error', background: '#111', color: '#fff' });
+            } finally {
+                btn.innerHTML = '<i class="ri-save-line"></i> Salvar'; 
+                btn.disabled = false;
+            }
+        }
+
+        function filtrarEAtualizarCalendario() {
+            if(!calendar) return;
+            
+            const configBot = botsData[currentBotId];
+            const isHorarioRestrito = configBot.usarHorarioComercial;
+
+            if (isHorarioRestrito) {
+                calendar.setOption('businessHours', {
                     daysOfWeek: [ 1, 2, 3, 4, 5, 6 ], 
                     startTime: '08:00',
                     endTime: '18:00',
-                };
-                calendarConfig.selectConstraint = 'businessHours';
-            }
-
-            var calendar = new FullCalendar.Calendar(calendarEl, calendarConfig);
-
-            async function confirmarExclusao(id) {
-                if (!id) return;
-                const res = await fetch(`/api/agendamentos/${id}`, { method: 'DELETE' });
-                if (res.ok) calendar.refetchEvents();
-            }
-
-            calendar.render();
-            window.calendarRef = calendar;
-        });
-
-        // FUNÇÃO PARA SALVAR TODAS AS CONFIGURAÇÕES
-        async function salvarConfigNotificacao() {
-            const numero = document.getElementById('numeroDonoInput').value;
-            const lembrete1 = document.getElementById('lembrete1Input').value;
-            const lembrete2 = document.getElementById('lembrete2Input').value;
-            const usarHorario = document.getElementById('horarioInput').value === 'true'; // Pega se é true ou false
-            
-            const clienteId = '<%= (clientes && clientes.length > 0) ? clientes[0].id : "" %>';
-
-            if (!clienteId) return Swal.fire('Erro', 'Nenhum robô encontrado.', 'error');
-
-            const res = await fetch(`/api/clientes/${clienteId}/config-notificacao`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    numeroDono: numero,
-                    tempoLembrete1: lembrete1 ? parseInt(lembrete1) : 24,
-                    tempoLembrete2: lembrete2 ? parseInt(lembrete2) : 0,
-                    usarHorarioComercial: usarHorario // Envia para o backend
-                })
-            });
-
-            if (res.ok) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Guardado!',
-                    text: 'Configurações atualizadas. A página será recarregada.',
-                    background: '#0f0f0f',
-                    color: '#fff',
-                    timer: 2000,
-                    showConfirmButton: false
-                }).then(() => {
-                    window.location.reload(); // Recarrega para aplicar a trava/destrava no calendário
                 });
+                calendar.setOption('selectConstraint', 'businessHours');
+                calendar.setOption('eventConstraint', 'businessHours');
             } else {
-                Swal.fire('Erro', 'Falha ao guardar as configurações.', 'error');
+                calendar.setOption('businessHours', false);
+                calendar.setOption('selectConstraint', null);
+                calendar.setOption('eventConstraint', null);
             }
+
+            const eventosFiltrados = todosEventos.filter(ev => ev.extendedProps.clienteId === currentBotId);
+            calendar.removeAllEvents();
+            calendar.addEventSource(eventosFiltrados);
         }
     </script>
+
+
 </body>
 </html>

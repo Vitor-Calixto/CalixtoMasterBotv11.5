@@ -127,36 +127,40 @@ async function iniciarWhatsApp(clienteDado, io) {
             }, 5000); 
         }
 
-        // --- F. MONITORAMENTO DE CONEXÃO ---
-        sock.ev.on('creds.update', saveCreds);
+      // --- F. MONITORAMENTO DE CONEXÃO ---
+      sock.ev.on('creds.update', saveCreds);
 
-        sock.ev.on('connection.update', async (update) => {
-            const { connection, lastDisconnect } = update;
-            
-            if (connection === 'close') {
-                const statusCode = lastDisconnect?.error?.output?.statusCode;
-                const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-                
-                sessoes.delete(cliente.id);
-                console.log(`[${cliente.nome}] 📉 Conexão perdida. Código: ${statusCode}. Reconectar? ${shouldReconnect}`);
+      sock.ev.on('connection.update', async (update) => {
+          const { connection, lastDisconnect } = update;
+          
+          if (connection === 'close') {
+              const statusCode = lastDisconnect?.error?.output?.statusCode;
+              // Código 401 ou loggedOut significa que o usuário desconectou no celular
+              const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401;
+              const shouldReconnect = !isLoggedOut;
+              
+              console.log(`[${cliente.nome}] 📉 Conexão perdida. Código: ${statusCode}. Reconectar? ${shouldReconnect}`);
 
-                if (statusCode === DisconnectReason.loggedOut || statusCode === 401) {
-                    console.log(`[${cliente.nome}] 🚫 Sessão deslogada pelo aparelho.`);
-                    await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'OFFLINE' } });
-                    if(io) io.emit('status', { clienteId: cliente.id, status: 'OFFLINE' });
-                    try { fs.rmSync(pathAuth, { recursive: true, force: true }); } catch (e) {}
-                } else if (shouldReconnect) {
-                    setTimeout(() => iniciarWhatsApp(cliente, io), 3000); // Backoff de reconexão
-                }
+              if (isLoggedOut) {
+                  console.log(`[${cliente.nome}] 🚫 Sessão deslogada pelo aparelho.`);
+                  await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'OFFLINE' } });
+                  if(io) io.emit('status', { clienteId: cliente.id, status: 'OFFLINE' });
+                  try { fs.rmSync(pathAuth, { recursive: true, force: true }); } catch (e) {}
+                  
+                  // SÓ DELETA A SESSÃO AQUI, SE FOR DESLOGAR PRA VALER
+                  sessoes.delete(cliente.id); 
+              } else if (shouldReconnect) {
+                  // SE FOR RECONECTAR, NÃO DELETA! Deixa a função iniciarWhatsApp limpar o zumbi.
+                  setTimeout(() => iniciarWhatsApp(cliente, io), 3000); 
+              }
 
-            } else if (connection === 'open') {
-                sessoes.set(cliente.id, sock); 
-                await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'ONLINE' } });
-                if(io) io.emit('status', { clienteId: cliente.id, status: 'ONLINE' });
-                console.log(`[${cliente.nome}] ✅ Conexão Estabelecida com sucesso!`);
-            }
-        });
-
+          } else if (connection === 'open') {
+              sessoes.set(cliente.id, sock); 
+              await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'ONLINE' } });
+              if(io) io.emit('status', { clienteId: cliente.id, status: 'ONLINE' });
+              console.log(`[${cliente.nome}] ✅ Conexão Estabelecida com sucesso!`);
+          }
+      });
 
         // ====================================================================
         // 🛡️ G. ESCUTADOR DE MENSAGENS E ROTEAMENTO (GATEKEEPER)
