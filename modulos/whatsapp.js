@@ -217,46 +217,46 @@ async function iniciarWhatsApp(clienteDado, io) {
 //         console.error(`[FALHA DE IGNIÇÃO] Não foi possível inicializar WhatsApp:`, errorGlobal);
 //     }
 // }
-
 // ====================================================================
         // 🛡️ G. ESCUTADOR DE MENSAGENS E ROTEAMENTO (GATEKEEPER)
         // ====================================================================
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
             try {
+                // 📡 O RADAR ABSOLUTO: Se o WhatsApp receber algo, vai gritar aqui.
+                console.log(`\n[BAILEYS RADAR] 🔔 Evento detectado. Tipo: ${type}`);
+
                 if (type !== 'notify') return; 
                 const msg = messages[0];
                 if (!msg.message) return;
 
-                // --- 🚀 NOVO FILTRO DE SEGURANÇA (PERMITE COMANDOS DO GESTOR) ---
                 const fromMe = msg.key.fromMe;
                 const realMessage = unwrapMessage(msg.message);
                 const texto = (realMessage?.conversation || realMessage?.extendedTextMessage?.text || realMessage?.imageMessage?.caption || "").trim();
 
-                // Se a mensagem for MINHA (do gestor), eu só deixo passar se for um comando (#)
-                // Se eu digitar "Oi", "Tudo bem", o bot ignora (evita loop).
-                // Se eu digitar "#PAUSE", "#RESET", ele processa!
-                if (fromMe && !texto.startsWith('#')) return;
-                
-                // Se NÃO for minha e NÃO tiver texto, ignora
-                if (!fromMe && !texto) return;
+                // 🚨 O ASSASSINO SILENCIOSO (TRAVA TEMPORAL) FOI NEUTRALIZADO AQUI 🚨
+                // Comentamos isso para evitar que o fuso horário do Windows apague a mensagem.
+                // const msgTimestamp = msg.messageTimestamp * 1000;
+                // if (msgTimestamp < uptimeStart || (Date.now() - msgTimestamp) > 30000) return;
 
-                // --- TRAVAS TEMPORAIS ---
-                const msgTimestamp = msg.messageTimestamp * 1000;
-                if (msgTimestamp < uptimeStart || (Date.now() - msgTimestamp) > 30000) return;
+                // --- 🚀 FILTRO DE SEGURANÇA ---
+                if (fromMe && !texto.startsWith('#')) return; // Gestor só passa se usar #
+                if (!fromMe && !texto) return; // Mensagem vazia de cliente é ignorada
 
                 const remoteJid = msg.key.remoteJid;
                 if (isJidBroadcast(remoteJid) || isJidGroup(remoteJid)) return;
 
-                console.log(`[WPP RECEBIDO] De: ${remoteJid.split('@')[0]} | Msg: "${texto.substring(0, 30)}..."`);
+                // 🎉 SE CHEGOU AQUI, O BOT VAI PROCESSAR!
+                console.log(`[WPP RECEBIDO] De: ${remoteJid.split('@')[0]} | Gestor? ${fromMe} | Msg: "${texto}"`);
 
-                // ATALHO: Cancelamento direto de agendamentos (Para clientes)
+                // ATALHO: Cancelamento direto
                 if (texto.toUpperCase() === 'SIM' && !fromMe) {
-                    // ... seu código de deleteMany ...
+                    console.log(`[ATALHO] Cliente digitou SIM.`);
+                    // ... seu código de deleteMany original ...
                     return; 
                 }
 
                 // 🚀 DESPACHANTE FINAL: Joga para o Cérebro V12 (Engine)
-                // Agora ele vai enviar o #PAUSE do gestor para a engine processar!
+                console.log(`[ENGINE] 🧠 Enviando para processarMensagem...`);
                 await engine.processarMensagem(cliente.id, remoteJid, texto, sock, prisma, msg.pushName || "Cliente");
 
             } catch (error) { 
@@ -266,10 +266,10 @@ async function iniciarWhatsApp(clienteDado, io) {
 
         sessoes.set(cliente.id, sock);
 
-            } catch (errorGlobal) {
-                console.error(`[FALHA DE IGNIÇÃO] Não foi possível inicializar WhatsApp:`, errorGlobal);
-            }
-        }
+    } catch (errorGlobal) {
+        console.error(`[FALHA DE IGNIÇÃO] Não foi possível inicializar WhatsApp:`, errorGlobal);
+    }
+}
 
 // 📦 5. EXPORTAÇÃO
 module.exports = { iniciarWhatsApp, sessoes };

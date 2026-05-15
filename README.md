@@ -686,3 +686,154 @@ Isso garante o padrão **Singleton** e mantém seu PostgreSQL respirando aliviad
 ```
 
 ---
+
+
+
+Aqui está o *MANUAL ATUALIZADO (V2)*. Copie e substitua o anterior no seu arquivo de texto:
+
+text
+========================================================================
+📘 MANUAL MESTRE DE RESTAURAÇÃO DE AMBIENTE (SETUP DO ZERO)
+SISTEMA: Calixto OmniSystem
+DATA: 18/01/2026
+OBJETIVO: Configurar PC novo/formatado para voltar a programar em 20 min.
+========================================================================
+
+------------------------------------------------------------------------
+🚨 FASE 0: O QUE SALVAR NO PENDRIVE (ANTES DE FORMATAR)
+------------------------------------------------------------------------
+1. A PASTA DO PROJETO (OPÇÃO 1 - MAIS RÁPIDA):
+   - Copie a pasta "Calixto-Master-Botv10" para o Pendrive.
+   - DICA: Apague a pasta "node_modules" de dentro dela antes de copiar.
+
+2. O CÓDIGO VIA GIT (OPÇÃO 2 - SE NÃO TIVER PENDRIVE):
+   - Se você não salvar a pasta, não tem problema. Você pode baixar tudo 
+     da nuvem usando o link do repositório que está no final deste manual.
+
+3. O ARQUIVO DE SENHAS (.env) - OBRIGATÓRIO:
+   - O Git NÃO salva suas senhas. Você PRECISA ter o conteúdo do .env salvo.
+   - Por segurança, criei uma cópia dele na SEÇÃO EXTRA deste manual (lá embaixo).
+
+4. DADOS DO BANCO LOCAL (OPCIONAL):
+   - Se tiver dados de teste importantes no PC, rode no terminal:
+     pg_dump -U postgres -d calixto_db > backup_local.sql
+   - Copie esse arquivo .sql para o Pendrive.
+
+------------------------------------------------------------------------
+🛠️ FASE 1: INSTALAÇÃO DE SOFTWARES (LINKS NO FINAL)
+------------------------------------------------------------------------
+No PC NOVO, instale nesta ordem exata:
+
+1. DRIVERS DA PLACA-MÃE (REDE/WI-FI):
+   - Sem isso você não baixa o resto. Tenha salvo no Pendrive.
+
+2. GIT FOR WINDOWS:
+   - Instalação: Vá clicando em "Next" em tudo.
+
+3. NODE.JS (VERSÃO LTS):
+   - Instalação: Padrão (Next, Next...).
+
+4. VISUAL STUDIO CODE (VS CODE):
+   - Instalação: Padrão.
+
+5. POSTGRESQL (BANCO DE DADOS):
+   - ⚠️ IMPORTANTE: Durante a instalação, ele pedirá uma senha para o "superuser".
+   - DIGITE A SENHA: Elisan01
+   - Se colocar outra, o sistema não vai conectar.
+
+6. REDIS (VERSÃO MSI):
+   - Instalação: Apenas execute o arquivo MSI e instale. Ele roda sozinho.
+
+7. PUTTY (PARA ACESSAR A VPS):
+   - Instalação: Padrão.
+
+------------------------------------------------------------------------
+💻 FASE 2: CONFIGURANDO O PROJETO (VOLTANDO A TRABALHAR)
+------------------------------------------------------------------------
+1. Abra o VS Code.
+2. Abra o Terminal (Ctrl + ' ou Menu Terminal > New Terminal).
+
+3. Configure seu usuário do Git (se for a 1ª vez no PC novo):
+   git config --global user.name "Vitor Calixto"
+   git config --global user.email "SEU_EMAIL_GITHUB@GMAIL.COM"
+
+4. BAIXE O PROJETO (Se não copiou a pasta do pendrive):
+   git clone https://github.com/Vitor-Calixto/Calixto-Master-Botv10.git
+   cd Calixto-Master-Botv10
+
+5. Instale as dependências (recria a pasta node_modules):
+   npm install
+
+6. Recrie o arquivo de senhas:
+   - Crie um arquivo novo chamado ".env" na raiz da pasta.
+   - Cole o conteúdo da "SEÇÃO EXTRA" (final deste arquivo) dentro dele.
+
+7. Crie o Banco de Dados Local:
+   npx prisma db push
+   (Deve aparecer: "The database is now in sync")
+
+8. Teste o sistema:
+   node index.js
+   (Acesse localhost:3000 no navegador)
+
+------------------------------------------------------------------------
+☁️ FASE 3: ACESSANDO A PRODUÇÃO (VPS CONTABO)
+------------------------------------------------------------------------
+1. Abra o PuTTY.
+2. Em "Host Name", coloque o IP da VPS.
+3. Clique em Open.
+4. Login: root
+5. Senha: (A senha da sua VPS - o cursor não mexe ao digitar).
+6. Para ir na pasta do projeto:
+   cd /var/www/calixto-bot
+
+------------------------------------------------------------------------
+🔗 LISTA DE LINKS (PROGRAMAS + SEU PROJETO)
+------------------------------------------------------------------------
+SEU PROJETO (GITHUB) - Para baixar via Git:
+https://github.com/Vitor-Calixto/Calixto-Master-Botv10.git
+
+VS CODE:
+https://code.visualstudio.com/sha/download?build=stable&os=win32-x64-user
+
+GIT (Obrigatório para baixar o projeto):
+https://github.com/git-for-windows/git/releases/download/v2.47.1.windows.1/Git-2.47.1-64-bit.exe
+
+NODE.JS (LTS):
+https://nodejs.org/dist/v20.11.0/node-v20.11.0-x64.msi
+
+POSTGRESQL (BANCO):
+https://get.enterprisedb.com/postgresql/postgresql-16.1-1-windows-x64.exe
+
+REDIS (BANCO DE MEMÓRIA):
+https://github.com/tporadowski/redis/releases/download/v5.0.14.1/Redis-x64-5.0.14.1.msi
+
+PUTTY (CONSOLE VPS):
+https://the.earth.li/~sgtatham/putty/latest/w64/putty-64bit-0.80-installer.msi
+
+------------------------------------------------------------------------
+🔑 SEÇÃO EXTRA: CONTEÚDO DO ARQUIVO .ENV
+(Copie tudo abaixo e cole no arquivo .env do PC novo)
+------------------------------------------------------------------------
+
+# PORTA DO SERVIDOR
+PORT=3000
+
+# BANCO DE DADOS POSTGRESQL (Senha: Elisan01)
+DATABASE_URL="postgresql://postgres:Elisan01@localhost:5432/calixto_db?schema=public"
+
+# REDIS (Banco de Memória)
+REDIS_HOST="127.0.0.1"
+REDIS_PORT=6379
+REDIS_PASSWORD=""
+
+# INTEGRAÇÕES DE IA (Opcional)
+OPENAI_API_KEY="sk-..."
+GEMINI_API_KEY="AIza..."
+
+# SEGURANÇA
+JWT_SECRET="calixto_segredo_super_secreto_2025"
+
+========================================================================
+FIM DO MANUAL
+========================================================================

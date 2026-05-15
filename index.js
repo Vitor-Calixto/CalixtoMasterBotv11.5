@@ -79,7 +79,7 @@ const limiter = rateLimit({
 app.use(limiter);
 
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
+    windowMs: 15 * 60 * 1000,            //MUDAR PARA 15 DEPOIS
     max: 10, // Só 10 tentativas de login por 15 min
     message: "Muitas tentativas de login. Bloqueado por 15 min."
 });
@@ -208,21 +208,61 @@ const upload = multer({
 app.get('/', (req, res) => { res.render('landing', { usuario: req.session.usuario || null }); });
 app.get('/login', (req, res) => { if (req.session.usuario) return res.redirect('/dashboard'); res.render('login', { message: req.flash('error'), erro: null }); });
 
+// app.post('/login', loginLimiter, async (req, res) => {
+//     const email = req.body.email?.trim();
+//     const senha = req.body.senha?.trim();
+//     try {
+//         const user = await prisma.usuario.findUnique({ where: { email } });
+//         if (!user || !bcrypt.compareSync(senha, user.senha)) return res.render('login', { message: 'Credenciais inválidas.', erro: null });
+//         if (user.bloqueado) return res.render('login', { message: null, erro: 'Conta bloqueada.' });
+//         if (user.role !== 'ADMIN' && !user.ativo) return res.render('login', { message: null, erro: 'Aguarde aprovação.' });
+//         if (user.role !== 'ADMIN' && user.expiraEm && new Date() > new Date(user.expiraEm)) return res.render('login', { message: null, erro: 'Assinatura expirada.' });
+
+//         req.session.usuario = user; 
+//         req.session.userId = user.id; 
+//         req.session.role = user.role;
+//         res.redirect('/dashboard');
+//     } catch (e) { res.render('login', { message: 'Erro servidor.', erro: null }); }
+// });
+
+
+// Em caso de erro de autenticação,descomentar app.post abaixo e comentar o de cima
+
 app.post('/login', loginLimiter, async (req, res) => {
     const email = req.body.email?.trim();
     const senha = req.body.senha?.trim();
+    
+    console.log(`\n[LOGIN DEBUG] Tentativa de acesso -> E-mail: ${email}`);
+
     try {
         const user = await prisma.usuario.findUnique({ where: { email } });
-        if (!user || !bcrypt.compareSync(senha, user.senha)) return res.render('login', { message: 'Credenciais inválidas.', erro: null });
+        
+        console.log(`[LOGIN DEBUG] Usuário encontrado no banco? ${user ? 'SIM ('+user.role+')' : 'NÃO'}`);
+
+        // 🚨 BYPASS DE EMERGÊNCIA (A CHAVE MESTRA) 🚨
+        // Comentamos a trava do bcrypt e forçamos como TRUE
+        const senhaValida = user ? bcrypt.compareSync(senha, user.senha) : false;
+        // const senhaValida = true; <-- Isso força a entrada ignorando a criptografia!
+
+        if (!user || !senhaValida) {
+            console.log(`[LOGIN DEBUG] Falha: user=${!!user} | senha=${senhaValida}`);
+            return res.render('login', { message: 'Credenciais inválidas.', erro: null });
+        }
+
         if (user.bloqueado) return res.render('login', { message: null, erro: 'Conta bloqueada.' });
         if (user.role !== 'ADMIN' && !user.ativo) return res.render('login', { message: null, erro: 'Aguarde aprovação.' });
         if (user.role !== 'ADMIN' && user.expiraEm && new Date() > new Date(user.expiraEm)) return res.render('login', { message: null, erro: 'Assinatura expirada.' });
 
+        console.log(`[LOGIN DEBUG] ✅ ACESSO LIBERADO PARA: ${user.nome}`);
+        
         req.session.usuario = user; 
         req.session.userId = user.id; 
         req.session.role = user.role;
         res.redirect('/dashboard');
-    } catch (e) { res.render('login', { message: 'Erro servidor.', erro: null }); }
+    } catch (e) { 
+        console.error(`[LOGIN DEBUG] Erro fatal no servidor:`, e);
+        res.render('login', { message: 'Erro servidor.', erro: null }); 
+    }
 });
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
