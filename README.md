@@ -689,7 +689,7 @@ Isso garante o padrão **Singleton** e mantém seu PostgreSQL respirando aliviad
 
 
 
-Aqui está o *MANUAL ATUALIZADO (V2)*. Copie e substitua o anterior no seu arquivo de texto:
+
 
 text
 ========================================================================
