@@ -36,17 +36,17 @@ async function verificarTimeouts() {
            // ========================================================
            // 🛡️ TRAVA DE OURO: BLINDAGEM DO MODO #PAUSE
            // ========================================================
-           const estaPausado = await sessions.isPausado(userNum);
-           if (estaPausado) {
-               // Converte para texto com segurança para o IF nunca falhar
-               const tempoAtual = String(sessao.timeoutAt || '').trim();
-               
-               // Só salva se não estiver desativado!
-               if (tempoAtual !== 'DESATIVADO') {
-                   await sessions.salvarDadosUsuario(userNum, 'timeoutAt', 'DESATIVADO');
-               }
-               continue; // Pula o cliente pausado e mantém silêncio no terminal
-           }
+            const estaPausado = await sessions.isPausado(userNum);
+            if (estaPausado) {
+                // Converte para texto com segurança para o IF nunca falhar
+                const tempoAtual = String(sessao.timeoutAt || '').trim();
+
+                // Só salva se não estiver desativado! (na chave sessao:, não dados:)
+                if (tempoAtual !== 'DESATIVADO') {
+                    await sessions.desativarTimeout(userNum);
+                }
+                continue; // Pula o cliente pausado e mantém silêncio no terminal
+            }
 
            // ========================================================
            // ⏰ VERIFICAÇÃO DO RELÓGIO (SÓ PARA QUEM NÃO ESTÁ PAUSADO)
@@ -68,8 +68,9 @@ async function verificarTimeouts() {
                        continue;
                    }
 
-                   // TRAVA 2: ANTI-LOOP (Finaliza a conversa e bloqueia repetição)
-                   await sessions.salvarDadosUsuario(userNum, 'timeoutAt', 'DESATIVADO');
+                    // TRAVA 2: ANTI-LOOP (Finaliza a conversa e bloqueia repetição)
+                    // Escreve na chave sessao: (antes ia para dados: e nunca desativava de verdade)
+                    await sessions.desativarTimeout(userNum);
 
                    const sock = whatsapp.sessoes.get(sessao.clienteId);
                    

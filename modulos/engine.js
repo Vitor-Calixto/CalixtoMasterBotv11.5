@@ -113,10 +113,41 @@ function tratarDataAmigavel(texto) {
 
 /**
  * Converte números inteiros em Emojis para o WhatsApp.
+ * @param {number|string} num - Número da opção (1, 2, ... 25)
+ * @param {boolean} usarEmoji - Se false, retorna número puro ("11"). Se true, usa emojis.
+ * Suporta qualquer quantidade: 1-10 usa tabela fixa, 11+ compõe dígito a dígito (11 => 1️⃣1️⃣).
  */
-function getEmojiNumber(num) {
+const USAR_EMOJI_NAS_LISTAS = true; // Mude para false para desligar emojis em TODAS as listas por padrão
+
+function getEmojiNumber(num, usarEmoji = USAR_EMOJI_NAS_LISTAS) {
+    const n = parseInt(num);
+    if (usarEmoji === false || usarEmoji === 'false' || usarEmoji === '0' || usarEmoji === 0) {
+        return String(isNaN(n) ? num : n);
+    }
     const emojis = ["0️⃣", "1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"];
-    return emojis[parseInt(num)] || num;
+    if (!isNaN(n) && n >= 0 && n <= 10) return emojis[n];
+    // 11+: compõe dígito a dígito para não ficar sem emoji (ex: 12 => 1️⃣2️⃣)
+    if (!isNaN(n) && n > 10) {
+        const digitos = { '0': "0️⃣", '1': "1️⃣", '2': "2️⃣", '3': "3️⃣", '4': "4️⃣", '5': "5️⃣", '6': "6️⃣", '7': "7️⃣", '8': "8️⃣", '9': "9️⃣" };
+        return String(n).split('').map(d => digitos[d] || d).join('');
+    }
+    return num;
+}
+
+/**
+ * Decide se um nó de menu deve usar emojis.
+ * O editor salva df-usarEmoji / df-semEmoji no node.data.
+ * Por padrão (fluxos antigos sem o campo) mantém TRUE para não quebrar nada.
+ */
+function deveUsarEmoji(nodeData) {
+    if (!nodeData) return USAR_EMOJI_NAS_LISTAS;
+    // ATENÇÃO: o navegador minifica atributos HTML (df-usarEmoji vira df-usaremoji),
+    // então o valor chega no banco em minúsculo. Checa as duas formas.
+    const semEmoji = nodeData.semEmoji ?? nodeData.sememoji;
+    if (semEmoji === true || semEmoji === 'true' || semEmoji === '1' || semEmoji === 1 || semEmoji === 'on') return false;
+    const usarEmoji = nodeData.usarEmoji ?? nodeData.usaremoji;
+    if (usarEmoji === false || usarEmoji === 'false' || usarEmoji === '0' || usarEmoji === 0 || usarEmoji === 'off') return false;
+    return true;
 }
 
 /**
@@ -600,8 +631,9 @@ async function executarNo(nodeId, fluxoDataCompleto, sock, remoteJid, userNum, c
                     .filter(k => k.startsWith('opcao'))
                     .sort((a, b) => parseInt(a.replace('opcao', '')) - parseInt(b.replace('opcao', '')));
                     
+                const usarEmojiMenu = deveUsarEmoji(node.data);
                 chavesOrdenadas.forEach((k, index) => {
-                    opts += `\n${getEmojiNumber(index + 1)} - ${node.data[k]}`;
+                    opts += `\n${getEmojiNumber(index + 1, usarEmojiMenu)} - ${node.data[k]}`;
                 });
                 txt += `\n${opts}`;
             }
@@ -811,10 +843,18 @@ async function executarTimeout(userNum, clienteId, remoteJid, nodeId, prisma, so
 
         const totalOpcoes = Object.keys(node.data || {}).filter(k => k.startsWith('opcao')).length;
         const nextId = getNextNodeId(node, `output_${totalOpcoes + 1}`);
-        
+
         if (nextId) {
             // 🚀 Propaga as variáveis OmniChannel para a máquina de estados
             await executarNo(nextId, cliente.fluxoJson, sock, remoteJid, userNum, clienteId, prisma, pushName, origem, igToken);
+            // 🛡️ ONE-SHOT: o executarNo acima rearmou um novo timeoutAt para o nó de destino.
+            // Desativamos para não mandar "você ainda está aí?" de 1h em 1h em loop.
+            // Se o cliente responder, o processarMensagem cria um novo TTL normalmente.
+            // Se o destino for 'finalizar', a sessão já foi apagada e isso é no-op.
+            await sessions.desativarTimeout(userNum);
+        } else {
+            // Sem porta de timeout conectada: limpa para não ficar preso verificando para sempre
+            await sessions.limparSessao(userNum);
         }
     } catch (e) {
         console.error("[ENGINE] Erro no timeout:", e.message);

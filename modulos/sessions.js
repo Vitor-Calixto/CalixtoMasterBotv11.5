@@ -42,6 +42,22 @@ async function getSessaoCompleta(userNum) {
     return JSON.parse(data);
 }
 
+/**
+ * Desativa o timeout da SESSÃO (chave sessao:, não dados:).
+ * Usado para tornar o timeout one-shot: dispara uma vez e não rearma sozinho.
+ */
+async function desativarTimeout(userNum) {
+    const key = `${PREFIX}${userNum}`;
+    const data = await redis.get(key);
+    if (!data) return;
+    try {
+        const json = JSON.parse(data);
+        json.timeoutAt = 'DESATIVADO';
+        await redis.set(key, JSON.stringify(json));
+        await redis.expire(key, 86400);
+    } catch (e) {}
+}
+
 // --- GESTÃO DE VARIÁVEIS (CONTRATOS E TIMEOUTS) ---
 
 /**
@@ -120,6 +136,7 @@ module.exports = {
     setEtapaUsuario,
     getEtapaUsuario,
     getSessaoCompleta,
+    desativarTimeout,
     salvarDadosUsuario,
     getDadosUsuario,
     limparSessao,

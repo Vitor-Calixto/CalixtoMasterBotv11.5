@@ -719,6 +719,17 @@
                 <small style="color:#666; font-size:10px; margin-bottom:10px; display:block;">
                     (Até 3 opções curtas)
                 </small>
+
+                <label class="toggle-row">
+                    <div class="switch">
+                        <input type="checkbox" df-usarEmoji checked>
+                        <span class="slider"></span>
+                    </div>
+                    <span>Usar emojis (1️⃣ 2️⃣...)</span>
+                </label>
+                <small style="color:#666; font-size:10px; margin-bottom:10px; display:block;">
+                    Desmarque para lista simples: 1 - , 2 - , 11 - , 12 - ...
+                </small>
                 
                 <label>Opções:</label>
                 <div class="menu-list">
@@ -1012,6 +1023,14 @@
                         if (node.data['invalid-active']) el.querySelector('.error-row input').checked = true;
                         if (node.data['timeout-active']) el.querySelector('.timeout-row input').checked = true;
 
+                        // Restaura o toggle de Emojis (fluxos antigos sem o campo => true)
+                        // Chave minúscula: o navegador salva df-usarEmoji como df-usaremoji
+                        const chkEmoji = el.querySelector('[df-usaremoji]');
+                        if (chkEmoji) {
+                            const v = node.data['usaremoji'] ?? node.data['usarEmoji'];
+                            chkEmoji.checked = !(v === false || v === 'false' || v === '0' || v === 0 || v === 'off');
+                        }
+
                         // Ativa o vigia de redimensionamento e as bolinhas
                         watchNode(id); 
                         setTimeout(() => updateMenuOutputs(id), 100);
@@ -1217,7 +1236,7 @@
         // 22. CAPTURA DE INPUT EM TEMPO REAL
         // Salva cada letra digitada direto na memória do Drawflow
         // =========================================================
-        document.getElementById('drawflow').addEventListener('input', (e) => {
+        function salvarCampoDrawflow(e) {
             if (!e.target.matches('input, textarea, select')) return;
 
             const nodeEl = e.target.closest('.drawflow-node');
@@ -1233,7 +1252,10 @@
                 data[key] = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
                 editor.updateNodeDataFromId(nodeId, data);
             }
-        });
+        }
+        document.getElementById('drawflow').addEventListener('input', salvarCampoDrawflow);
+        // Checkbox (ex: Usar emojis) dispara 'change' em alguns navegadores, não 'input'
+        document.getElementById('drawflow').addEventListener('change', salvarCampoDrawflow);
 
 
     // =========================================================
@@ -1321,8 +1343,32 @@
         // Exporta o JSON do canvas e envia para a API
         // =========================================================
         async function salvarFluxo() {
-            const exportData = editor.export(); 
-            const btn = document.querySelector('.btn-save'); 
+            // Sincroniza o estado real da TELA (DOM) para os dados do Drawflow antes de exportar.
+            // Garante que checkboxes (ex: Usar emojis) e textos sejam salvos mesmo se algum
+            // evento de digitação/clique foi perdido no caminho.
+            try {
+                document.querySelectorAll('#drawflow .drawflow-node').forEach(nodeEl => {
+                    const nodeId = nodeEl.id.replace('node-', '');
+                    let nodeData = null;
+                    try { nodeData = editor.getNodeFromId(nodeId).data; } catch (e) { return; }
+                    if (!nodeData) return;
+                    nodeEl.querySelectorAll('input, textarea, select').forEach(inp => {
+                        const attr = Array.from(inp.attributes).find(a => a.name.startsWith('df-'));
+                        if (!attr) return;
+                        const key = attr.name.replace('df-', '');
+                        if (inp.type === 'checkbox') {
+                            nodeData[key] = inp.checked;
+                        } else if (key.startsWith('opcao') && String(inp.value || '').trim() === '') {
+                            delete nodeData[key]; // Opção vazia não vira linha em branco no WhatsApp
+                        } else {
+                            nodeData[key] = inp.value;
+                        }
+                    });
+                    editor.updateNodeDataFromId(nodeId, nodeData);
+                });
+            } catch (e) { console.warn('[SISTEMA] Sync pré-save falhou:', e); }
+            const exportData = editor.export();
+            const btn = document.querySelector('.btn-save');
             const originalTxt = btn.innerHTML;
             
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gravando...';
