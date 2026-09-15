@@ -226,6 +226,84 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
         const fluxoData = cliente.fluxoJson.drawflow?.Home?.data;
         if (!fluxoData) return;
 
+        // ==========================================================
+        // 🔐 3.3b ACESSO SECRETO (bloco configurável no editor)
+        // Híbrido: "#COMANDO" sozinho pede senha / "#COMANDO SENHA" entra direto.
+        // Bloco isolado (inputs=0): só entra digitando comando+senha, senão segue inicio normal.
+        // ==========================================================
+        try {
+            const dadosPre = (await sessions.getDadosUsuario(userNum)) || {};
+            const nosSecretos = Object.entries(fluxoData || {})
+                .filter(([, n]) => n && n.name === 'acesso_secreto' && String(n.data?.comando || '').trim() !== '')
+                .sort((a, b) => String(b[1].data.comando).length - String(a[1].data.comando).length);
+
+            const entrarNoSecreto = async (secretNode) => {
+                await sessions.salvarDadosUsuario(userNum, 'aguardando_senha_para', null);
+                await sessions.setPausado(userNum, false);
+                const nextSecreto = getNextNodeId(secretNode);
+                if (nextSecreto) {
+                    await executarNo(nextSecreto, cliente.fluxoJson, sock, remoteJid, userNum, clienteId, prisma, pushName, origem, igToken);
+                } else {
+                    await enviarMensagemOmni(sock, remoteJid, "🔓 *Acesso liberado!* Mas o bloco secreto está sem saída conectada (output_1).", origem, igToken);
+                }
+            };
+
+            // 1) Usuário já digitou o comando e está aguardando a senha
+            if (dadosPre.aguardando_senha_para) {
+                const aguardId = String(dadosPre.aguardando_senha_para);
+                const secretAguard = fluxoData[aguardId];
+                if (secretAguard && secretAguard.name === 'acesso_secreto') {
+                    const senhaEsperada = String(secretAguard.data?.senha ?? '').trim();
+                    const tentativa = String(textoMsg).trim();
+                    const msgErroFinal = String(secretAguard.data?.msg_erro ?? '').trim() || "❌ *Senha incorreta!* Tente novamente ou digite *0* para sair.";
+
+                    if (tentativa === '0') {
+                        await sessions.salvarDadosUsuario(userNum, 'aguardando_senha_para', null);
+                        return await enviarMensagemOmni(sock, remoteJid, "❌ Acesso cancelado.", origem, igToken);
+                    }
+                    if (senhaEsperada !== '' && tentativa === senhaEsperada) {
+                        return await entrarNoSecreto(secretAguard);
+                    }
+                    return await enviarMensagemOmni(sock, remoteJid, msgErroFinal, origem, igToken);
+                } else {
+                    // Bloco foi deletado do editor: limpa a trava e segue fluxo normal
+                    await sessions.salvarDadosUsuario(userNum, 'aguardando_senha_para', null);
+                }
+            }
+
+            // 2) Mensagem nova bate com algum comando secreto? (exato ou "COMANDO SENHA")
+            if (nosSecretos.length > 0) {
+                const textoTrim = String(textoMsg).trim();
+                const textoUpper = textoTrim.toUpperCase();
+                for (const [secretId, secretNode] of nosSecretos) {
+                    const cmdRaw = String(secretNode.data?.comando || '').trim();
+                    if (!cmdRaw) continue;
+                    const cmdUpper = cmdRaw.toUpperCase();
+                    const senhaNode = String(secretNode.data?.senha ?? '').trim();
+                    const msgPede = String(secretNode.data?.msg_senha ?? '').trim() || "🔐 Digite a senha de acesso:";
+                    const msgErroNode = String(secretNode.data?.msg_erro ?? '').trim() || "❌ *Senha incorreta!* Tente novamente ou digite *0* para sair.";
+
+                    if (textoUpper === cmdUpper) {
+                        await sessions.salvarDadosUsuario(userNum, 'aguardando_senha_para', secretId);
+                        return await enviarMensagemOmni(sock, remoteJid, await traduzirVariaveis(msgPede, userNum), origem, igToken);
+                    }
+                    if (textoUpper.startsWith(cmdUpper + ' ')) {
+                        const resto = textoTrim.slice(cmdRaw.length).trim();
+                        if (resto === '0') {
+                            await sessions.salvarDadosUsuario(userNum, 'aguardando_senha_para', null);
+                            return await enviarMensagemOmni(sock, remoteJid, "❌ Acesso cancelado.", origem, igToken);
+                        }
+                        if (senhaNode !== '' && resto === senhaNode) {
+                            return await entrarNoSecreto(secretNode);
+                        }
+                        // Senha veio junto mas errada: trava em modo aguardando para retry
+                        await sessions.salvarDadosUsuario(userNum, 'aguardando_senha_para', secretId);
+                        return await enviarMensagemOmni(sock, remoteJid, await traduzirVariaveis(msgErroNode, userNum), origem, igToken);
+                    }
+                }
+            }
+        } catch (e) { console.error("[ACESSO_SECRETO] Erro:", e.message); }
+
         let estadoAtualId = await sessions.getEtapaUsuario(userNum);
         let proximoId = null;
 

@@ -509,6 +509,9 @@
                 <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="finalizar">
                     <i class="fas fa-stop-circle"></i> Finalizar
                 </div>
+                <div class="node-item" draggable="true" ondragstart="drag(event)" data-node="acesso_secreto">
+                    <i class="fas fa-lock"></i> Acesso Secreto
+                </div>
             </div>
         
             <div class="top-bar">
@@ -696,6 +699,23 @@
                             <label style="margin-top:10px">Notificar WhatsApp:</label>
                             <input type="text" df-notificacao placeholder="Ex: 5521999999999">
                             <p style="font-size:10px; color:#888; margin-top:5px">Deixe vazio se não quiser notificação.</p>
+                        </div>
+                    `,
+
+                    acesso_secreto: `
+                        <div class="title">
+                            <i class="fas fa-lock"></i> Acesso Secreto
+                        </div>
+                        <div style="padding:16px">
+                            <label>Comando (gatilho):</label>
+                            <input type="text" df-comando placeholder="Ex: #HCP">
+                            <label style="margin-top:10px">Senha:</label>
+                            <input type="text" df-senha placeholder="Ex: 12345">
+                            <label style="margin-top:10px">Msg pede senha:</label>
+                            <input type="text" df-msg_senha placeholder="Digite a senha de acesso:">
+                            <label style="margin-top:10px">Msg senha errada:</label>
+                            <input type="text" df-msg_erro placeholder="Senha incorreta, tente de novo ou digite 0 pra sair.">
+                            <p style="font-size:10px; color:#888; margin-top:8px">Bloco de entrada isolado. Não ligar no fluxo principal. Use output_1 para o fluxo secreto.</p>
                         </div>
                     `,
                     
@@ -968,6 +988,7 @@
 
             // Configuração específica de conexões por tipo de nó
             if (name === 'inicio') { inputs = 0; outputs = 1; } 
+            if (name === 'acesso_secreto') { inputs = 0; outputs = 1; } 
             if (name === 'finalizar') { inputs = 1; outputs = 0; } 
             if (name === 'menu') { inputs = 1; outputs = 2; } 
             if (name === 'horario') { inputs = 1; outputs = 2; } 
