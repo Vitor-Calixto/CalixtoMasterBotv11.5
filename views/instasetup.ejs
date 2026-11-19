@@ -140,6 +140,31 @@
             </div>
         </div>
 
+      <!-- PASSO 3B: WEBHOOK (sem ele, as mensagens do Direct não chegam) -->
+      <div class="tutorial-step">
+        <div class="step-header">
+            <div class="step-number">3+</div>
+            Ative o recebimento de mensagens (Webhook)
+        </div>
+        <div class="step-content">
+            No painel do aplicativo, adicione o produto <strong>"Webhooks"</strong> (ou abra "Instagram" &gt; "Configuração da API"). Escolha o objeto <strong>Instagram</strong>, clique em <strong>"Assinar este objeto"</strong> e preencha:
+            <div style="margin-top: 12px; font-size: 13px; color: #aaa;">URL de retorno de chamada</div>
+            <div class="copy-box-wrapper">
+                <div class="copy-box" id="webhookBox"><%= webhookUrl %></div>
+                <button class="btn-copy" onclick="copiarTexto('webhookBox', this)" title="Copiar"><i class="ri-file-copy-line"></i></button>
+            </div>
+            <div style="margin-top: 12px; font-size: 13px; color: #aaa;">Token de verificação</div>
+            <div class="copy-box-wrapper">
+                <div class="copy-box" id="tokenBox"><%= verifyToken %></div>
+                <button class="btn-copy" onclick="copiarTexto('tokenBox', this)" title="Copiar"><i class="ri-file-copy-line"></i></button>
+            </div>
+            <div style="margin-top: 10px; font-size: 12px; color: #888;">
+                * Depois de verificar, marque o campo <strong>messages</strong> na lista de assinaturas.<br>
+                * Para atender qualquer pessoa (e não só quem tem função no app), o app precisa estar no modo <strong>Ao vivo</strong> e com acesso avançado à permissão <strong>instagram_manage_messages</strong>, o que exige análise da Meta.
+            </div>
+        </div>
+      </div>
+
       <!-- PASSO 4: CREDENCIAIS -->
       <div class="tutorial-step">
         <div class="step-header">
@@ -197,6 +222,13 @@
     </div>
 
     <script>
+        function copiarTexto(id, btn) {
+            navigator.clipboard.writeText(document.getElementById(id).innerText).then(() => {
+                const original = btn.innerHTML;
+                btn.innerHTML = '<i class="ri-check-line" style="color: #00e054;"></i>';
+                setTimeout(() => { btn.innerHTML = original; }, 2000);
+            });
+        }
         function copiarUrl() {
             const urlText = document.getElementById("urlBox").innerText;
             navigator.clipboard.writeText(urlText).then(() => {

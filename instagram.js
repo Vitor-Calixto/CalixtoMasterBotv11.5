@@ -134,7 +134,7 @@ router.get('/setup', (req, res) => {
     if (!clienteId) return res.redirect('/dashboard');
     const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
     const callbackUrl = `${baseUrl}/instagram/auth/callback`;
-    res.render('instasetup', { clienteId, callbackUrl });
+    res.render('instasetup', { clienteId, callbackUrl, webhookUrl: `${baseUrl}/instagram/webhook`, verifyToken: VERIFY_TOKEN });
 });
 
 router.post('/auth/login', async (req, res) => {
@@ -185,6 +185,16 @@ router.all('/auth/callback', async (req, res) => {
         const instagramUser = igAccount.instagram_business_account.username;
         const instagramBusinessId = igAccount.instagram_business_account.id; 
         const pageAccessToken = igAccount.access_token; 
+
+        // Inscreve a página no webhook do app para as mensagens do Direct chegarem até aqui
+        try {
+            await axios.post(`https://graph.facebook.com/v20.0/${igAccount.id}/subscribed_apps`, null, {
+                params: { subscribed_fields: 'messages,messaging_postbacks', access_token: pageAccessToken }
+            });
+            console.log(`[OAUTH] ✅ Página ${igAccount.name || igAccount.id} inscrita para receber mensagens.`);
+        } catch (e) {
+            console.error('[OAUTH] ⚠️ Não foi possível inscrever a página no webhook:', e.response?.data || e.message);
+        }
 
         // CORREÇÃO 3: Remove o Instagram de qualquer outro bot antes de atribuir ao novo
         await prisma.cliente.updateMany({
