@@ -58,8 +58,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json()); 
 app.use(bodyParser.urlencoded({ extended: true }));
 
-const rotasInstagram = require('./instagram');
-app.use('/instagram', rotasInstagram.router);
+const rotasInstagram = require('./instagram'); // montado mais abaixo, depois da sessão
 // ============================================================================
 // 5. ROTAS (As portas da casa)
 // ============================================================================
@@ -77,7 +76,8 @@ app.use(helmet({ contentSecurityPolicy: false }));
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, 
     max: 300, // Limite generoso para uso normal
-    message: "Muitas requisições deste IP, tente novamente mais tarde."
+    message: "Muitas requisições deste IP, tente novamente mais tarde.",
+    skip: (req) => req.path.startsWith('/instagram/webhook') // a Meta envia muitos eventos
 });
 app.use(limiter);
 
@@ -148,6 +148,13 @@ const sessionMiddleware = session({
 app.use(sessionMiddleware);
 app.use(flash());
 
+// --- INSTAGRAM ---
+// As telas de configuração exigem login e que o bot seja de quem está configurando.
+// O webhook da Meta continua aberto (ela não tem sessão).
+app.use('/instagram/setup', isAuth, exigirDonoDoBot(req => req.query.clienteId));
+app.use('/instagram/auth/login', isAuth, exigirDonoDoBot(req => req.body && req.body.clienteId));
+app.use('/instagram', rotasInstagram.router);
+
 // --- MIDDLEWARE DE MANUTENÇÃO ---
 app.use((req, res, next) => {
     const config = getSystemConfig();
@@ -161,6 +168,37 @@ app.use((req, res, next) => {
     }
     return res.render('manutencao');
 });
+
+// --- DONO DO BOT ---
+// Só quem criou o bot (ou o administrador) pode ver ou mexer nele.
+async function ehDonoDoBot(req, clienteId) {
+    if (!clienteId) return false;
+    if (req.session && req.session.role === 'ADMIN') return true;
+    const bot = await prisma.cliente.findUnique({ where: { id: String(clienteId) }, select: { donoId: true } });
+    return !!bot && !!req.session && bot.donoId === req.session.userId;
+}
+function negarAcesso(req, res) {
+    if (req.originalUrl.startsWith('/api/') || req.method !== 'GET') return res.status(403).json({ success: false, error: 'Acesso negado.' });
+    return res.redirect('/dashboard');
+}
+// Uso: exigirDonoDoBot(req => req.params.id)
+function exigirDonoDoBot(pegarId) {
+    return async (req, res, next) => {
+        try { if (await ehDonoDoBot(req, pegarId(req))) return next(); }
+        catch (e) { console.error('[SEGURANÇA] Falha ao conferir dono do bot:', e.message); }
+        return negarAcesso(req, res);
+    };
+}
+// Agendamentos (lembretes) pertencem ao dono do bot em que estão
+function exigirDonoDoLembrete(pegarId) {
+    return async (req, res, next) => {
+        try {
+            const l = await prisma.lembrete.findUnique({ where: { id: String(pegarId(req) || '') }, select: { clienteId: true } });
+            if (l && await ehDonoDoBot(req, l.clienteId)) return next();
+        } catch (e) { console.error('[SEGURANÇA] Falha ao conferir dono do agendamento:', e.message); }
+        return negarAcesso(req, res);
+    };
+}
 
 // --- MIDDLEWARE DE AUTENTICAÇÃO ---
 // Confere sessão, bloqueio, aprovação, validade da assinatura e troca obrigatória de senha
@@ -375,7 +413,7 @@ app.delete('/api/contratos/:id', isAuth, usuarios.exigirPermissao('contratos'), 
 
 // ================= API CLIENTES (BLINDADA) =================
 
-app.put('/api/clientes/:id', async (req, res) => {
+app.put('/api/clientes/:id', isAuth, exigirDonoDoBot(req => req.params.id), async (req, res) => {
     try {
         const { nome, numero, instagramUser } = req.body;
         
@@ -435,7 +473,7 @@ app.post('/api/clientes', isAuth, async (req, res) => {
 });
 
 // --- EXCLUSÃO BLINDADA E RASTREADA ---
-app.delete('/api/clientes/:id', isAuth, async (req, res) => {
+app.delete('/api/clientes/:id', isAuth, exigirDonoDoBot(req => req.params.id), async (req, res) => {
     try {
         const botId = req.params.id;
         console.log(`\n[EXCLUSÃO] 🗑️ Iniciando exclusão do bot ID: ${botId}`);
@@ -497,7 +535,7 @@ app.delete('/api/clientes/:id', isAuth, async (req, res) => {
 
 //ON/OFF do Bot (Status ONLINE/OFFLINE) - Agora também inicia ou para o motor de WhatsApp
 
-app.post('/api/status', isAuth, async (req, res) => {
+app.post('/api/status', isAuth, exigirDonoDoBot(req => req.body.clienteId), async (req, res) => {
     try {
         const { clienteId, status } = req.body;
         
@@ -536,7 +574,7 @@ app.post('/api/status', isAuth, async (req, res) => {
 
 
 // 🚀 ROTA NOVA: Liga e Desliga o "Cérebro" do Bot no Banco de Dados
-app.post('/api/bot/ativo', async (req, res) => {
+app.post('/api/bot/ativo', isAuth, exigirDonoDoBot(req => req.body.clienteId), async (req, res) => {
     try {
         const { clienteId, ativo } = req.body;
         // Atualiza o Prisma (verdadeiro ou falso)
@@ -559,7 +597,7 @@ app.get('/editor/:id', isAuth, async (req, res) => {
     });
 });
 
-app.post('/api/clientes/:id/fluxo', isAuth, async (req, res) => {
+app.post('/api/clientes/:id/fluxo', isAuth, exigirDonoDoBot(req => req.params.id), async (req, res) => {
     await prisma.cliente.update({ where: { id: req.params.id }, data: { fluxoJson: req.body.fluxo } });
     res.json({ success: true });
 });
@@ -651,7 +689,7 @@ app.get('/privacidade', (req, res) => res.render('privacidade', { usuario: req.s
 
 
 // 📄 1. ROTA PARA ABRIR A TELA DE DISPARO
-app.get('/broadcast', isAuth, usuarios.exigirPermissao('disparo'), async (req, res) => {
+app.get('/broadcast', isAuth, usuarios.exigirPermissao('disparo'), exigirDonoDoBot(req => req.query.id), async (req, res) => {
     const idDoRobo = req.query.id; 
     
     if (!idDoRobo) return res.redirect('/dashboard');
@@ -681,12 +719,16 @@ app.get('/broadcast', isAuth, usuarios.exigirPermissao('disparo'), async (req, r
 }); 
 
 // 🚀 2. ROTA PARA EXECUTAR O DISPARO
-app.post('/api/broadcast', isAuth, usuarios.exigirPermissao('disparo'), async (req, res) => {
+app.post('/api/broadcast', isAuth, usuarios.exigirPermissao('disparo'), exigirDonoDoBot(req => req.body.clienteId), async (req, res) => {
     const { contatos, mensagem, clienteId } = req.body; 
 
     console.log(`[BROADCAST] 🛰️ Tentando disparo para o robô: ${clienteId}`);
 
-    const sock = global.socks ? global.socks[clienteId] : null;
+    // Conexões ativas ficam em whatsapp.sessoes (global.socks nunca era preenchido)
+    const sock = whatsapp.sessoes.get(clienteId) || null;
+    if (!contatos || !String(mensagem || '').trim()) {
+        return res.status(400).json({ error: "Preencha a lista de números e a mensagem." });
+    }
 
     if (!sock) {
         console.error(`[BROADCAST] ❌ Erro: Robô ${clienteId} sem conexão ativa.`);
@@ -695,7 +737,7 @@ app.post('/api/broadcast', isAuth, usuarios.exigirPermissao('disparo'), async (r
         });
     }
 
-    const listaFinal = contatos.split(/[,\n]/).map(c => c.trim()).filter(c => c.length > 5);
+    const listaFinal = String(contatos).split(/[,\n]/).map(c => c.trim()).filter(c => c.length > 5);
     const { executarDisparoEmMassa } = require('./modulos/broadcast');
     
     // Executa em segundo plano para não travar a resposta do site
@@ -704,7 +746,7 @@ app.post('/api/broadcast', isAuth, usuarios.exigirPermissao('disparo'), async (r
 });
 
 // --- ROTA DE DISPARO CORRIGIDA ---
-app.get('/disparo/:id', isAuth, usuarios.exigirPermissao('disparo'), async (req, res) => {
+app.get('/disparo/:id', isAuth, usuarios.exigirPermissao('disparo'), exigirDonoDoBot(req => req.params.id), async (req, res) => {
     try {
         const clienteId = req.params.id;
         
@@ -778,7 +820,7 @@ app.get('/dashboard/agenda', isAuth, usuarios.exigirPermissao('agenda'), async (
     }
 });
 // 2. Rota para salvar configurações da agenda (Notificação, Lembretes e Horário)
-app.post('/api/clientes/:id/config-notificacao', isAuth, async (req, res) => {
+app.post('/api/clientes/:id/config-notificacao', isAuth, exigirDonoDoBot(req => req.params.id), async (req, res) => {
     try {
         // 1. Puxa todas as variáveis enviadas pelo front-end
         const { numeroDono, tempoLembrete1, tempoLembrete2, usarHorarioComercial } = req.body;
@@ -836,7 +878,7 @@ app.get('/api/agendamentos/usuario', isAuth, async (req, res) => {
     } catch (e) { res.status(500).json([]); }
 });
 // 4. API: Bloqueio manual e 5. API: Excluir (Mantenha as que enviamos antes)
-app.post('/api/agendamentos/bloquear', isAuth, async (req, res) => {
+app.post('/api/agendamentos/bloquear', isAuth, exigirDonoDoBot(req => req.body.clienteId), async (req, res) => {
     try {
         const { start, clienteId } = req.body;
         await prisma.lembrete.create({
@@ -846,14 +888,14 @@ app.post('/api/agendamentos/bloquear', isAuth, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/agendamentos/:id', isAuth, async (req, res) => {
+app.delete('/api/agendamentos/:id', isAuth, exigirDonoDoLembrete(req => req.params.id), async (req, res) => {
     try {
         await prisma.lembrete.delete({ where: { id: req.params.id } });
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/agendamentos/manual', isAuth, async (req, res) => {
+app.post('/api/agendamentos/manual', isAuth, exigirDonoDoBot(req => req.body.clienteId), async (req, res) => {
     try {
         const { nome, whatsapp, data, clienteId } = req.body;
 
@@ -891,7 +933,7 @@ app.post('/api/agendamentos/manual', isAuth, async (req, res) => {
 // ==========================================
 // 🧪 ROTA DE TESTE MANUAL DE LEMBRETE
 // ==========================================
-app.get('/api/testar-lembrete/:id', isAuth, async (req, res) => {
+app.get('/api/testar-lembrete/:id', isAuth, exigirDonoDoLembrete(req => req.params.id), async (req, res) => {
     try {
         const idLembrete = req.params.id;
 

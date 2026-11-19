@@ -8,8 +8,9 @@ async function executarDisparoEmMassa(contatos, mensagem, sock) {
     console.log(`🚀 [MOTOR] Iniciando disparo para ${contatos.length} pessoas...`);
     for (let i = 0; i < contatos.length; i++) {
         try {
-            let num = contatos[i].replace(/\D/g, '');
-            if (!num.endsWith('@s.whatsapp.net')) num += '@s.whatsapp.net';
+            let num = String(contatos[i]).replace(/\D/g, '');
+            if (num.length === 10 || num.length === 11) num = '55' + num; // número brasileiro sem DDI
+            num += '@s.whatsapp.net';
 
             await sock.sendMessage(num, { text: mensagem });
             console.log(`✅ [MOTOR] (${i+1}/${contatos.length}) Enviado para: ${num}`);
