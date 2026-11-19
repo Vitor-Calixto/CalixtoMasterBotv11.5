@@ -103,6 +103,22 @@
         .btn-fluxo:hover { background-color: var(--primary-hover); }
         .btn-lixo { width: 45px; background-color: #1a1a1a; border: 1px solid #333; color: #666; border-radius: 6px; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.2s; }
         .btn-lixo:hover { background-color: #220000; border-color: #550000; color: #ff4444; }
+        .admin-link, .admin-link-sec { text-decoration: none; font-size: 12px; font-weight: 600; padding: 7px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; }
+        .admin-link { background: #128c6b; color: #fff; }
+        .admin-link:hover { background: #0e7458; }
+        .admin-link-sec { border: 1px solid #333; color: #ccc; }
+        .admin-link-sec:hover { color: #fff; border-color: #555; }
+        .resumo-admin { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+        .resumo-item { text-decoration: none; background: #0f0f0f; border: 1px solid #222; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 4px; transition: .2s; }
+        .resumo-item:hover { border-color: #444; }
+        .resumo-item b { font-size: 24px; color: #fff; }
+        .resumo-item span { font-size: 12px; color: #888; }
+        @media (max-width: 760px) { .resumo-admin { grid-template-columns: repeat(2, 1fr); } }
+        .aviso-assinatura { margin: 0 0 24px; padding: 12px 16px; border-radius: 8px; font-size: 13px; display: flex; gap: 10px; align-items: center; background: rgba(255, 153, 0, .08); border: 1px solid rgba(255, 153, 0, .35); color: #ffc46b; }
+        .btn-conversas { width: 100%; margin-top: 15px; background: #0a1f14; color: #25d366; border: 1px solid #1f5c3a; padding: 11px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-conversas:hover { background: #0f2c1c; border-color: #25d366; }
+        .btn-conversas .dot-vivo { width: 7px; height: 7px; border-radius: 50%; background: #25d366; box-shadow: 0 0 0 0 rgba(37, 211, 102, .6); animation: pulso-vivo 2s infinite; }
+        @keyframes pulso-vivo { 70% { box-shadow: 0 0 0 7px rgba(37, 211, 102, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 211, 102, 0); } }
 
         /* SWITCH */
         .switch { position: relative; display: inline-block; width: 60px; height: 24px; }
@@ -175,12 +191,30 @@
             <a href="/dashboard/contratos" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
                 <i class="ri-file-text-line"></i> Meus Contratos
             </a>
+
+            <a href="/dashboard/fluxos" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
+                <i class="ri-flow-chart"></i> Meus Fluxos
+            </a>
     
+            <% if (locals.ehAdmin) { %>
+            <a href="/admin/usuarios" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
+                <i class="ri-team-line"></i> Usuários
+            </a>
+            <% } %>
+            <a href="/trocar-senha" title="Alterar minha senha" aria-label="Alterar minha senha" style="text-decoration: none; color: #ccc; font-size: 16px; display: flex; align-items: center; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
+                <i class="ri-lock-password-line"></i>
+            </a>
             <span style="color: #333;">|</span>
             <a href="/logout" class="btn-logout">Sair</a>
             <button class="btn-new" onclick="novoBot()">+ Novo Cliente</button>
         </div>
     </div>
+
+    <% const ass = locals.assinatura; %>
+    <% if (ass && ass.codigo === 'vencendo') { %>
+        <div class="aviso-assinatura" role="status"><i class="ri-time-line"></i>
+            <span>Sua assinatura <%= ass.dias === 1 ? 'vence amanhã' : 'vence em ' + ass.dias + ' dias' %>. Fale com o suporte para renovar e não ter os robôs desligados.</span></div>
+    <% } %>
 
     <div class="grid">
         <% if (typeof clientes !== 'undefined' && clientes.length > 0) { %>
@@ -243,6 +277,12 @@
                         <div id="help-text-<%= c.id %>" class="help-text">WhatsApp > Aparelhos > Conectar</div>
                     <% } %>
     
+                    <% if (c.plataforma !== 'INSTAGRAM') { %>
+                    <button class="btn-conversas" onclick="window.location.href='/dashboard/conversas/<%= c.id %>'">
+                        <span class="dot-vivo"></span> <i class="ri-chat-3-line"></i> Conversas ao vivo
+                    </button>
+                    <% } %>
+
                     <!-- Ações do Card -->
                     <div class="card-actions" style="margin-top: 15px;">
                         <button class="btn-disparo" onclick="window.location.href='/disparo/<%= c.id %>'">
@@ -266,7 +306,7 @@
         <% } %>
     </div>
 
-    <% if (usuario && usuario.email === 'vitorpedrocalixto@gmail.com') { %> 
+    <% if (locals.ehAdmin) { %> 
         <div class="admin-section">
             
             <div style="background: rgba(255, 153, 0, 0.05); border: 1px solid #333; border-left: 3px solid #ff9900; padding: 20px; border-radius: 8px; margin-bottom: 40px; display: flex; justify-content: space-between; align-items: center;">
@@ -293,9 +333,19 @@
 
             <div class="admin-header">
                 <div><i class="ri-shield-user-line"></i> Gestão de Usuários</div>
-                <button onclick="carregarUsuarios()" style="background:transparent; border:1px solid #333; color:#666; padding:5px 10px; border-radius:4px; cursor:pointer; font-size:11px;">ATUALIZAR</button>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <a href="/admin/configuracoes" class="admin-link-sec"><i class="ri-mail-settings-line"></i> E-mail de senhas</a>
+                    <a href="/admin/usuarios" class="admin-link"><i class="ri-team-line"></i> Abrir gestão de usuários</a>
+                </div>
             </div>
-            <div id="tabela-admin"><p style="color:#444;">Carregando...</p></div>
+            <div id="resumo-admin" class="resumo-admin" aria-live="polite">
+                <a href="/admin/usuarios" class="resumo-item"><b id="r-pendente">-</b><span>Aguardando aprovação</span></a>
+                <a href="/admin/usuarios" class="resumo-item"><b id="r-ativo">-</b><span>Ativos</span></a>
+                <a href="/admin/usuarios" class="resumo-item"><b id="r-vencendo">-</b><span>Vencem em 7 dias</span></a>
+                <a href="/admin/usuarios" class="resumo-item"><b id="r-vencido">-</b><span>Vencidos</span></a>
+                <a href="/admin/usuarios" class="resumo-item"><b id="r-bloqueado">-</b><span>Bloqueados</span></a>
+            </div>
+            <p id="resumo-erro" style="color:#ff6b6b; font-size:13px; margin-top:10px;" hidden></p>
         </div>
 
         <script>
@@ -327,165 +377,23 @@
                 }
             }
 
-            async function carregarUsuarios() {
+            // Resumo da gestão de usuários (a gestão completa fica em /admin/usuarios)
+            async function carregarResumoUsuarios() {
+                const erro = document.getElementById('resumo-erro');
                 try {
-                    const res = await fetch('/api/admin/usuarios');
-                    if (res.headers.get("content-type").indexOf("json") === -1) { window.location.href = '/login'; return; }
-                    const users = await res.json();
-                    
-                    let html = `<table><thead><tr>
-                        <th>Usuário</th>
-                        <th>Plano</th>
-                        <th>Bots</th>
-                        <th>Validade</th>
-                        <th>Status</th>
-                        <th>Jurídico (Termos)</th> 
-                        <th>Ações</th>
-                    </tr></thead><tbody>`;
-
-                    users.forEach(u => {
-                        if (u.email === 'vitorpedrocalixto@gmail.com') return;
-
-                        let botsData = u.clientes || u.bots || [];
-                        let botsHtml = `<span style="color:#444; font-size:11px;">Nenhum</span>`;
-                        
-                        if (botsData.length > 0) {
-                            let tooltipContent = botsData.map(b => `
-                                <div class="tooltip-row">
-                                    <div class="status-dot" style="background:${b.status==='ONLINE'?'#00e054':'#444'}"></div>
-                                    ${b.nome}
-                                </div>
-                            `).join('');
-
-                            botsHtml = `
-                                <div class="bot-badge-container">
-                                    <span class="bot-badge">
-                                        <i class="ri-robot-2-line"></i> ${botsData.length} Bots
-                                    </span>
-                                    <div class="bot-tooltip-content">
-                                        ${tooltipContent}
-                                    </div>
-                                </div>
-                            `;
-                        }
-
-                        let dataFormatada = "Indefinido";
-                        let corData = "#666";
-                        if (u.expiraEm) {
-                            const data = new Date(u.expiraEm);
-                            const hoje = new Date();
-                            const dias = Math.ceil((data - hoje) / (1000 * 60 * 60 * 24));
-                            dataFormatada = data.toLocaleDateString('pt-BR');
-                            if (dias < 0) { dataFormatada += ` <br><span style="color:#ff3333; font-weight:bold; font-size:10px;">(VENCIDO)</span>`; corData = "#ff3333"; } 
-                            else { dataFormatada += ` <br><span style="color:#00e054; font-size:10px;">(${dias} dias)</span>`; }
-                        }
-
-                        let juridicoHtml = '';
-                        if (u.termsAccepted) {
-                            const dataAceite = u.termsAcceptedAt ? new Date(u.termsAcceptedAt).toLocaleDateString('pt-BR') + ' ' + new Date(u.termsAcceptedAt).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : 'N/A';
-                            juridicoHtml = `
-                                <div style="line-height: 1.4;">
-                                    <span style="color: #00ff88; font-weight: bold; font-size: 12px;">✅ ACEITO</span><br>
-                                    <span style="color: #aaa; font-size: 11px; font-family:monospace;">
-                                        📅 ${dataAceite}<br>
-                                        🌐 IP: <span style="color: #fff;">${u.signupIp || '?'}</span>
-                                    </span>
-                                </div>
-                            `;
-                        } else {
-                            juridicoHtml = `<span style="color: #ffaa00; font-size: 11px;">⚠️ Pendente (Antigo)</span>`;
-                        }
-
-                        let btnStatus = '';
-                        if (!u.ativo) {
-                            btnStatus = `<button class="btn-action-admin bg-green" onclick="aprovar('${u.id}')">APROVAR</button>`;
-                        } else {
-                            btnStatus = `<button class="btn-action-admin bg-orange" onclick="bloquear('${u.id}', ${!u.bloqueado})">
-                                ${u.bloqueado ? 'LIBERAR' : 'BLOQUEAR'}
-                            </button>`;
-                        }
-
-                        html += `<tr style="border-bottom:1px solid #1a1a1a;">
-                            <td onclick="toggleDetalhes('${u.id}')" style="cursor:pointer;">
-                                <div style="color:#fff; font-weight:600; display:flex; align-items:center; gap:5px;">
-                                    <i id="icon-${u.id}" class="ri-arrow-right-s-line"></i> ${u.nome}
-                                </div>
-                                <div style="color:#666; font-size:11px; margin-left:18px;">${u.email}</div>
-                            </td>
-                            <td><span class="plan-badge" style="margin:0;">${u.plano}</span></td>
-                            <td>${botsHtml}</td>
-                            <td style="color:${corData}; font-size:12px;">${dataFormatada}</td>
-                            <td><span class="status-badge ${u.ativo ? 'st-ativo' : 'st-pendente'}">${u.ativo ? 'ATIVO' : 'PENDENTE'}</span></td>
-                            
-                            <td>${juridicoHtml}</td>
-                            
-                            <td>
-                                <div style="display:flex; gap:5px;">
-                                    ${btnStatus}
-                                    <button class="btn-action-admin bg-outline" onclick="excluirUser('${u.id}')" title="Excluir"><i class="ri-delete-bin-line"></i></button>
-                                </div>
-                            </td>
-                        </tr>
-                        <tr id="detalhe-${u.id}" style="display:none; background:#0a0a0a;">
-                            <td colspan="7" style="padding:20px; border-left:2px solid var(--primary-blue);">
-                                <h4 style="color:#fff; font-size:11px; margin-bottom:10px;">RENOVAR ACESSO RÁPIDO</h4>
-                                <div style="display:flex; gap:5px; align-items:center;">
-                                    <button class="btn-renova" onclick="renovarAcesso('${u.id}', 7)">+7d</button>
-                                    <button class="btn-renova" onclick="renovarAcesso('${u.id}', 30)">+30d</button>
-                                    <button class="btn-renova" onclick="renovarAcesso('${u.id}', 365)">+1 Ano</button>
-                                    <button class="btn-renova" onclick="renovarAcesso('${u.id}', 9999)" style="border-color:#00e054; color:#00e054;">Vitalício</button>
-                                    <span style="margin:0 10px; color:#444;">|</span>
-                                    <input type="date" id="date-${u.id}" style="background:#111; border:1px solid #333; color:#fff; padding:4px; border-radius:4px;">
-                                    <button class="btn-renova" onclick="definirData('${u.id}')">OK</button>
-                                </div>
-                            </td>
-                        </tr>`;
+                    const res = await fetch('/api/admin/contas/resumo');
+                    const dados = await res.json();
+                    if (!res.ok || !dados.success) throw new Error(dados.error || ('erro ' + res.status));
+                    ['pendente', 'ativo', 'vencendo', 'vencido', 'bloqueado'].forEach(k => {
+                        document.getElementById('r-' + k).textContent = dados.resumo[k] ?? 0;
                     });
-                    document.getElementById('tabela-admin').innerHTML = html + '</tbody></table>';
-                } catch(e){}
-            }
-
-            function toggleDetalhes(id) {
-                const row = document.getElementById(`detalhe-${id}`);
-                const icon = document.getElementById(`icon-${id}`);
-                if (row.style.display === 'none') {
-                    row.style.display = 'table-row';
-                    icon.className = 'ri-arrow-down-s-line';
-                } else {
-                    row.style.display = 'none';
-                    icon.className = 'ri-arrow-right-s-line';
+                    erro.hidden = true;
+                } catch (e) {
+                    erro.textContent = 'Não foi possível carregar o resumo: ' + e.message;
+                    erro.hidden = false;
                 }
             }
-
-            async function renovarAcesso(id, dias) {
-                const payload = dias === 9999 ? { idUsuario: id, vitalicio: true } : { idUsuario: id, diasAdicionais: dias };
-                await fetch('/api/admin/usuarios/renovar', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
-                carregarUsuarios();
-                Swal.fire({icon:'success', title:'Renovado!', toast:true, position:'top-end', showConfirmButton:false, timer:1500, background:'#111', color:'#fff'});
-            }
-
-            async function definirData(id) {
-                const dateInput = document.getElementById(`date-${id}`).value;
-                if (!dateInput) return;
-                await fetch('/api/admin/usuarios/definir-data', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ idUsuario: id, novaData: dateInput }) });
-                carregarUsuarios();
-            }
-
-            async function aprovar(id) { await fetch('/api/admin/aprovar', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({idUsuario:id})}); carregarUsuarios(); }
-            
-            async function bloquear(id, s) { 
-                await fetch('/api/admin/usuarios/bloqueio', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({idUsuario:id, bloquear:s})}); 
-                carregarUsuarios(); 
-            }
-
-            async function excluirUser(id) {
-                if((await Swal.fire({ title:'Tem certeza?', text:'Apagará tudo deste usuário.', icon:'warning', showCancelButton:true, confirmButtonColor:'#d33', background:'#111', color:'#fff' })).isConfirmed) {
-                    await fetch(`/api/admin/usuarios/${id}`, { method: 'DELETE' });
-                    carregarUsuarios();
-                }
-            }
-            
-            document.addEventListener('DOMContentLoaded', carregarUsuarios);
+            document.addEventListener('DOMContentLoaded', carregarResumoUsuarios);
         </script>
     <% } %>
 

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <% const titulos = { trocar: (locals.obrigatoria ? 'Crie sua senha' : 'Alterar senha'), esqueci: 'Esqueci minha senha', redefinir: 'Nova senha' }; %>
+    <title><%= titulos[modo] %> - Calixto OmniSystem</title>
+    <%- include('partials/auth-estilo') %>
+</head>
+<body>
+    <header class="topo"><a class="marca" href="/"><span class="marca-icone" aria-hidden="true"><i class="ri-chat-smile-3-fill"></i></span>Calixto</a></header>
+    <main>
+        <div class="caixa">
+            <h1><%= titulos[modo] %></h1>
+
+            <% if (modo === 'trocar') { %>
+                <p class="sub">
+                    <% if (locals.obrigatoria) { %>
+                        Olá<%= locals.nome ? ', ' + nome.split(' ')[0] : '' %>! Você entrou com uma senha provisória. Antes de continuar, crie a sua.
+                    <% } else { %>
+                        Digite a senha atual e escolha uma nova.
+                    <% } %>
+                </p>
+            <% } else if (modo === 'esqueci') { %>
+                <p class="sub">Digite o e-mail da sua conta. Enviaremos um link para você criar uma nova senha.</p>
+            <% } else { %>
+                <p class="sub"><%= locals.token ? 'Escolha a nova senha da sua conta.' : '' %></p>
+            <% } %>
+
+            <% if (locals.erro) { %><div class="msg erro" role="alert"><i class="ri-error-warning-line"></i><span><%= erro %></span></div><% } %>
+            <% if (locals.ok) { %><div class="msg ok" role="status"><i class="ri-mail-check-line"></i><span><%= ok %></span></div><% } %>
+
+            <% if (modo === 'esqueci') { %>
+                <% if (!locals.ok) { %>
+                <form action="/esqueci-senha" method="POST">
+                    <label for="email">E-mail</label>
+                    <input type="email" id="email" name="email" required autocomplete="email" autofocus>
+                    <button class="btn" type="submit">Enviar link</button>
+                </form>
+                <% } %>
+                <p class="rodape"><a href="/login">Voltar para o login</a></p>
+
+            <% } else if (modo === 'redefinir' && !locals.token) { %>
+                <a class="btn" href="/esqueci-senha">Pedir um novo link</a>
+                <p class="rodape"><a href="/login">Voltar para o login</a></p>
+
+            <% } else { %>
+                <form action="<%= modo === 'redefinir' ? '/redefinir-senha/' + encodeURIComponent(token) : '/trocar-senha' %>" method="POST">
+                    <% if (modo === 'trocar' && !locals.obrigatoria) { %>
+                        <label for="atual">Senha atual</label>
+                        <div class="campo">
+                            <input type="password" id="atual" name="atual" required autocomplete="current-password" autofocus>
+                            <button type="button" class="ver-senha" aria-label="Mostrar senha"><i class="ri-eye-line"></i></button>
+                        </div>
+                    <% } %>
+                    <label for="senha">Nova senha</label>
+                    <div class="campo">
+                        <input type="password" id="senha" name="senha" required minlength="8" maxlength="100" autocomplete="new-password" <%= (modo === 'trocar' && !locals.obrigatoria) ? '' : 'autofocus' %>>
+                        <button type="button" class="ver-senha" aria-label="Mostrar senha"><i class="ri-eye-line"></i></button>
+                    </div>
+                    <p class="dica">Pelo menos 8 caracteres. Não pode ser a senha provisória.</p>
+
+                    <label for="confirmar">Repita a nova senha</label>
+                    <div class="campo">
+                        <input type="password" id="confirmar" name="confirmar" required minlength="8" maxlength="100" autocomplete="new-password">
+                        <button type="button" class="ver-senha" aria-label="Mostrar senha"><i class="ri-eye-line"></i></button>
+                    </div>
+
+                    <button class="btn" type="submit">Salvar nova senha</button>
+                </form>
+                <p class="rodape">
+                    <% if (modo === 'trocar' && locals.obrigatoria) { %><a href="/logout">Sair</a>
+                    <% } else if (modo === 'trocar') { %><a href="/dashboard">Voltar ao painel</a>
+                    <% } else { %><a href="/login">Voltar para o login</a><% } %>
+                </p>
+            <% } %>
+        </div>
+    </main>
+</body>
+</html>

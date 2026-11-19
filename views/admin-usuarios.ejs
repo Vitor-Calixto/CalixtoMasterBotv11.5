@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Usuários - Calixto OmniSystem</title>
+    <%- include('partials/admin-estilo') %>
+    <style>
+        .cabeca { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
+        .filtros { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+        .filtro { border: 1.5px solid var(--linha); background: var(--papel); border-radius: 999px; padding: 7px 13px; font-size: 14px; font-weight: 500; cursor: pointer; display: inline-flex; gap: 7px; align-items: center; color: var(--tinta-2); }
+        .filtro b { font-weight: 600; color: var(--tinta); }
+        .filtro[aria-pressed="true"] { background: var(--tinta); border-color: var(--tinta); color: #fff; }
+        .filtro[aria-pressed="true"] b { color: #fff; }
+        .busca { position: relative; max-width: 360px; margin-left: auto; flex: 1; min-width: 220px; }
+        .busca i { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--tinta-3); }
+        .busca input { padding-left: 36px; }
+        .barra-lista { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+
+        .tabela { background: var(--papel); border: 1px solid var(--linha); border-radius: 16px; overflow: hidden; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; font-size: 13px; font-weight: 600; color: var(--tinta-3); padding: 12px 16px; border-bottom: 1px solid var(--linha); background: #fbfcfb; }
+        td { padding: 14px 16px; border-bottom: 1px solid var(--linha-2); vertical-align: middle; font-size: 14.5px; }
+        tr:last-child td { border-bottom: 0; }
+        tbody tr { cursor: pointer; }
+        tbody tr:hover { background: #fafbfa; }
+        .pessoa { display: flex; gap: 12px; align-items: center; min-width: 0; }
+        .avatar { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 600; color: #fff; flex: none; }
+        .pessoa a { color: var(--tinta); text-decoration: none; font-weight: 600; display: block; }
+        .pessoa small { color: var(--tinta-3); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 280px; }
+        .mudo { color: var(--tinta-3); font-size: 13.5px; }
+        .vazio { padding: 48px 20px; text-align: center; color: var(--tinta-2); }
+        .acao-rapida { padding: 6px 12px; font-size: 13.5px; }
+
+        @media (max-width: 860px) {
+            thead { display: none; }
+            table, tbody, tr, td { display: block; width: 100%; }
+            tr { padding: 12px 14px; border-bottom: 1px solid var(--linha-2); display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; }
+            td { padding: 0; border: 0; }
+            td.col-pessoa { grid-column: 1 / -1; }
+            td.col-plano, td.col-bots, td.col-acesso { display: none; }
+            .busca { max-width: none; margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+    <%- include('partials/admin-topo', { aba: 'usuarios' }) %>
+
+    <main class="pagina">
+        <div class="cabeca">
+            <div>
+                <h1>Usuários</h1>
+                <p class="sub">Aprove cadastros, defina por quanto tempo cada pessoa pode usar o serviço e cuide das senhas.</p>
+            </div>
+            <button class="btn primario" id="btn-novo" type="button"><i class="ri-user-add-line"></i> Novo usuário</button>
+        </div>
+
+        <div class="barra-lista">
+            <div class="filtros" role="group" aria-label="Filtrar por situação" id="filtros"></div>
+            <div class="busca"><i class="ri-search-line" aria-hidden="true"></i><input type="search" id="busca" placeholder="Buscar por nome ou e-mail" aria-label="Buscar por nome ou e-mail"></div>
+        </div>
+
+        <div class="tabela">
+            <table>
+                <thead><tr><th>Usuário</th><th>Situação</th><th>Validade</th><th class="col-plano">Plano</th><th class="col-bots">Bots</th><th class="col-acesso">Último acesso</th><th></th></tr></thead>
+                <tbody id="linhas"></tbody>
+            </table>
+            <div class="vazio" id="vazio" hidden></div>
+        </div>
+    </main>
+
+    <!-- Novo usuário -->
+    <dialog id="dlg-novo" aria-labelledby="titulo-novo">
+        <form class="dlg" id="form-novo" method="dialog">
+            <div class="dlg-topo"><h2 id="titulo-novo">Novo usuário</h2><button class="fechar" type="button" data-fechar aria-label="Fechar"><i class="ri-close-line"></i></button></div>
+            <div class="campo"><label for="n-nome">Nome</label><input type="text" id="n-nome" required maxlength="100"></div>
+            <div class="campo"><label for="n-email">E-mail</label><input type="email" id="n-email" required></div>
+            <div class="campo"><label for="n-plano">Plano</label>
+                <select id="n-plano"><% planos.forEach(p => { %><option value="<%= p %>"><%= p %></option><% }) %></select></div>
+            <div class="campo"><span class="rotulo">Pode usar por</span>
+                <div class="periodos">
+                    <% periodos.forEach(p => { %><input type="radio" name="n-periodo" id="np-<%= p.id %>" value="<%= p.id %>" <%= p.id === '30' ? 'checked' : '' %>><label for="np-<%= p.id %>"><%= p.rotulo %></label><% }) %>
+                </div></div>
+            <label class="check"><input type="checkbox" id="n-enviar" <%= emailConfigurado ? 'checked' : 'disabled' %>>
+                <span>Enviar os dados de acesso por e-mail<% if (!emailConfigurado) { %> <span class="dica">(configure o envio em Configurações)</span><% } %></span></label>
+            <p class="dica">A pessoa entra com a senha provisória <b><%= senhaProvisoria %></b> e cria a própria senha no primeiro acesso.</p>
+            <div class="dlg-acoes"><button class="btn" type="button" data-fechar>Cancelar</button><button class="btn primario" type="submit" id="btn-criar">Criar usuário</button></div>
+        </form>
+    </dialog>
+
+    <!-- Usuário criado -->
+    <dialog id="dlg-criado" aria-labelledby="titulo-criado">
+        <div class="dlg">
+            <div class="dlg-topo"><h2 id="titulo-criado">Usuário criado</h2><button class="fechar" type="button" data-fechar aria-label="Fechar"><i class="ri-close-line"></i></button></div>
+            <p id="criado-texto">Passe estes dados para a pessoa:</p>
+            <div class="credenciais">E-mail: <code id="criado-email"></code><br>Senha provisória: <code><%= senhaProvisoria %></code></div>
+            <div class="dlg-acoes"><button class="btn" type="button" id="btn-copiar-acesso"><i class="ri-file-copy-line"></i> Copiar dados</button><a class="btn primario" id="criado-perfil" href="#">Abrir perfil</a></div>
+        </div>
+    </dialog>
+
+    <!-- Aprovar -->
+    <dialog id="dlg-aprovar" aria-labelledby="titulo-aprovar">
+        <form class="dlg" id="form-aprovar" method="dialog">
+            <div class="dlg-topo"><h2 id="titulo-aprovar">Aprovar cadastro</h2><button class="fechar" type="button" data-fechar aria-label="Fechar"><i class="ri-close-line"></i></button></div>
+            <p id="aprovar-quem"></p>
+            <div class="campo"><span class="rotulo">Pode usar por</span>
+                <div class="periodos">
+                    <% periodos.forEach(p => { %><input type="radio" name="a-periodo" id="ap-<%= p.id %>" value="<%= p.id %>" <%= p.id === '30' ? 'checked' : '' %>><label for="ap-<%= p.id %>"><%= p.rotulo %></label><% }) %>
+                </div></div>
+            <div class="dlg-acoes"><button class="btn" type="button" data-fechar>Cancelar</button><button class="btn primario" type="submit">Aprovar</button></div>
+        </form>
+    </dialog>
+
+    <script type="application/json" id="dados"><%- JSON.stringify(usuarios).replace(/</g, '\\u003c') %></script>
+    <script>
+        let USUARIOS = JSON.parse(document.getElementById('dados').textContent);
+        const FILTROS = [
+            { id: 'todos', rotulo: 'Todos', teste: u => u.status.codigo !== 'admin' },
+            { id: 'pendente', rotulo: 'Aguardando aprovação', teste: u => u.status.codigo === 'pendente' },
+            { id: 'ativo', rotulo: 'Ativos', teste: u => ['ativo', 'vencendo', 'vitalicio'].includes(u.status.codigo) },
+            { id: 'vencendo', rotulo: 'Vencem em 7 dias', teste: u => u.status.codigo === 'vencendo' },
+            { id: 'vencido', rotulo: 'Vencidos', teste: u => u.status.codigo === 'vencido' },
+            { id: 'bloqueado', rotulo: 'Bloqueados', teste: u => u.status.codigo === 'bloqueado' },
+            { id: 'admin', rotulo: 'Administradores', teste: u => u.status.codigo === 'admin' }
+        ];
+        let filtro = USUARIOS.some(u => u.status.codigo === 'pendente') ? 'pendente' : 'todos';
+        const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+        const CORES = ['#5f8f7a', '#7f8fa6', '#b07d50', '#8e7cc3', '#4f8f9a', '#a8737f', '#6d8b74', '#5b7db1'];
+        const cor = (t) => { let h = 0; for (const c of String(t)) h = (h * 31 + c.codePointAt(0)) >>> 0; return CORES[h % CORES.length]; };
+
+        function textoValidade(u) {
+            const s = u.status.codigo;
+            if (s === 'admin') return '';
+            if (s === 'pendente') return 'Definida ao aprovar';
+            if (!u.expiraEm) return 'Vitalício';
+            return (s === 'vencido' ? 'Venceu em ' : 'Até ') + dataBR(u.expiraEm);
+        }
+        function textoAcesso(u) {
+            if (!u.ultimoLogin) return 'Nunca entrou';
+            const d = new Date(u.ultimoLogin), dias = Math.floor((Date.now() - d) / 864e5);
+            return dias === 0 ? 'Hoje' : dias === 1 ? 'Ontem' : dataBR(d);
+        }
+
+        function desenharFiltros() {
+            const caixa = document.getElementById('filtros'); caixa.replaceChildren();
+            FILTROS.forEach(f => {
+                const n = USUARIOS.filter(f.teste).length;
+                if (n === 0 && !['todos', 'pendente'].includes(f.id) && filtro !== f.id) return;
+                const b = el('button', 'filtro'); b.type = 'button'; b.setAttribute('aria-pressed', String(filtro === f.id));
+                b.append(document.createTextNode(f.rotulo + ' '), el('b', null, String(n)));
+                b.onclick = () => { filtro = f.id; desenhar(); };
+                caixa.appendChild(b);
+            });
+        }
+
+        function desenhar() {
+            desenharFiltros();
+            const termo = document.getElementById('busca').value.trim().toLowerCase();
+            const f = FILTROS.find(x => x.id === filtro);
+            const lista = USUARIOS.filter(f.teste).filter(u => !termo || u.nome.toLowerCase().includes(termo) || u.email.toLowerCase().includes(termo));
+            const corpo = document.getElementById('linhas'); corpo.replaceChildren();
+            const vazio = document.getElementById('vazio');
+            vazio.hidden = lista.length > 0;
+            vazio.textContent = termo ? 'Ninguém encontrado com essa busca.'
+                : filtro === 'pendente' ? 'Nenhum cadastro aguardando aprovação.'
+                : filtro === 'todos' ? 'Nenhum usuário ainda. Use "Novo usuário" ou compartilhe o link de cadastro.'
+                : 'Nenhum usuário nesta situação.';
+
+            lista.forEach(u => {
+                const tr = el('tr');
+                tr.onclick = (e) => { if (!e.target.closest('button, a')) location.href = '/admin/usuarios/' + u.id; };
+
+                const tdP = el('td', 'col-pessoa'); const pessoa = el('div', 'pessoa');
+                const av = el('span', 'avatar', (u.nome.trim()[0] || '?').toUpperCase()); av.style.background = cor(u.nome); av.setAttribute('aria-hidden', 'true');
+                const info = el('div'); info.style.minWidth = '0';
+                const link = el('a', null, u.nome); link.href = '/admin/usuarios/' + u.id;
+                info.append(link, el('small', null, u.email));
+                pessoa.append(av, info); tdP.appendChild(pessoa);
+
+                const tdS = el('td'); tdS.appendChild(el('span', 'selo ' + u.status.codigo, u.status.rotulo));
+                if (u.trocarSenha) { const s = el('div', 'mudo', 'Vai criar nova senha'); s.style.marginTop = '4px'; tdS.appendChild(s); }
+                const tdV = el('td', 'mudo', textoValidade(u));
+                const tdPl = el('td', 'col-plano', u.plano);
+                const tdB = el('td', 'col-bots mudo', u.bots.length ? `${u.bots.length} (${u.bots.filter(b => b.status === 'ONLINE').length} ligado${u.bots.filter(b => b.status === 'ONLINE').length === 1 ? '' : 's'})` : 'Nenhum');
+                const tdA = el('td', 'col-acesso mudo', textoAcesso(u));
+                const tdAc = el('td'); tdAc.style.textAlign = 'right';
+                if (u.status.codigo === 'pendente') {
+                    const b = el('button', 'btn primario acao-rapida', 'Aprovar'); b.type = 'button';
+                    b.onclick = () => abrirAprovar(u); tdAc.appendChild(b);
+                } else {
+                    const a = el('a', 'btn acao-rapida', 'Abrir'); a.href = '/admin/usuarios/' + u.id; tdAc.appendChild(a);
+                }
+                tr.append(tdP, tdS, tdV, tdPl, tdB, tdA, tdAc);
+                corpo.appendChild(tr);
+            });
+        }
+
+        async function recarregar() {
+            const r = await api('/api/admin/contas');
+            if (r.ok) { USUARIOS = r.dados.usuarios; desenhar(); }
+        }
+
+        // diálogos
+        document.querySelectorAll('[data-fechar]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
+        const dlgNovo = document.getElementById('dlg-novo');
+        document.getElementById('btn-novo').onclick = () => { document.getElementById('form-novo').reset(); dlgNovo.showModal(); document.getElementById('n-nome').focus(); };
+
+        document.getElementById('form-novo').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('btn-criar'); btn.disabled = true;
+            const corpo = {
+                nome: document.getElementById('n-nome').value, email: document.getElementById('n-email').value,
+                plano: document.getElementById('n-plano').value,
+                periodo: (document.querySelector('input[name=n-periodo]:checked') || {}).value,
+                enviarEmail: document.getElementById('n-enviar').checked
+            };
+            const r = await api('/api/admin/contas', 'POST', corpo);
+            btn.disabled = false;
+            if (!r.ok) return toast(r.dados.error || 'Não foi possível criar.', true);
+            dlgNovo.close();
+            document.getElementById('criado-email').textContent = corpo.email.trim().toLowerCase();
+            document.getElementById('criado-texto').textContent = r.dados.emailEnviado ? 'Enviamos os dados de acesso por e-mail. Se preferir, passe também por WhatsApp:' : 'Passe estes dados para a pessoa:';
+            document.getElementById('criado-perfil').href = '/admin/usuarios/' + r.dados.id;
+            document.getElementById('dlg-criado').showModal();
+            if (r.dados.avisoEmail) toast(r.dados.avisoEmail, true);
+            recarregar();
+        });
+        document.getElementById('btn-copiar-acesso').onclick = () =>
+            copiar(`Seu acesso ao Calixto OmniSystem\nEndereço: ${location.origin}/login\nE-mail: ${document.getElementById('criado-email').textContent}\nSenha provisória: <%= senhaProvisoria %>\nNo primeiro acesso você vai criar a sua própria senha.`);
+
+        let aprovando = null;
+        function abrirAprovar(u) {
+            aprovando = u;
+            document.getElementById('aprovar-quem').textContent = `${u.nome} (${u.email}) poderá entrar assim que você aprovar.`;
+            document.getElementById('dlg-aprovar').showModal();
+        }
+        document.getElementById('form-aprovar').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const periodo = (document.querySelector('input[name=a-periodo]:checked') || {}).value;
+            const r = await api(`/api/admin/contas/${aprovando.id}/aprovar`, 'POST', { periodo });
+            if (!r.ok) return toast(r.dados.error || 'Não foi possível aprovar.', true);
+            document.getElementById('dlg-aprovar').close();
+            toast(`${aprovando.nome} aprovado.`);
+            recarregar();
+        });
+
+        document.getElementById('busca').addEventListener('input', desenhar);
+        desenhar();
+    </script>
+</body>
+</html>

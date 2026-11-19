@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Configurações - Calixto OmniSystem</title>
+    <%- include('partials/admin-estilo') %>
+    <style>
+        .grade { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; margin-top: 26px; }
+        .cartao { background: var(--papel); border: 1px solid var(--linha); border-radius: 16px; padding: 24px; }
+        .cartao h2 { margin-bottom: 4px; }
+        .cartao > .sub { margin: 0 0 20px; font-size: 14.5px; }
+        .form { display: grid; gap: 16px; }
+        .duas { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+        .estado { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; font-weight: 600; margin-top: 4px; }
+        .estado.on { color: var(--floresta); }
+        .estado.off { color: var(--alerta); }
+        .passos { padding-left: 20px; display: grid; gap: 10px; color: var(--tinta-2); font-size: 14.5px; }
+        .passos b { color: var(--tinta); }
+        .atalho { display: flex; gap: 8px; flex-wrap: wrap; }
+        .acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+        @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } .duas { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <%- include('partials/admin-topo', { aba: 'config' }) %>
+
+    <main class="pagina">
+        <h1>Configurações</h1>
+        <p class="sub">E-mail que envia os links de "Esqueci minha senha" e os dados de acesso de novos usuários.</p>
+
+        <div class="grade">
+            <section class="cartao" aria-labelledby="t-email">
+                <h2 id="t-email">E-mail remetente</h2>
+                <p class="sub">
+                    <% if (config.host && config.temSenha) { %><span class="estado on"><i class="ri-checkbox-circle-fill"></i> Configurado: <%= config.emailRemetente || config.usuario %></span>
+                    <% } else { %><span class="estado off"><i class="ri-error-warning-fill"></i> Ainda não configurado: "Esqueci minha senha" fica indisponível.</span><% } %>
+                </p>
+
+                <form class="form" id="form-email">
+                    <div class="atalho">
+                        <button class="btn" type="button" data-preset="gmail"><i class="ri-google-fill"></i> Usar Gmail</button>
+                        <button class="btn" type="button" data-preset="outlook"><i class="ri-mail-line"></i> Usar Outlook/Hotmail</button>
+                    </div>
+                    <div class="duas">
+                        <div class="campo"><label for="host">Servidor SMTP</label><input type="text" id="host" value="<%= config.host %>" placeholder="smtp.gmail.com" required></div>
+                        <div class="campo"><label for="porta">Porta</label><input type="number" id="porta" value="<%= config.porta %>" min="1" max="65535" required></div>
+                    </div>
+                    <label class="check"><input type="checkbox" id="seguro" <%= config.seguro ? 'checked' : '' %>><span>Conexão segura (SSL) <span class="dica">(porta 465: marcado; porta 587: desmarcado)</span></span></label>
+                    <div class="campo"><label for="usuario">E-mail da conta</label><input type="email" id="usuario" value="<%= config.usuario %>" placeholder="seuemail@gmail.com" required autocomplete="off"></div>
+                    <div class="campo"><label for="senha">Senha do e-mail</label><input type="password" id="senha" placeholder="<%= config.temSenha ? 'Deixe em branco para manter a senha salva' : 'No Gmail, use a senha de app' %>" autocomplete="new-password">
+                        <p class="dica">No Gmail, não é a senha normal da conta: é uma "senha de app" de 16 letras (veja ao lado).</p></div>
+                    <div class="duas">
+                        <div class="campo"><label for="nomeRemetente">Nome que aparece</label><input type="text" id="nomeRemetente" value="<%= config.nomeRemetente %>" maxlength="80"></div>
+                        <div class="campo"><label for="emailRemetente">E-mail que aparece</label><input type="email" id="emailRemetente" value="<%= config.emailRemetente %>" placeholder="igual à conta"></div>
+                    </div>
+                    <div class="campo"><label for="siteUrl">Endereço do site</label><input type="url" id="siteUrl" value="<%= siteUrl %>" placeholder="https://seusite.com.br" required>
+                        <p class="dica">Usado nos links dos e-mails. Confira se é o endereço que seus clientes usam para entrar.</p></div>
+                    <div class="acoes"><button class="btn primario" type="submit">Salvar</button></div>
+                </form>
+
+                <hr style="border:0;border-top:1px solid var(--linha-2);margin:24px 0">
+                <form class="form" id="form-teste">
+                    <h2>Testar envio</h2>
+                    <div class="duas" style="align-items:end">
+                        <div class="campo"><label for="para">Enviar teste para</label><input type="email" id="para" value="<%= adminEmail %>" required></div>
+                        <button class="btn" type="submit" id="btn-teste"><i class="ri-send-plane-line"></i> Enviar teste</button>
+                    </div>
+                </form>
+            </section>
+
+            <aside class="cartao" aria-labelledby="t-gmail">
+                <h2 id="t-gmail">Como usar um Gmail</h2>
+                <ol class="passos" style="margin-top:14px">
+                    <li>Na conta Google que vai enviar, ative a <b>verificação em duas etapas</b>.</li>
+                    <li>Abra <b>myaccount.google.com/apppasswords</b>, crie uma senha de app com o nome "Calixto" e copie as 16 letras.</li>
+                    <li>Aqui, clique em <b>Usar Gmail</b>, preencha o e-mail e cole a senha de app.</li>
+                    <li>Salve e use <b>Enviar teste</b>. Se o e-mail chegar, está pronto.</li>
+                </ol>
+                <p class="dica" style="margin-top:16px">O Gmail gratuito envia até cerca de 500 e-mails por dia, mais do que o suficiente para senhas.</p>
+            </aside>
+        </div>
+    </main>
+
+    <script>
+        const $ = (id) => document.getElementById(id);
+        const PRESETS = { gmail: { host: 'smtp.gmail.com', porta: 465, seguro: true }, outlook: { host: 'smtp-mail.outlook.com', porta: 587, seguro: false } };
+        document.querySelectorAll('[data-preset]').forEach(b => b.onclick = () => {
+            const p = PRESETS[b.dataset.preset];
+            $('host').value = p.host; $('porta').value = p.porta; $('seguro').checked = p.seguro;
+            $('usuario').focus();
+        });
+        $('porta').addEventListener('change', () => { if ($('porta').value === '465') $('seguro').checked = true; if ($('porta').value === '587') $('seguro').checked = false; });
+
+        $('form-email').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const r = await api('/api/admin/config-email', 'POST', {
+                host: $('host').value, porta: Number($('porta').value), seguro: $('seguro').checked,
+                usuario: $('usuario').value, senha: $('senha').value,
+                nomeRemetente: $('nomeRemetente').value, emailRemetente: $('emailRemetente').value, siteUrl: $('siteUrl').value
+            });
+            if (!r.ok) return toast(r.dados.error || 'Não foi possível salvar.', true);
+            toast('Configuração salva. Agora envie um teste.');
+            setTimeout(() => location.reload(), 900);
+        });
+
+        $('form-teste').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const b = $('btn-teste'); b.disabled = true; b.lastChild.textContent = ' Enviando...';
+            const r = await api('/api/admin/config-email/teste', 'POST', { para: $('para').value });
+            b.disabled = false; b.lastChild.textContent = ' Enviar teste';
+            if (!r.ok) return toast(r.dados.error || 'O teste falhou.', true);
+            toast('E-mail de teste enviado para ' + r.dados.para + '. Confira a caixa de entrada e o spam.');
+        });
+    </script>
+</body>
+</html>

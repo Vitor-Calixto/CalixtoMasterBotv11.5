@@ -3,174 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nova Conta - Calixto OmniSystem</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
-    
-    <style>
-        /* RESET E BASE (Idêntico ao Login) */
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            background-color: #050505;
-            color: #fff;
-            font-family: 'Inter', sans-serif;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            /* Gradiente Roxo igual ao Login */
-            background-image: radial-gradient(circle at top center, #1a0b2e 0%, #000000 70%);
-        }
-
-        .login-container {
-            background: rgba(10, 10, 10, 0.8);
-            border: 1px solid #222;
-            padding: 50px 40px;
-            width: 100%;
-            max-width: 400px;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 0 30px rgba(189, 0, 255, 0.05);
-            backdrop-filter: blur(10px);
-            transition: 0.3s;
-        }
-
-        .login-container:hover {
-            border-color: rgba(189, 0, 255, 0.3);
-            box-shadow: 0 0 40px rgba(189, 0, 255, 0.15);
-        }
-
-        h2 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 24px;
-            letter-spacing: 3px;
-            margin-bottom: 30px;
-            text-transform: uppercase;
-        }
-        
-        /* Destaque Roxo Neon */
-        h2 span { color: #bd00ff; text-shadow: 0 0 10px rgba(189, 0, 255, 0.5); }
-
-        /* Inputs Estilizados */
-        .input-group { margin-bottom: 20px; text-align: left; }
-        label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; display: block; font-weight: bold; }
-        
-        input {
-            width: 100%;
-            background: #000;
-            border: 1px solid #333;
-            color: #fff;
-            padding: 15px;
-            border-radius: 6px;
-            font-size: 14px;
-            outline: none;
-            transition: 0.3s;
-        }
-        input:focus { border-color: #bd00ff; box-shadow: 0 0 15px rgba(189, 0, 255, 0.2); }
-
-        /* Botão Neon */
-        button {
-            width: 100%;
-            padding: 15px;
-            background: #bd00ff;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            cursor: pointer;
-            transition: 0.3s;
-            margin-top: 10px;
-        }
-        button:hover { background: #d94eff; box-shadow: 0 0 25px rgba(189, 0, 255, 0.4); transform: translateY(-2px); }
-
-        /* Links */
-        .footer { margin-top: 30px; display: flex; justify-content: center; gap: 20px; font-size: 12px; }
-        .footer a { color: #666; text-decoration: none; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; }
-        .footer a:hover { color: #fff; }
-
-        /* Mensagens de Erro */
-        .alert {
-            background: rgba(255, 0, 85, 0.1);
-            border: 1px solid rgba(255, 0, 85, 0.3);
-            color: #ff5e89;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            margin-bottom: 20px;
-            text-align: left;
-            display: flex; align-items: center; gap: 10px;
-        }
-
-        /* CHECKBOX CUSTOMIZADO (NOVO) */
-        .legal-check {
-            margin: 15px 0;
-            font-size: 11px;
-            color: #aaa;
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            text-align: left;
-            line-height: 1.4;
-        }
-        .legal-check input {
-            width: auto; /* Sobrescreve o 100% padrão */
-            margin-top: 3px;
-            cursor: pointer;
-        }
-        .legal-check a {
-            color: #bd00ff;
-            text-decoration: none;
-            font-weight: bold;
-            transition: 0.2s;
-        }
-        .legal-check a:hover { color: #fff; text-shadow: 0 0 5px #bd00ff; }
-    </style>
+    <title>Criar conta - Calixto OmniSystem</title>
+    <%- include('partials/auth-estilo') %>
 </head>
 <body>
+    <header class="topo"><a class="marca" href="/"><span class="marca-icone" aria-hidden="true"><i class="ri-chat-smile-3-fill"></i></span>Calixto</a></header>
+    <main>
+        <div class="caixa">
+            <h1>Criar conta</h1>
+            <p class="sub">Depois do cadastro, o administrador libera seu acesso.</p>
 
-    <div class="login-container">
-        <h2>NOVA <span>CONTA</span></h2>
+            <% if (locals.message && message.length > 0) { %>
+                <div class="msg erro" role="alert"><i class="ri-error-warning-line"></i><span><%= message %></span></div>
+            <% } %>
+            <% const d = locals.dados || {}; %>
 
-        <% if (locals.message && message.length > 0) { %>
-            <div class="alert">⚠️ <%= message %></div>
-        <% } %>
+            <form action="/registro" method="POST">
+                <label for="nome">Nome</label>
+                <input type="text" id="nome" name="nome" required maxlength="100" autocomplete="name" value="<%= d.nome || '' %>">
 
-        <form action="/registro" method="POST" autocomplete="off">
-            <div class="input-group">
-                <label>Nome Completo</label>
-                <input type="text" name="nome" required placeholder="Ex: João Calixto">
-            </div>
-            
-            <div class="input-group">
-                <label>E-mail</label>
-                <input type="email" name="email" required placeholder="seu@email.com">
-            </div>
-            
-            <div class="input-group">
-                <label>Senha</label>
-                <input type="password" name="senha" required placeholder="Crie uma senha forte">
-            </div>
-            
-            <div class="legal-check">
-                <input type="checkbox" id="termos" name="termos" required>
-                <label for="termos" style="font-weight: normal; margin: 0; cursor: pointer; text-transform: none;">
-                    Li e concordo com os <a href="/termos" target="_blank">Termos de Uso</a> e 
-                    <a href="/privacidade" target="_blank">Política de Privacidade</a>.
-                    <br><span style="opacity: 0.6; font-size: 10px;">Estou ciente de que esta ferramenta não possui vínculo com o WhatsApp oficial.</span>
-                </label>
-            </div>
+                <label for="email">E-mail</label>
+                <input type="email" id="email" name="email" required autocomplete="email" value="<%= d.email || '' %>">
 
-            <button type="submit">CADASTRAR</button>
-        </form>
+                <label for="senha">Senha</label>
+                <div class="campo">
+                    <input type="password" id="senha" name="senha" required minlength="8" maxlength="100" autocomplete="new-password">
+                    <button type="button" class="ver-senha" aria-label="Mostrar senha"><i class="ri-eye-line"></i></button>
+                </div>
+                <p class="dica">Pelo menos 8 caracteres.</p>
 
-        <div class="footer">
-            <a href="/login">← Voltar para Login</a>
+                <label for="confirmar">Repita a senha</label>
+                <div class="campo">
+                    <input type="password" id="confirmar" name="confirmar" required minlength="8" maxlength="100" autocomplete="new-password">
+                    <button type="button" class="ver-senha" aria-label="Mostrar senha"><i class="ri-eye-line"></i></button>
+                </div>
+
+                <label class="check"><input type="checkbox" name="termos" required>
+                    <span>Li e concordo com os <a href="/termos" target="_blank">Termos de Uso</a> e a <a href="/privacidade" target="_blank">Política de Privacidade</a>.</span></label>
+
+                <button class="btn" type="submit">Criar conta</button>
+            </form>
+
+            <p class="rodape">Já tem conta? <a href="/login">Entrar</a></p>
         </div>
-    </div>
-
+    </main>
 </body>
 </html>

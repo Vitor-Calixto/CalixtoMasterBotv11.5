@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Conversas - <%= cliente.nome %></title>
+
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+
+    <script>
+        // Aplica o tema salvo antes de desenhar a página (evita "piscar" claro/escuro)
+        (function () {
+            var tema = 'claro';
+            try { tema = localStorage.getItem('conversas-tema') || 'claro'; } catch (e) {}
+            document.documentElement.setAttribute('data-tema', tema === 'escuro' ? 'escuro' : 'claro');
+        })();
+    </script>
+
+    <style>
+        /* =========================================================
+           TEMAS (mesmas cores do WhatsApp Web)
+           ========================================================= */
+        :root, [data-tema="claro"] {
+            --trilho: #f0f2f5;
+            --painel: #ffffff;
+            --topo-chat: #f0f2f5;
+            --busca: #f0f2f5;
+            --hover: #f5f6f6;
+            --ativo: #f0f2f5;
+            --divisor: #e9edef;
+            --texto: #111b21;
+            --texto-2: #667781;
+            --icone: #54656f;
+            --verde: #00a884;
+            --verde-escuro: #008069;
+            --contador-txt: #ffffff;
+            --chip: #f0f2f5;
+            --chip-ativo: #d9fdd3;
+            --chip-ativo-txt: #008069;
+            --fundo-chat: #efeae2;
+            --desenho: rgba(84, 101, 111, .055);
+            --balao-in: #ffffff;
+            --balao-out: #d9fdd3;
+            --balao-hora: #667781;
+            --data-chip: #ffffff;
+            --sistema: #ffeecd;
+            --sistema-txt: #54656f;
+            --composer: #f0f2f5;
+            --campo: #ffffff;
+            --sombra: 0 1px .5px rgba(11, 20, 26, .13);
+            --rotulo-bot: #06cf9c;
+            --rotulo-humano: #027eb5;
+            --rotulo-cel: #8a6c00;
+            --switch-off: #d1d7db;
+            --banner: #fff3c4;
+            --banner-txt: #54656f;
+            --cartao: #ffffff;
+        }
+        [data-tema="escuro"] {
+            --trilho: #202c33;
+            --painel: #111b21;
+            --topo-chat: #202c33;
+            --busca: #202c33;
+            --hover: #202c33;
+            --ativo: #2a3942;
+            --divisor: #222d34;
+            --texto: #e9edef;
+            --texto-2: #8696a0;
+            --icone: #aebac1;
+            --verde: #00a884;
+            --verde-escuro: #00a884;
+            --contador-txt: #111b21;
+            --chip: #202c33;
+            --chip-ativo: #0a332c;
+            --chip-ativo-txt: #00a884;
+            --fundo-chat: #0b141a;
+            --desenho: rgba(255, 255, 255, .035);
+            --balao-in: #202c33;
+            --balao-out: #005c4b;
+            --balao-hora: rgba(233, 237, 239, .6);
+            --data-chip: #182229;
+            --sistema: #182229;
+            --sistema-txt: #ffd279;
+            --composer: #202c33;
+            --campo: #2a3942;
+            --sombra: 0 1px .5px rgba(11, 20, 26, .5);
+            --rotulo-bot: #06cf9c;
+            --rotulo-humano: #53bdeb;
+            --rotulo-cel: #ffd279;
+            --switch-off: #3b4a54;
+            --banner: #182229;
+            --banner-txt: #ffd279;
+            --cartao: #111b21;
+        }
+
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            margin: 0; background: var(--trilho); color: var(--texto);
+            font-family: "Segoe UI", "Helvetica Neue", Helvetica, "Lucida Grande", Arial, Ubuntu, Cantarell, "Fira Sans", sans-serif;
+            font-size: 14.2px; overflow: hidden; -webkit-font-smoothing: antialiased;
+        }
+        button, input, textarea { font-family: inherit; color: inherit; }
+        :focus-visible { outline: 2px solid var(--verde); outline-offset: 2px; }
+        [hidden] { display: none !important; }
+
+        .app { display: grid; grid-template-columns: 64px minmax(320px, 30%) 1fr; height: 100dvh; }
+
+        /* ---------------- TRILHO (barra de ícones da esquerda) ---------------- */
+        .trilho { background: var(--trilho); border-right: 1px solid var(--divisor); display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 6px; }
+        .trilho-btn { width: 40px; height: 40px; border-radius: 50%; border: 0; background: transparent; color: var(--icone); font-size: 22px; display: flex; align-items: center; justify-content: center; cursor: pointer; text-decoration: none; position: relative; }
+        .trilho-btn:hover { background: rgba(84, 101, 111, .12); }
+        .trilho-btn.ativo { background: rgba(84, 101, 111, .16); color: var(--texto); }
+        .trilho-espaco { flex: 1; }
+        .ponto-conexao { position: absolute; right: 6px; bottom: 6px; width: 9px; height: 9px; border-radius: 50%; background: #f59e0b; border: 2px solid var(--trilho); }
+        .ponto-conexao.on { background: #25d366; }
+
+        /* ---------------- LISTA ---------------- */
+        .lista { background: var(--painel); border-right: 1px solid var(--divisor); display: flex; flex-direction: column; min-height: 0; min-width: 0; }
+        .lista-topo { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px 8px 20px; padding-top: max(14px, env(safe-area-inset-top)); }
+        .lista-topo h1 { font-size: 22px; font-weight: 700; margin: 0; letter-spacing: -.2px; }
+        .lista-sub { font-size: 12.5px; color: var(--texto-2); padding: 0 20px 8px; display: flex; align-items: center; gap: 6px; }
+        .lista-sub .estado-dot { width: 8px; height: 8px; border-radius: 50%; background: #f59e0b; }
+        .lista-sub .estado-dot.on { background: #25d366; }
+        .busca { margin: 4px 14px 10px; position: relative; }
+        .busca i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--icone); font-size: 17px; }
+        .busca input { width: 100%; background: var(--busca); border: 0; border-radius: 22px; padding: 10px 14px 10px 44px; font-size: 14.5px; }
+        .busca input::placeholder { color: var(--texto-2); }
+        .busca input:focus { outline: 2px solid var(--verde); outline-offset: -2px; }
+
+        .filtros { display: flex; gap: 8px; padding: 0 14px 10px; flex-wrap: wrap; }
+        .chip { border: 0; background: var(--chip); color: var(--texto-2); border-radius: 18px; padding: 6px 12px; font-size: 14px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+        .chip:hover { filter: brightness(.97); }
+        .chip[aria-pressed="true"] { background: var(--chip-ativo); color: var(--chip-ativo-txt); font-weight: 500; }
+        .chip small { font-size: 12px; }
+
+        .banner { margin: 0 14px 10px; padding: 10px 12px; border-radius: 8px; font-size: 13px; line-height: 1.45; background: var(--banner); color: var(--banner-txt); display: flex; gap: 8px; }
+
+        .itens { overflow-y: auto; flex: 1; min-height: 0; }
+        .item { display: flex; align-items: center; gap: 13px; padding: 0 0 0 13px; cursor: pointer; border: 0; background: transparent; width: calc(100% - 12px); margin: 0 6px; border-radius: 10px; text-align: left; height: 72px; }
+        .item:hover { background: var(--hover); }
+        .item.ativo { background: var(--ativo); }
+        .avatar { width: 49px; height: 49px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 19px; color: #fff; user-select: none; }
+        .item-corpo { flex: 1; min-width: 0; align-self: stretch; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding-right: 14px; }
+        .item-linha { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+        .item-nome { font-size: 16.5px; color: var(--texto); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .item-hora { font-size: 12px; color: var(--texto-2); flex: none; }
+        .item-hora.nova { color: var(--verde); font-weight: 500; }
+        .item-previa { color: var(--texto-2); font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; min-width: 0; display: flex; align-items: center; gap: 3px; }
+        .item-previa i { font-size: 16px; flex: none; }
+        .item-previa span { overflow: hidden; text-overflow: ellipsis; }
+        .pilulas { display: flex; align-items: center; gap: 6px; flex: none; }
+        .pilula-humano { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: var(--chip-ativo); color: var(--chip-ativo-txt); }
+        .contador { background: var(--verde); color: var(--contador-txt); font-size: 12px; font-weight: 600; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 10px; display: flex; align-items: center; justify-content: center; }
+        .lista-vazia { padding: 40px 28px; text-align: center; color: var(--texto-2); line-height: 1.6; }
+
+        /* ---------------- CHAT ---------------- */
+        .chat { position: relative; display: flex; flex-direction: column; min-height: 0; min-width: 0; background-color: var(--fundo-chat); }
+        .chat::before {
+            content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 1;
+            background-color: var(--desenho);
+            -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 22h28a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6H30l-8 7v-7h-4a6 6 0 0 1-6-6V28a6 6 0 0 1 6-6z'/%3E%3Ccircle cx='118' cy='30' r='11'/%3E%3Cpath d='M112 30l4 4 8-8'/%3E%3Cpath d='M80 92l5 10 11 2-8 8 2 11-10-5-10 5 2-11-8-8 11-2z'/%3E%3Crect x='16' y='104' width='30' height='36' rx='4'/%3E%3Cpath d='M23 116h16M23 124h16M23 132h10'/%3E%3Cpath d='M126 112a14 14 0 1 1-1 20'/%3E%3Cpath d='M118 124h14'/%3E%3Cpath d='M58 52c4-6 12-6 16 0'/%3E%3Ccircle cx='146' cy='78' r='3'/%3E%3Ccircle cx='60' cy='146' r='3'/%3E%3C/g%3E%3C/svg%3E") repeat;
+                    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cg fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 22h28a6 6 0 0 1 6 6v14a6 6 0 0 1-6 6H30l-8 7v-7h-4a6 6 0 0 1-6-6V28a6 6 0 0 1 6-6z'/%3E%3Ccircle cx='118' cy='30' r='11'/%3E%3Cpath d='M112 30l4 4 8-8'/%3E%3Cpath d='M80 92l5 10 11 2-8 8 2 11-10-5-10 5 2-11-8-8 11-2z'/%3E%3Crect x='16' y='104' width='30' height='36' rx='4'/%3E%3Cpath d='M23 116h16M23 124h16M23 132h10'/%3E%3Cpath d='M126 112a14 14 0 1 1-1 20'/%3E%3Cpath d='M118 124h14'/%3E%3Cpath d='M58 52c4-6 12-6 16 0'/%3E%3Ccircle cx='146' cy='78' r='3'/%3E%3Ccircle cx='60' cy='146' r='3'/%3E%3C/g%3E%3C/svg%3E") repeat;
+        }
+        .chat > * { position: relative; }
+
+        .chat-vazio { margin: auto; text-align: center; color: var(--texto-2); padding: 24px; max-width: 460px; line-height: 1.6; }
+        .chat-vazio .icone-grande { width: 88px; height: 88px; border-radius: 50%; background: var(--painel); display: flex; align-items: center; justify-content: center; margin: 0 auto 18px; font-size: 40px; color: var(--verde); box-shadow: var(--sombra); }
+        .chat-vazio strong { color: var(--texto); font-size: 26px; font-weight: 300; display: block; margin-bottom: 8px; }
+        .chat-vazio .rodape-vazio { margin-top: 26px; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+        .conversa-aberta { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+        .chat-topo { background: var(--topo-chat); display: flex; align-items: center; gap: 13px; padding: 10px 16px; min-height: 60px; padding-top: max(10px, env(safe-area-inset-top)); border-left: 1px solid var(--divisor); }
+        .chat-topo .avatar { width: 40px; height: 40px; font-size: 16px; }
+        .chat-id { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+        .chat-id strong { font-size: 16px; font-weight: 400; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-id span { font-size: 13px; color: var(--texto-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .voltar-mobile { display: none; background: transparent; border: 0; color: var(--icone); font-size: 22px; cursor: pointer; padding: 6px; border-radius: 50%; }
+
+        /* Assumir conversa: liga/desliga no estilo iPhone */
+        .assumir { display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; padding: 4px 4px 4px 12px; border-radius: 24px; }
+        .assumir:hover { background: rgba(84, 101, 111, .08); }
+        .assumir-texto { font-size: 14px; color: var(--texto); white-space: nowrap; }
+        .ios-switch { position: relative; width: 51px; height: 31px; flex: none; }
+        .ios-switch input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; z-index: 2; }
+        .ios-track { position: absolute; inset: 0; background: var(--switch-off); border-radius: 31px; transition: background .25s ease; }
+        .ios-track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; background: #fff; border-radius: 50%; box-shadow: 0 3px 8px rgba(0,0,0,.18), 0 1px 1px rgba(0,0,0,.16); transition: transform .25s cubic-bezier(.4, 0, .2, 1), width .15s ease; }
+        .ios-switch input:checked + .ios-track { background: #34c759; }
+        .ios-switch input:checked + .ios-track::after { transform: translateX(20px); }
+        .ios-switch input:active + .ios-track::after { width: 31px; }
+        .ios-switch input:checked:active + .ios-track::after { transform: translateX(16px); }
+        .ios-switch input:focus-visible + .ios-track { outline: 2px solid var(--verde); outline-offset: 2px; }
+        .ios-switch input:disabled { cursor: wait; }
+        .ios-switch input:disabled + .ios-track { opacity: .55; }
+
+        .mensagens { flex: 1; overflow-y: auto; padding: 12px 7% 8px; display: flex; flex-direction: column; min-height: 0; }
+
+        /* cartão do contato no topo da conversa (como o perfil de empresa do WhatsApp) */
+        .cartao { align-self: center; background: var(--cartao); border-radius: 10px; box-shadow: var(--sombra); padding: 22px 28px; margin: 8px 0 14px; text-align: center; width: min(400px, 100%); }
+        .cartao .avatar { width: 84px; height: 84px; font-size: 34px; margin: 0 auto 10px; }
+        .cartao h2 { font-size: 20px; font-weight: 400; margin: 0 0 2px; overflow-wrap: anywhere; }
+        .cartao p { margin: 0; color: var(--texto-2); font-size: 14px; }
+        .cartao .cartao-info { margin-top: 10px; font-size: 13px; }
+
+        .mais { align-self: center; background: var(--data-chip); color: var(--texto-2); border: 0; border-radius: 8px; padding: 6px 14px; font-size: 13px; cursor: pointer; margin: 4px 0 10px; box-shadow: var(--sombra); }
+        .mais:hover { color: var(--texto); }
+        .dia { align-self: center; background: var(--data-chip); color: var(--texto-2); font-size: 12.5px; padding: 5px 12px; border-radius: 7.5px; margin: 10px 0 8px; box-shadow: var(--sombra); text-transform: uppercase; }
+        .sistema { align-self: center; max-width: 85%; background: var(--sistema); color: var(--sistema-txt); font-size: 12.5px; line-height: 1.4; padding: 6px 12px; border-radius: 7.5px; margin: 6px 0; text-align: center; box-shadow: var(--sombra); }
+
+        .linha { display: flex; margin-bottom: 2px; }
+        .linha.saida { justify-content: flex-end; }
+        .linha.inicio { margin-top: 10px; }
+        .balao { position: relative; max-width: min(65%, 560px); padding: 6px 7px 8px 9px; border-radius: 7.5px; background: var(--balao-in); box-shadow: var(--sombra); }
+        .linha.saida .balao { background: var(--balao-out); }
+        /* rabicho do balão, só na primeira mensagem do grupo */
+        .linha.inicio .balao::before { content: ''; position: absolute; top: 0; width: 8px; height: 13px; background: inherit; }
+        .linha.entrada.inicio .balao { border-top-left-radius: 0; }
+        .linha.entrada.inicio .balao::before { left: -8px; clip-path: polygon(100% 0, 0 0, 100% 100%); }
+        .linha.saida.inicio .balao { border-top-right-radius: 0; }
+        .linha.saida.inicio .balao::before { right: -8px; clip-path: polygon(0 0, 100% 0, 0 100%); }
+        .rotulo { display: block; font-size: 12.8px; font-weight: 500; margin-bottom: 1px; }
+        .rotulo.bot { color: var(--rotulo-bot); }
+        .rotulo.humano { color: var(--rotulo-humano); }
+        .rotulo.celular { color: var(--rotulo-cel); }
+        .texto-msg { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 19px; font-size: 14.2px; color: var(--texto); }
+        /* espaço invisível no fim do texto para a hora não sobrepor (mesmo truque do WhatsApp) */
+        .texto-msg::after { content: ''; display: inline-block; width: 64px; }
+        .linha.entrada .texto-msg::after { width: 46px; }
+        .meta { position: absolute; right: 7px; bottom: 3px; font-size: 11px; color: var(--balao-hora); display: flex; align-items: center; gap: 3px; }
+        .meta i { font-size: 15px; }
+
+        .composer { background: var(--composer); padding: 8px 16px; padding-bottom: max(8px, env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: flex-end; min-height: 62px; }
+        .composer textarea { flex: 1; resize: none; background: var(--campo); border: 0; border-radius: 8px; padding: 11px 14px; font-size: 15px; line-height: 20px; max-height: 140px; min-height: 42px; color: var(--texto); }
+        .composer textarea::placeholder { color: var(--texto-2); }
+        .composer textarea:disabled { cursor: not-allowed; }
+        .composer button { width: 42px; height: 42px; border-radius: 50%; border: 0; background: transparent; color: var(--icone); font-size: 24px; cursor: pointer; flex: none; display: flex; align-items: center; justify-content: center; }
+        .composer button:not(:disabled):hover { color: var(--verde); }
+        .composer button:disabled { opacity: .45; cursor: not-allowed; }
+
+        .aviso-assumir { background: var(--composer); border-top: 1px solid var(--divisor); color: var(--texto-2); font-size: 13.5px; text-align: center; padding: 14px 16px; padding-bottom: max(14px, env(safe-area-inset-bottom)); }
+        .aviso-assumir button { border: 0; background: transparent; color: var(--verde-escuro); font-weight: 600; cursor: pointer; font-size: 13.5px; padding: 0; }
+
+        #aviso { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: #3b4a54; color: #fff; padding: 11px 18px; border-radius: 8px; font-size: 14px; box-shadow: 0 8px 24px rgba(0,0,0,.25); z-index: 50; max-width: 90vw; text-align: center; }
+
+        /* ---------------- CELULAR ---------------- */
+        @media (max-width: 900px) {
+            .app { grid-template-columns: 1fr; }
+            .trilho { display: none; }
+            .chat { display: none; }
+            .app.mostrando-chat .lista { display: none; }
+            .app.mostrando-chat .chat { display: flex; }
+            .voltar-mobile { display: flex; }
+            .lista-topo .acoes-mobile { display: flex !important; }
+            .mensagens { padding: 10px 12px; }
+            .balao { max-width: 85%; }
+            .assumir-texto { display: none; }
+            .chat-topo { gap: 8px; padding-left: 6px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .ios-track, .ios-track::after { transition: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app" id="app">
+
+        <!-- Trilho de ícones (igual ao WhatsApp Web) -->
+        <nav class="trilho" aria-label="Navegação">
+            <a class="trilho-btn" href="/dashboard" title="Voltar ao dashboard" aria-label="Voltar ao dashboard"><i class="ri-arrow-left-line"></i></a>
+            <span class="trilho-btn ativo" title="Conversas" aria-current="page"><i class="ri-chat-3-fill"></i><span class="ponto-conexao" id="ponto-conexao"></span></span>
+            <span class="trilho-espaco"></span>
+            <button class="trilho-btn" id="btn-tema" type="button" title="Mudar tema" aria-label="Mudar tema"><i class="ri-moon-line"></i></button>
+        </nav>
+
+        <!-- Lista de conversas -->
+        <aside class="lista" aria-label="Lista de conversas">
+            <header class="lista-topo">
+                <h1>Conversas</h1>
+                <span class="acoes-mobile" style="display:none; gap:4px">
+                    <button class="trilho-btn" id="btn-tema-mobile" type="button" aria-label="Mudar tema"><i class="ri-moon-line"></i></button>
+                    <a class="trilho-btn" href="/dashboard" aria-label="Voltar ao dashboard"><i class="ri-close-line"></i></a>
+                </span>
+            </header>
+            <div class="lista-sub"><span class="estado-dot" id="estado-dot"></span><span id="status-conexao">Conectando...</span> · <span><%= cliente.nome %></span></div>
+            <div class="busca">
+                <i class="ri-search-line" aria-hidden="true"></i>
+                <input id="busca" type="search" placeholder="Pesquisar conversa" aria-label="Pesquisar conversa" autocomplete="off">
+            </div>
+            <div class="filtros" role="group" aria-label="Filtrar conversas">
+                <button class="chip" type="button" data-filtro="tudo" aria-pressed="true">Tudo</button>
+                <button class="chip" type="button" data-filtro="naolidas" aria-pressed="false">Não lidas <small id="total-naolidas"></small></button>
+                <button class="chip" type="button" data-filtro="humano" aria-pressed="false">Assumidas</button>
+            </div>
+            <div class="banner" id="banner-bot" hidden><i class="ri-error-warning-line"></i><span>Este bot está desligado. O histórico continua aqui, mas nada é recebido nem enviado até ele ser ligado.</span></div>
+            <div class="itens" id="lista" role="list"></div>
+        </aside>
+
+        <!-- Conversa aberta -->
+        <main class="chat" aria-label="Conversa">
+            <div class="chat-vazio" id="chat-vazio">
+                <div class="icone-grande"><i class="ri-chat-smile-2-line"></i></div>
+                <strong>Conversas ao vivo</strong>
+                Escolha uma conversa para acompanhar em tempo real. Para responder você mesmo, abra a conversa e ligue "Assumir conversa".
+                <div class="rodape-vazio"><i class="ri-history-line"></i> As mensagens ficam salvas por <%= retencaoDias %> dias.</div>
+            </div>
+
+            <section class="conversa-aberta" id="chat-aberto" hidden>
+                <header class="chat-topo">
+                    <button class="voltar-mobile" id="btn-voltar-lista" aria-label="Voltar para a lista"><i class="ri-arrow-left-line"></i></button>
+                    <div class="avatar" id="chat-avatar" aria-hidden="true"></div>
+                    <div class="chat-id"><strong id="chat-nome"></strong><span id="chat-estado"></span></div>
+                    <label class="assumir" id="assumir-rotulo">
+                        <span class="assumir-texto">Assumir conversa</span>
+                        <span class="ios-switch">
+                            <input type="checkbox" id="assumir" role="switch" aria-label="Assumir conversa">
+                            <span class="ios-track"></span>
+                        </span>
+                    </label>
+                </header>
+
+                <div class="mensagens" id="mensagens" aria-live="polite"></div>
+
+                <footer class="composer" id="composer" hidden>
+                    <textarea id="texto" rows="1" maxlength="4000" placeholder="Digite uma mensagem" aria-label="Mensagem"></textarea>
+                    <button id="enviar" type="button" aria-label="Enviar mensagem" disabled><i class="ri-send-plane-2-fill"></i></button>
+                </footer>
+                <div class="aviso-assumir" id="aviso-assumir">
+                    <span id="aviso-assumir-texto">O bot está respondendo esta conversa. <button type="button" id="btn-assumir-rapido">Assumir conversa</button> para responder você mesmo.</span>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="aviso" role="status" hidden></div>
+
+    <script>
+        const CLIENTE = <%- JSON.stringify(cliente).replace(/</g, '\\u003c') %>;
+
+        const $ = (id) => document.getElementById(id);
+        const el = (tag, classe, texto) => { const e = document.createElement(tag); if (classe) e.className = classe; if (texto != null) e.textContent = texto; return e; };
+
+        const estado = {
+            conversas: new Map(),     // id -> { id, nome, numero, ultimaMensagem, ultimaEm, humano }
+            naoLidas: new Map(),      // id -> quantidade
+            filtro: 'tudo',
+            abertoId: null,
+            mensagens: [],
+            temMais: false,
+            botOnline: CLIENTE.status === 'ONLINE'
+        };
+
+        // ---------- tema ----------
+        function aplicarTema(tema) {
+            document.documentElement.setAttribute('data-tema', tema);
+            try { localStorage.setItem('conversas-tema', tema); } catch (e) {}
+            const icone = tema === 'escuro' ? 'ri-sun-line' : 'ri-moon-line';
+            const rotulo = tema === 'escuro' ? 'Usar tema claro' : 'Usar tema escuro';
+            ['btn-tema', 'btn-tema-mobile'].forEach(id => { const b = $(id); b.querySelector('i').className = icone; b.title = rotulo; b.setAttribute('aria-label', rotulo); });
+        }
+        const alternarTema = () => aplicarTema(document.documentElement.getAttribute('data-tema') === 'escuro' ? 'claro' : 'escuro');
+        $('btn-tema').addEventListener('click', alternarTema);
+        $('btn-tema-mobile').addEventListener('click', alternarTema);
+        aplicarTema(document.documentElement.getAttribute('data-tema') === 'escuro' ? 'escuro' : 'claro');
+
+        // ---------- utilitários ----------
+        async function api(url, metodo = 'GET', corpo) {
+            try {
+                const res = await fetch(url, {
+                    method: metodo,
+                    headers: corpo ? { 'Content-Type': 'application/json' } : undefined,
+                    body: corpo ? JSON.stringify(corpo) : undefined
+                });
+                const dados = await res.json().catch(() => ({ success: false, error: 'Sessão expirada. Entre novamente.' }));
+                return { ok: res.ok && dados.success !== false, dados };
+            } catch (e) {
+                return { ok: false, dados: { error: 'Sem conexão com o servidor.' } };
+            }
+        }
+
+        let timerAviso;
+        function aviso(msg) {
+            const a = $('aviso'); a.textContent = msg; a.hidden = false;
+            clearTimeout(timerAviso); timerAviso = setTimeout(() => { a.hidden = true; }, 3500);
+        }
+
+        const nomeDe = (c) => c.nome || c.numero;
+        const CORES_AVATAR = ['#6b9e8a', '#7f8fa6', '#c08b5c', '#8e7cc3', '#5f9ea0', '#b5838d', '#6d8b74', '#9c7a52', '#5b7db1', '#a26769'];
+        function corDoAvatar(texto) {
+            let h = 0; for (const ch of String(texto)) h = (h * 31 + ch.codePointAt(0)) >>> 0;
+            return CORES_AVATAR[h % CORES_AVATAR.length];
+        }
+        function preencherAvatar(alvo, c) {
+            const base = nomeDe(c);
+            const letra = (base.replace(/[^\p{L}\p{N}]/gu, '')[0] || '#').toUpperCase();
+            alvo.textContent = c.nome ? letra : '';
+            if (!c.nome) { const i = el('i', 'ri-user-3-fill'); alvo.appendChild(i); }
+            alvo.style.background = c.nome ? corDoAvatar(base) : '#c4cbd0';
+            alvo.setAttribute('aria-hidden', 'true');
+            return alvo;
+        }
+        const avatar = (c) => preencherAvatar(el('div', 'avatar'), c);
+
+        const mesmoDia = (a, b) => a.toDateString() === b.toDateString();
+        function rotuloDia(d) {
+            const hoje = new Date(), ontem = new Date(Date.now() - 864e5);
+            if (mesmoDia(d, hoje)) return 'Hoje';
+            if (mesmoDia(d, ontem)) return 'Ontem';
+            return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+        }
+        const horaCurta = (d) => d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        function horaLista(iso) {
+            const d = new Date(iso), hoje = new Date();
+            if (mesmoDia(d, hoje)) return horaCurta(d);
+            if (mesmoDia(d, new Date(Date.now() - 864e5))) return 'Ontem';
+            return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' });
+        }
+
+        function atualizarTitulo() {
+            const total = [...estado.naoLidas.values()].reduce((a, b) => a + b, 0);
+            document.title = (total ? `(${total}) ` : '') + 'Conversas - ' + CLIENTE.nome;
+            const conversasNaoLidas = [...estado.naoLidas.values()].filter(Boolean).length;
+            $('total-naolidas').textContent = conversasNaoLidas ? String(conversasNaoLidas) : '';
+        }
+
+        // ---------- lista ----------
+        function renderLista() {
+            const termo = $('busca').value.trim().toLowerCase();
+            const caixa = $('lista');
+            caixa.replaceChildren();
+
+            const todas = [...estado.conversas.values()].sort((a, b) => new Date(b.ultimaEm) - new Date(a.ultimaEm));
+            const filtradas = todas.filter(c => {
+                if (estado.filtro === 'naolidas' && !estado.naoLidas.get(c.id)) return false;
+                if (estado.filtro === 'humano' && !c.humano) return false;
+                return !termo || nomeDe(c).toLowerCase().includes(termo) || c.numero.toLowerCase().includes(termo) || (c.ultimaMensagem || '').toLowerCase().includes(termo);
+            });
+
+            if (!filtradas.length) {
+                let msg = 'Ainda não há conversas. Quando alguém mandar mensagem para este número, ela aparece aqui na hora.';
+                if (todas.length) msg = termo ? 'Nenhuma conversa encontrada.'
+                    : estado.filtro === 'naolidas' ? 'Nenhuma conversa não lida.'
+                    : estado.filtro === 'humano' ? 'Nenhuma conversa assumida. Abra uma conversa e ligue "Assumir conversa".'
+                    : msg;
+                caixa.appendChild(el('div', 'lista-vazia', msg));
+                return;
+            }
+
+            filtradas.forEach(c => {
+                const b = el('button', 'item' + (c.id === estado.abertoId ? ' ativo' : ''));
+                b.type = 'button'; b.setAttribute('role', 'listitem');
+                b.appendChild(avatar(c));
+
+                const corpo = el('div', 'item-corpo');
+                const l1 = el('div', 'item-linha');
+                l1.appendChild(el('span', 'item-nome', nomeDe(c)));
+                const nl = estado.naoLidas.get(c.id) || 0;
+                l1.appendChild(el('span', 'item-hora' + (nl ? ' nova' : ''), horaLista(c.ultimaEm)));
+
+                const l2 = el('div', 'item-linha');
+                const prev = el('span', 'item-previa');
+                let texto = c.ultimaMensagem || '';
+                if (texto.startsWith('Você: ')) { prev.appendChild(el('i', 'ri-check-line')); texto = texto.slice(6); }
+                else if (texto.startsWith('🤖 ')) { prev.appendChild(el('i', 'ri-robot-2-line')); texto = texto.slice(3); }
+                prev.appendChild(el('span', null, texto));
+                l2.appendChild(prev);
+                const pil = el('span', 'pilulas');
+                if (c.humano) pil.appendChild(el('span', 'pilula-humano', 'Humano'));
+                if (nl) pil.appendChild(el('span', 'contador', nl > 99 ? '99+' : String(nl)));
+                l2.appendChild(pil);
+
+                corpo.append(l1, l2);
+                b.appendChild(corpo);
+                b.onclick = () => abrirConversa(c.id);
+                caixa.appendChild(b);
+            });
+        }
+
+        async function carregarLista() {
+            const r = await api(`/api/conversas/${CLIENTE.id}`);
+            if (!r.ok) { aviso(r.dados.error || 'Não consegui carregar as conversas.'); return; }
+            estado.conversas = new Map(r.dados.conversas.map(c => [c.id, c]));
+            definirBotOnline(r.dados.status === 'ONLINE');
+            renderLista();
+        }
+
+        function definirBotOnline(online) {
+            estado.botOnline = online;
+            $('banner-bot').hidden = online;
+            atualizarComposer();
+        }
+
+        document.querySelectorAll('.chip').forEach(ch => ch.addEventListener('click', () => {
+            estado.filtro = ch.dataset.filtro;
+            document.querySelectorAll('.chip').forEach(o => o.setAttribute('aria-pressed', String(o === ch)));
+            renderLista();
+        }));
+
+        // ---------- conversa aberta ----------
+        const ROTULOS = { BOT: ['Bot', 'bot'], HUMANO: ['Você', 'humano'], CELULAR: ['Celular', 'celular'] };
+
+        function elMensagem(m, inicioGrupo) {
+            if (m.tipo === 'sistema') return el('div', 'sistema', m.texto);
+            const linha = el('div', 'linha ' + (m.fromMe ? 'saida' : 'entrada') + (inicioGrupo ? ' inicio' : ''));
+            const balao = el('div', 'balao');
+            if (m.fromMe && inicioGrupo && ROTULOS[m.origem]) {
+                const [txt, cls] = ROTULOS[m.origem];
+                balao.appendChild(el('span', 'rotulo ' + cls, txt));
+            }
+            balao.appendChild(el('div', 'texto-msg', m.texto));
+            const meta = el('span', 'meta', horaCurta(new Date(m.criadoEm)));
+            if (m.fromMe) meta.appendChild(el('i', 'ri-check-line'));
+            balao.appendChild(meta);
+            linha.appendChild(balao);
+            return linha;
+        }
+
+        function cartaoContato(c) {
+            const cartao = el('div', 'cartao');
+            cartao.appendChild(avatar(c));
+            cartao.appendChild(el('h2', null, nomeDe(c)));
+            if (c.nome) cartao.appendChild(el('p', null, c.numero));
+            cartao.appendChild(el('p', 'cartao-info', 'Conversa com o número ' + (CLIENTE.nome || '')));
+            return cartao;
+        }
+
+        function renderMensagens(manterPosicao) {
+            const area = $('mensagens');
+            const alturaAntes = area.scrollHeight, topoAntes = area.scrollTop;
+            area.replaceChildren();
+
+            const c = estado.conversas.get(estado.abertoId);
+            if (estado.temMais) {
+                const mais = el('button', 'mais', 'Carregar mensagens anteriores');
+                mais.type = 'button'; mais.onclick = carregarAnteriores;
+                area.appendChild(mais);
+            } else if (c) {
+                area.appendChild(cartaoContato(c));
+            }
+
+            let diaAnterior = null, anterior = null;
+            estado.mensagens.forEach(m => {
+                const d = new Date(m.criadoEm);
+                let novoDia = false;
+                if (!diaAnterior || !mesmoDia(diaAnterior, d)) { area.appendChild(el('div', 'dia', rotuloDia(d))); diaAnterior = d; novoDia = true; }
+                const inicio = novoDia || !anterior || anterior.tipo === 'sistema' || anterior.fromMe !== m.fromMe || (m.fromMe && anterior.origem !== m.origem);
+                area.appendChild(elMensagem(m, inicio));
+                anterior = m;
+            });
+            if (manterPosicao) area.scrollTop = topoAntes + (area.scrollHeight - alturaAntes);
+        }
+
+        const pertoDoFim = () => { const a = $('mensagens'); return a.scrollHeight - a.scrollTop - a.clientHeight < 140; };
+        const rolarParaFim = () => { const a = $('mensagens'); a.scrollTop = a.scrollHeight; };
+
+        function atualizarComposer() {
+            const c = estado.conversas.get(estado.abertoId);
+            const humano = !!(c && c.humano);
+            const t = $('texto');
+            $('composer').hidden = !humano;
+            $('aviso-assumir').hidden = humano && estado.botOnline;
+            if (!estado.botOnline) {
+                $('aviso-assumir-texto').textContent = 'Este bot está desligado. Ligue o bot no dashboard para enviar mensagens.';
+                $('composer').hidden = true;
+            } else if (!humano) {
+                $('aviso-assumir-texto').replaceChildren(
+                    document.createTextNode('O bot está respondendo esta conversa. '),
+                    Object.assign(el('button', null, 'Assumir conversa'), { type: 'button', id: 'btn-assumir-rapido', onclick: () => alternarAssumir(true) }),
+                    document.createTextNode(' para responder você mesmo.'));
+            }
+            t.disabled = !(humano && estado.botOnline);
+            $('enviar').disabled = t.disabled || !t.value.trim();
+        }
+
+        function mostrarHumano(humano) {
+            $('assumir').checked = humano;
+            $('chat-estado').textContent = humano ? 'Você está atendendo · o bot está pausado' : 'O bot está respondendo';
+            atualizarComposer();
+        }
+
+        async function abrirConversa(id) {
+            const c = estado.conversas.get(id);
+            if (!c) return;
+            estado.abertoId = id;
+            estado.mensagens = [];
+            estado.temMais = false;
+            estado.naoLidas.delete(id);
+            atualizarTitulo();
+
+            $('chat-vazio').hidden = true;
+            $('chat-aberto').hidden = false;
+            $('app').classList.add('mostrando-chat');
+            preencherAvatar($('chat-avatar'), c);
+            $('chat-nome').textContent = nomeDe(c);
+            $('texto').value = '';
+            mostrarHumano(!!c.humano);
+            renderMensagens();
+            renderLista();
+
+            const r = await api(`/api/conversas/${CLIENTE.id}/${id}/mensagens`);
+            if (estado.abertoId !== id) return;                 // abriu outra conversa enquanto carregava
+            if (!r.ok) { aviso(r.dados.error || 'Não consegui carregar as mensagens.'); return; }
+            estado.mensagens = r.dados.mensagens;
+            estado.temMais = r.dados.temMais;
+            c.humano = r.dados.humano;
+            mostrarHumano(c.humano);
+            renderMensagens();
+            rolarParaFim();
+            renderLista();
+        }
+
+        async function carregarAnteriores() {
+            if (!estado.mensagens.length) return;
+            const id = estado.abertoId;
+            const r = await api(`/api/conversas/${CLIENTE.id}/${id}/mensagens?antes=${encodeURIComponent(estado.mensagens[0].criadoEm)}`);
+            if (!r.ok || estado.abertoId !== id) return;
+            estado.mensagens = [...r.dados.mensagens, ...estado.mensagens];
+            estado.temMais = r.dados.temMais;
+            renderMensagens(true);
+        }
+
+        function fecharConversa() {
+            $('app').classList.remove('mostrando-chat');
+            estado.abertoId = null;
+            $('chat-aberto').hidden = true;
+            $('chat-vazio').hidden = false;
+            renderLista();
+        }
+
+        // ---------- tempo real ----------
+        function receberMensagem(d) {
+            const dadosContato = d.contato;
+            const anterior = estado.conversas.get(dadosContato.id);
+            const conversa = { ...(anterior || { humano: false }), ...dadosContato };
+            estado.conversas.set(conversa.id, conversa);
+
+            const m = d.mensagem;
+            if (conversa.id === estado.abertoId) {
+                if (!estado.mensagens.some(x => x.id === m.id)) {
+                    const seguir = pertoDoFim() || m.origem === 'HUMANO';
+                    estado.mensagens.push(m);
+                    renderMensagens();
+                    if (seguir) rolarParaFim();
+                }
+            } else if (!m.fromMe && m.tipo !== 'sistema') {
+                estado.naoLidas.set(conversa.id, (estado.naoLidas.get(conversa.id) || 0) + 1);
+                atualizarTitulo();
+            }
+            renderLista();
+        }
+
+        function definirHumano(contatoId, humano) {
+            const c = estado.conversas.get(contatoId);
+            if (!c) return;
+            c.humano = humano;
+            if (contatoId === estado.abertoId) mostrarHumano(humano);
+            renderLista();
+        }
+
+        function marcarConexao(ligado, texto) {
+            $('status-conexao').textContent = texto || (ligado ? 'Ao vivo' : 'Reconectando...');
+            $('estado-dot').classList.toggle('on', ligado);
+            $('ponto-conexao').classList.toggle('on', ligado);
+        }
+
+        const socket = io();
+        let primeiraConexao = true;
+        socket.on('connect', () => {
+            socket.emit('conversas:entrar', { clienteId: CLIENTE.id }, async (r) => {
+                if (!r || !r.ok) { marcarConexao(false, 'Sem permissão para ver ao vivo'); return; }
+                marcarConexao(true);
+                if (!primeiraConexao) {                       // voltou de uma queda: recupera o que perdeu
+                    await carregarLista();
+                    if (estado.abertoId) { const id = estado.abertoId; estado.abertoId = null; await abrirConversa(id); }
+                }
+                primeiraConexao = false;
+            });
+        });
+        socket.on('disconnect', () => marcarConexao(false));
+        socket.on('conversa:mensagem', (d) => { if (d && d.clienteId === CLIENTE.id) receberMensagem(d); });
+        socket.on('conversa:estado', (d) => { if (d && d.clienteId === CLIENTE.id) definirHumano(d.contatoId, d.humano); });
+        socket.on('status', (d) => { if (d && d.clienteId === CLIENTE.id) definirBotOnline(d.status === 'ONLINE'); });
+
+        // ---------- assumir conversa ----------
+        async function alternarAssumir(ativo) {
+            const id = estado.abertoId; if (!id) return;
+            const caixa = $('assumir');
+            caixa.checked = ativo;
+            caixa.disabled = true;
+            const r = await api(`/api/conversas/${CLIENTE.id}/${id}/assumir`, 'POST', { ativo });
+            caixa.disabled = false;
+            if (!r.ok) { caixa.checked = !ativo; aviso(r.dados.error || 'Não consegui alterar. Tente de novo.'); return; }
+            definirHumano(id, ativo);
+            if (ativo) $('texto').focus();
+        }
+        $('assumir').addEventListener('change', (ev) => alternarAssumir(ev.target.checked));
+
+        // ---------- enviar ----------
+        const campo = $('texto');
+        function ajustarAltura() { campo.style.height = 'auto'; campo.style.height = Math.min(campo.scrollHeight, 140) + 'px'; }
+        campo.addEventListener('input', () => { ajustarAltura(); atualizarComposer(); });
+        campo.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !window.matchMedia('(pointer: coarse)').matches) { e.preventDefault(); enviar(); }
+        });
+        $('enviar').addEventListener('click', enviar);
+
+        async function enviar() {
+            const id = estado.abertoId;
+            const texto = campo.value.trim();
+            if (!id || !texto || $('enviar').disabled) return;
+            $('enviar').disabled = true;
+            const r = await api(`/api/conversas/${CLIENTE.id}/${id}/enviar`, 'POST', { texto });
+            if (!r.ok) { aviso(r.dados.error || 'Não consegui enviar.'); atualizarComposer(); return; }
+            campo.value = ''; ajustarAltura();
+            const m = r.dados.mensagem;
+            if (m && id === estado.abertoId && !estado.mensagens.some(x => x.id === m.id)) {
+                estado.mensagens.push(m); renderMensagens(); rolarParaFim();
+            }
+            atualizarComposer();
+            campo.focus();
+        }
+
+        // ---------- navegação ----------
+        $('btn-voltar-lista').addEventListener('click', fecharConversa);
+        $('busca').addEventListener('input', renderLista);
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && estado.abertoId) fecharConversa(); });
+
+        carregarLista();
+        atualizarTitulo();
+    </script>
+</body>
+</html>

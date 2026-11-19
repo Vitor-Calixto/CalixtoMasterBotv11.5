@@ -1,0 +1,107 @@
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <style>
+        :root {
+            --tinta: #16211c; --tinta-2: #4b5a53; --tinta-3: #7a8a82; --fundo: #f5f7f4; --papel: #fff; --linha: #dfe5e0; --linha-2: #eef1ee;
+            --floresta: #0e3b2e; --acao: #128c6b; --acao-hover: #0e7458; --menta: #dff3ea;
+            --erro: #b42318; --erro-fundo: #fef3f2; --alerta: #b54708; --alerta-fundo: #fffaeb; --info: #1d4ed8; --info-fundo: #eef4ff; --neutro-fundo: #f0f2f1;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--fundo); color: var(--tinta); font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+        a { color: var(--acao); }
+        button, input, select { font: inherit; color: inherit; }
+        :focus-visible { outline: 3px solid var(--acao); outline-offset: 2px; border-radius: 6px; }
+        [hidden] { display: none !important; }
+
+        .barra { background: var(--papel); border-bottom: 1px solid var(--linha); position: sticky; top: 0; z-index: 10; }
+        .barra .dentro { max-width: 1180px; margin: 0 auto; padding: 0 24px; height: 62px; display: flex; align-items: center; gap: 28px; }
+        .marca { display: inline-flex; align-items: center; gap: 10px; font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 18px; color: var(--tinta); text-decoration: none; }
+        .marca-icone { width: 30px; height: 30px; border-radius: 8px; background: var(--floresta); color: #fff; display: grid; place-items: center; font-size: 16px; }
+        .barra nav { display: flex; gap: 4px; flex: 1; }
+        .barra nav a { text-decoration: none; color: var(--tinta-2); font-weight: 500; padding: 8px 12px; border-radius: 8px; }
+        .barra nav a:hover { background: var(--neutro-fundo); color: var(--tinta); }
+        .barra nav a[aria-current="page"] { color: var(--tinta); background: var(--neutro-fundo); }
+        .barra .voltar { text-decoration: none; color: var(--tinta-2); font-size: 14px; display: inline-flex; gap: 6px; align-items: center; }
+
+        .pagina { max-width: 1180px; margin: 0 auto; padding: 32px 24px 80px; }
+        h1 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 800; font-size: 30px; letter-spacing: -.8px; line-height: 1.1; }
+        h2 { font-family: 'Bricolage Grotesque', sans-serif; font-weight: 700; font-size: 18px; letter-spacing: -.2px; }
+        .sub { color: var(--tinta-2); margin-top: 6px; }
+
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 10px 16px; border-radius: 10px; border: 1.5px solid var(--linha); background: var(--papel); font-weight: 600; font-size: 14.5px; cursor: pointer; text-decoration: none; color: var(--tinta); white-space: nowrap; }
+        .btn:hover { border-color: var(--tinta-3); }
+        .btn i { font-size: 17px; }
+        .btn.primario { background: var(--acao); border-color: var(--acao); color: #fff; }
+        .btn.primario:hover { background: var(--acao-hover); border-color: var(--acao-hover); }
+        .btn.perigo { color: var(--erro); border-color: #f4c7c3; }
+        .btn.perigo:hover { background: var(--erro-fundo); border-color: var(--erro); }
+        .btn.perigo-cheio { background: var(--erro); border-color: var(--erro); color: #fff; }
+        .btn:disabled { opacity: .55; cursor: not-allowed; }
+
+        .selo { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+        .selo::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+        .selo.ativo, .selo.vitalicio { background: var(--menta); color: var(--floresta); }
+        .selo.pendente { background: var(--info-fundo); color: var(--info); }
+        .selo.vencendo { background: var(--alerta-fundo); color: var(--alerta); }
+        .selo.vencido, .selo.bloqueado { background: var(--erro-fundo); color: var(--erro); }
+        .selo.admin { background: var(--neutro-fundo); color: var(--tinta-2); }
+
+        .campo label, label.rotulo { display: block; font-weight: 600; font-size: 14px; margin-bottom: 6px; }
+        input[type=text], input[type=email], input[type=password], input[type=date], input[type=url], input[type=number], input[type=search], select {
+            width: 100%; padding: 10px 12px; border: 1.5px solid var(--linha); border-radius: 10px; background: #fff; }
+        input:focus, select:focus { outline: none; border-color: var(--acao); box-shadow: 0 0 0 3px rgba(18, 140, 107, .15); }
+        .dica { font-size: 13px; color: var(--tinta-3); margin-top: 5px; }
+        .check { display: flex; gap: 9px; align-items: flex-start; font-size: 14.5px; cursor: pointer; }
+        .check input { width: 17px; height: 17px; margin-top: 2px; accent-color: var(--acao); flex: none; }
+
+        /* períodos: botões de escolha */
+        .periodos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .periodos input { position: absolute; opacity: 0; pointer-events: none; }
+        .periodos label { display: block; text-align: center; padding: 10px 6px; border: 1.5px solid var(--linha); border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 14px; background: #fff; }
+        .periodos label:hover { border-color: var(--tinta-3); }
+        .periodos input:checked + label { border-color: var(--acao); background: var(--menta); color: var(--floresta); }
+        .periodos input:focus-visible + label { outline: 3px solid var(--acao); outline-offset: 2px; }
+
+        dialog { border: 0; border-radius: 18px; padding: 0; width: min(480px, calc(100% - 32px)); box-shadow: 0 30px 80px -20px rgba(14, 59, 46, .4); color: var(--tinta); }
+        dialog::backdrop { background: rgba(22, 33, 28, .45); }
+        .dlg { padding: 26px; display: grid; gap: 16px; }
+        .dlg-topo { display: flex; justify-content: space-between; align-items: center; }
+        .dlg-acoes { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+        .fechar { border: 0; background: transparent; font-size: 22px; color: var(--tinta-3); cursor: pointer; padding: 4px; border-radius: 8px; }
+        .credenciais { background: var(--fundo); border-radius: 12px; padding: 14px 16px; line-height: 1.9; font-size: 14.5px; }
+        .credenciais code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; background: #fff; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--linha); }
+
+        #toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--tinta); color: #fff; padding: 12px 18px; border-radius: 12px; font-size: 14.5px; z-index: 100; box-shadow: 0 12px 30px rgba(0,0,0,.2); max-width: calc(100% - 32px); display: flex; gap: 8px; align-items: center; }
+        #toast.erro { background: var(--erro); }
+
+        @media (max-width: 720px) {
+            .barra .dentro { gap: 12px; padding: 0 14px; }
+            .barra nav a { padding: 8px 8px; font-size: 14px; }
+            .barra .voltar span, .marca .nome { display: none; }
+            .pagina { padding: 22px 14px 60px; }
+            h1 { font-size: 25px; }
+        }
+    </style>
+    <script>
+        async function api(url, metodo, corpo) {
+            try {
+                const r = await fetch(url, { method: metodo || 'GET', headers: corpo ? { 'Content-Type': 'application/json' } : undefined, body: corpo ? JSON.stringify(corpo) : undefined });
+                const d = await r.json().catch(() => ({ success: false, error: 'Sua sessão expirou. Entre novamente.' }));
+                return { ok: r.ok && d.success !== false, dados: d };
+            } catch (e) { return { ok: false, dados: { error: 'Sem conexão com o servidor.' } }; }
+        }
+        let __toastTimer;
+        function toast(msg, erro) {
+            let t = document.getElementById('toast');
+            if (!t) { t = document.createElement('div'); t.id = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+            t.className = erro ? 'erro' : ''; t.textContent = msg; t.hidden = false;
+            clearTimeout(__toastTimer); __toastTimer = setTimeout(() => { t.hidden = true; }, erro ? 6000 : 3200);
+        }
+        const dataBR = (d) => d ? new Date(d).toLocaleDateString('pt-BR') : '';
+        async function copiar(texto) {
+            try { await navigator.clipboard.writeText(texto); toast('Copiado.'); }
+            catch (e) { toast('Não consegui copiar. Selecione e copie manualmente.', true); }
+        }
+    </script>

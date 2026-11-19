@@ -10,7 +10,8 @@ yarn-error.log
 .env.development.local
 .env.test.local
 .env.production.local
-
+system_config.json
+.system_config.json
 # --- Sessoes do WhatsApp (SEGURANCA MAXIMA) ---
 sessions/
 auth_info_baileys/
@@ -37,3 +38,4 @@ Thumbs.db
 *.exe
 *.dat
 dump.rdb
+system_config.json

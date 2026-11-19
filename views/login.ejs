@@ -3,135 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Acesso - Calixto OmniSystem</title>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
-    
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            background-color: #050505;
-            color: #fff;
-            font-family: 'Inter', sans-serif;
-            height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-            background-image: radial-gradient(circle at top center, #1a0b2e 0%, #000000 70%);
-        }
-
-        .login-container {
-            background: rgba(10, 10, 10, 0.8);
-            border: 1px solid #222;
-            padding: 50px 40px;
-            width: 100%;
-            max-width: 400px;
-            border-radius: 15px;
-            text-align: center;
-            box-shadow: 0 0 30px rgba(189, 0, 255, 0.05);
-            backdrop-filter: blur(10px);
-            transition: 0.3s;
-        }
-
-        .login-container:hover {
-            border-color: rgba(189, 0, 255, 0.3);
-            box-shadow: 0 0 40px rgba(189, 0, 255, 0.15);
-        }
-
-        h2 {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 24px;
-            letter-spacing: 3px;
-            margin-bottom: 30px;
-            text-transform: uppercase;
-        }
-        h2 span { color: #bd00ff; text-shadow: 0 0 10px rgba(189, 0, 255, 0.5); }
-
-        /* Inputs Estilizados */
-        .input-group { margin-bottom: 20px; text-align: left; }
-        label { font-size: 11px; color: #666; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px; display: block; font-weight: bold; }
-        
-        input {
-            width: 100%;
-            background: #000;
-            border: 1px solid #333;
-            color: #fff;
-            padding: 15px;
-            border-radius: 6px;
-            font-size: 14px;
-            outline: none;
-            transition: 0.3s;
-        }
-        input:focus { border-color: #bd00ff; box-shadow: 0 0 15px rgba(189, 0, 255, 0.2); }
-
-        /* Botão Neon */
-        button {
-            width: 100%;
-            padding: 15px;
-            background: #bd00ff;
-            color: #fff;
-            border: none;
-            border-radius: 6px;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            cursor: pointer;
-            transition: 0.3s;
-            margin-top: 10px;
-        }
-        button:hover { background: #d94eff; box-shadow: 0 0 25px rgba(189, 0, 255, 0.4); transform: translateY(-2px); }
-
-        /* Links */
-        .footer { margin-top: 30px; display: flex; justify-content: center; gap: 20px; font-size: 12px; }
-        .footer a { color: #666; text-decoration: none; transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; }
-        .footer a:hover { color: #fff; }
-
-        /* Mensagens de Erro */
-        .alert {
-            background: rgba(255, 0, 85, 0.1);
-            border: 1px solid rgba(255, 0, 85, 0.3);
-            color: #ff5e89;
-            padding: 12px;
-            border-radius: 6px;
-            font-size: 13px;
-            margin-bottom: 20px;
-            text-align: left;
-            display: flex; align-items: center; gap: 10px;
-        }
-    </style>
+    <title>Entrar - Calixto OmniSystem</title>
+    <%- include('partials/auth-estilo') %>
 </head>
 <body>
+    <header class="topo"><a class="marca" href="/"><span class="marca-icone" aria-hidden="true"><i class="ri-chat-smile-3-fill"></i></span>Calixto</a></header>
+    <main>
+        <div class="caixa">
+            <h1>Entrar</h1>
+            <p class="sub">Acesse o painel dos seus robôs.</p>
 
-    <div class="login-container">
-        <h2>Calixto <span>SaaS</span></h2>
+            <% if (locals.aviso && aviso) { %>
+                <div class="msg <%= aviso.tipo %>" role="status"><i class="<%= aviso.tipo === 'erro' ? 'ri-error-warning-line' : aviso.tipo === 'ok' ? 'ri-checkbox-circle-line' : 'ri-information-line' %>"></i><span><%= aviso.texto %></span></div>
+            <% } %>
+            <% const textoErro = (locals.erro) || (locals.message && message.length ? message : null); %>
+            <% if (textoErro) { %>
+                <div class="msg erro" role="alert"><i class="ri-error-warning-line"></i><span><%= textoErro %></span></div>
+            <% } %>
 
-        <% if (locals.message && message.length > 0) { %>
-            <div class="alert">⚠️ <%= message %></div>
-        <% } %>
-        <% if (locals.erro) { %>
-            <div class="alert">🔒 <%= erro %></div>
-        <% } %>
+            <form action="/login" method="POST">
+                <label for="email">E-mail</label>
+                <input type="email" id="email" name="email" required autocomplete="username" value="<%= locals.email || '' %>" <%= locals.email ? '' : 'autofocus' %>>
 
-        <form action="/login" method="POST" autocomplete="off">
-            <div class="input-group">
-                <label>E-mail de Acesso</label>
-                <input type="email" name="email" required placeholder="admin@exemplo.com">
-            </div>
-            <div class="input-group">
-                <label>Senha</label>
-                <input type="password" name="senha" required placeholder="••••••••">
-            </div>
-            <button type="submit">Entrar</button>
-        </form>
+                <label for="senha">Senha</label>
+                <div class="campo">
+                    <input type="password" id="senha" name="senha" required autocomplete="current-password" <%= locals.email ? 'autofocus' : '' %>>
+                    <button type="button" class="ver-senha" aria-label="Mostrar senha"><i class="ri-eye-line"></i></button>
+                </div>
+                <div class="linha-acoes"><a href="/esqueci-senha">Esqueci minha senha</a></div>
 
-        <div class="footer">
-            <a href="/registro">Criar Nova Conta</a>
-            <span style="color:#333">|</span>
-            <a href="/">Voltar ao Início</a>
+                <button class="btn" type="submit">Entrar</button>
+            </form>
+
+            <p class="rodape">Ainda não tem conta? <a href="/registro">Criar conta</a></p>
         </div>
-    </div>
-
+    </main>
 </body>
 </html>

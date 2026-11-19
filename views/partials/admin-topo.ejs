@@ -1,0 +1,10 @@
+<header class="barra">
+    <div class="dentro">
+        <a class="marca" href="/dashboard" aria-label="Voltar ao painel"><span class="marca-icone" aria-hidden="true"><i class="ri-chat-smile-3-fill"></i></span><span class="nome">Calixto</span></a>
+        <nav aria-label="Administração">
+            <a href="/admin/usuarios" <%= locals.aba === 'usuarios' ? 'aria-current=page' : '' %>>Usuários</a>
+            <a href="/admin/configuracoes" <%= locals.aba === 'config' ? 'aria-current=page' : '' %>>Configurações</a>
+        </nav>
+        <a class="voltar" href="/dashboard"><i class="ri-arrow-left-line"></i><span>Voltar ao painel</span></a>
+    </div>
+</header>

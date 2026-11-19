@@ -33,6 +33,8 @@ const helmet = require('helmet');
 // ============================================================================
 const { iniciarMonitorDeLembretes } = require('./modulos/cron');
 const whatsapp = require('./modulos/whatsapp');
+const atendimento = require('./modulos/atendimento');
+const usuarios = require('./modulos/usuarios'); // contas, senhas e assinaturas
 const iniciarBot = whatsapp.iniciarWhatsApp;
 
 const timeout = require('./modulos/timeout');
@@ -46,6 +48,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: "*" } });
 const prisma = new PrismaClient();
+usuarios.init({ prisma, io, whatsapp });
 const PORT = process.env.PORT || 3000;
 
 // ============================================================================
@@ -117,7 +120,8 @@ function getSystemConfig() {
 }
 
 function setSystemConfig(newConfig) {
-    fs.writeFileSync(CONFIG_FILE, JSON.stringify(newConfig));
+    // Preserva as outras chaves (ex.: configuração de e-mail do painel)
+    fs.writeFileSync(CONFIG_FILE, JSON.stringify({ ...getSystemConfig(), ...newConfig }, null, 2));
 }
 
 // --- CONFIGURAÇÕES DO EXPRESS ---
@@ -129,7 +133,8 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // --- CONFIGURAÇÃO DE SESSÃO BLINDADA ---
-app.use(session({
+// (guardado em uma variável para o Socket.IO reaproveitar o login nas conversas ao vivo)
+const sessionMiddleware = session({
     secret: 'segredo_calixto_v19_contracts', 
     resave: false,
     saveUninitialized: false,
@@ -139,14 +144,15 @@ app.use(session({
         sameSite: 'lax', // Protege contra CSRF (Links maliciosos de outros sites)
         secure: process.env.NODE_ENV === 'production' // Se estiver na VPS com HTTPS, vira true automaticamente
     } 
-}));
+});
+app.use(sessionMiddleware);
 app.use(flash());
 
 // --- MIDDLEWARE DE MANUTENÇÃO ---
 app.use((req, res, next) => {
     const config = getSystemConfig();
     if (!config.maintenance) return next();
-    if (req.path.startsWith('/login') || req.path.startsWith('/uploads') || req.path === '/api/login' || req.path === '/registro' || req.path === '/logout' || req.path === '/termos' || req.path === '/privacidade') { 
+    if (req.path.startsWith('/login') || req.path.startsWith('/uploads') || req.path === '/api/login' || req.path === '/registro' || req.path === '/logout' || req.path === '/esqueci-senha' || req.path.startsWith('/redefinir-senha/') || req.path === '/termos' || req.path === '/privacidade') { 
         return next();
     }
     if (req.session.usuario && req.session.role === 'ADMIN') {
@@ -157,19 +163,10 @@ app.use((req, res, next) => {
 });
 
 // --- MIDDLEWARE DE AUTENTICAÇÃO ---
+// Confere sessão, bloqueio, aprovação, validade da assinatura e troca obrigatória de senha
+// (regras em modulos/usuarios.js)
 async function isAuth(req, res, next) {
-    if (req.session.userId) { // Mudamos para conferir o ID direto
-        try {
-            const user = await prisma.usuario.findUnique({ where: { id: req.session.userId } });
-            if (!user || user.bloqueado || !user.ativo) {
-                req.session.destroy();
-                return res.redirect('/login');
-            }
-            req.session.usuario = user; 
-            return next();
-        } catch (e) { return res.redirect('/login'); }
-    }
-    res.redirect('/login');
+    return usuarios.isAuth(req, res, next);
 }
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
@@ -206,7 +203,7 @@ const upload = multer({
 // ================= ROTAS =================
 
 app.get('/', (req, res) => { res.render('landing', { usuario: req.session.usuario || null }); });
-app.get('/login', (req, res) => { if (req.session.usuario) return res.redirect('/dashboard'); res.render('login', { message: req.flash('error'), erro: null }); });
+app.get('/login', usuarios.telaLogin);
 
 // app.post('/login', loginLimiter, async (req, res) => {
 //     const email = req.body.email?.trim();
@@ -228,60 +225,12 @@ app.get('/login', (req, res) => { if (req.session.usuario) return res.redirect('
 
 // Em caso de erro de autenticação,descomentar app.post abaixo e comentar o de cima
 
-app.post('/login', loginLimiter, async (req, res) => {
-    const email = req.body.email?.trim();
-    const senha = req.body.senha?.trim();
-    
-    console.log(`\n[LOGIN DEBUG] Tentativa de acesso -> E-mail: ${email}`);
-
-    try {
-        const user = await prisma.usuario.findUnique({ where: { email } });
-        
-        console.log(`[LOGIN DEBUG] Usuário encontrado no banco? ${user ? 'SIM ('+user.role+')' : 'NÃO'}`);
-
-        // 🚨 BYPASS DE EMERGÊNCIA (A CHAVE MESTRA) 🚨
-        // Comentamos a trava do bcrypt e forçamos como TRUE
-        const senhaValida = user ? bcrypt.compareSync(senha, user.senha) : false;
-        // const senhaValida = true; <-- Isso força a entrada ignorando a criptografia!
-
-        if (!user || !senhaValida) {
-            console.log(`[LOGIN DEBUG] Falha: user=${!!user} | senha=${senhaValida}`);
-            return res.render('login', { message: 'Credenciais inválidas.', erro: null });
-        }
-
-        if (user.bloqueado) return res.render('login', { message: null, erro: 'Conta bloqueada.' });
-        if (user.role !== 'ADMIN' && !user.ativo) return res.render('login', { message: null, erro: 'Aguarde aprovação.' });
-        if (user.role !== 'ADMIN' && user.expiraEm && new Date() > new Date(user.expiraEm)) return res.render('login', { message: null, erro: 'Assinatura expirada.' });
-
-        console.log(`[LOGIN DEBUG] ✅ ACESSO LIBERADO PARA: ${user.nome}`);
-        
-        req.session.usuario = user; 
-        req.session.userId = user.id; 
-        req.session.role = user.role;
-        res.redirect('/dashboard');
-    } catch (e) { 
-        console.error(`[LOGIN DEBUG] Erro fatal no servidor:`, e);
-        res.render('login', { message: 'Erro servidor.', erro: null }); 
-    }
-});
+app.post('/login', loginLimiter, usuarios.fazerLogin);
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/'); });
-app.get('/registro', (req, res) => { res.render('registro', { message: req.flash('error') }); });
-
-app.post('/registro', async (req, res) => {
-    try {
-        const { nome, email, senha, termos } = req.body;
-        if (!termos) return res.render('registro', { message: 'Erro: Você precisa aceitar os Termos de Uso.' });
-        const userExists = await prisma.usuario.findUnique({ where: { email } });
-        if (userExists) return res.render('registro', { message: 'E-mail já cadastrado.' });
-        const ipCliente = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-        const hashedPassword = await bcrypt.hash(senha, 10);
-        await prisma.usuario.create({
-            data: { nome, email, senha: hashedPassword, termsAccepted: true, termsAcceptedAt: new Date(), signupIp: String(ipCliente), plano: 'ESSENTIAL', ativo: false }
-        });
-        res.redirect('/login');
-    } catch (error) { res.render('registro', { message: 'Erro interno ao criar conta.' }); }
-});
+const limitarCadastro = rateLimit({ windowMs: 60 * 60 * 1000, max: 10, message: 'Muitos cadastros deste IP. Tente de novo mais tarde.' });
+app.get('/registro', usuarios.telaCadastro);
+app.post('/registro', limitarCadastro, usuarios.fazerCadastro);
 
 app.get('/dashboard', isAuth, async (req, res) => {
     try {
@@ -614,6 +563,16 @@ app.post('/api/clientes/:id/fluxo', isAuth, async (req, res) => {
     await prisma.cliente.update({ where: { id: req.params.id }, data: { fluxoJson: req.body.fluxo } });
     res.json({ success: true });
 });
+
+// ================= CONTAS: painel de usuários, senhas e assinaturas =================
+usuarios.registrarRotas(app);
+
+// ================= BIBLIOTECA DE FLUXOS (modelos, importar/exportar/enviar) =================
+require('./modulos/fluxos')(app, { prisma, isAuth });
+
+// ================= CONVERSAS AO VIVO (acompanhar em tempo real e assumir a conversa) =================
+atendimento.init({ prisma, io, sessionMiddleware });
+atendimento.registrarRotas(app, { isAuth, getSock: (clienteId) => whatsapp.sessoes.get(clienteId) });
 
 app.post('/upload', isAuth, upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Sem arquivo' });
@@ -1027,6 +986,7 @@ app.get('/exclusao-dados', (req, res) => {
 // ============================================================================
 server.listen(PORT, async () => {
     console.log(`🚀 CALIXTO OMNISYSTEM V19.1 ONLINE NA PORTA ${PORT}`);
+    await usuarios.desligarBotsVencidos(); // assinaturas vencidas não religam
     await religarRobosAtivos(); // Restaura as conexões antes de liberar o sistema
     timeout.iniciar(); 
     if (typeof iniciarMonitorDeLembretes === 'function') {

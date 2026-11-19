@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meus Fluxos - Calixto OmniSystem</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <style>
+        :root {
+            --bg-color: #050505;
+            --card-bg: #0f0f0f;
+            --border-color: #222;
+            --primary-blue: #0066ff;
+            --primary-hover: #0052cc;
+            --primary-purple: #bd00ff;
+            --text-main: #ffffff;
+            --text-muted: #888;
+            --danger: #ff3333;
+            --success: #00e054;
+            --warning: #ff9900;
+        }
+
+        * { box-sizing: border-box; }
+        body { background: var(--bg-color); color: var(--text-main); font-family: 'Inter', sans-serif; margin: 0; padding: 40px; }
+
+        a { color: inherit; }
+        button { font-family: inherit; }
+        :focus-visible { outline: 2px solid var(--primary-blue); outline-offset: 2px; }
+
+        /* CABEÇALHO */
+        .header { display: flex; justify-content: space-between; align-items: center; gap: 15px; flex-wrap: wrap; margin-bottom: 10px; }
+        .logo { font-size: 20px; font-weight: 700; display: flex; align-items: center; gap: 10px; }
+        .header-actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        .btn-voltar { color: #ccc; text-decoration: none; font-size: 13px; display: flex; align-items: center; gap: 5px; margin-right: 10px; }
+        .btn-voltar:hover { color: #fff; }
+
+        .btn { border: 1px solid #333; background: #111; color: #fff; padding: 11px 18px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn:hover { border-color: var(--primary-blue); color: var(--primary-blue); }
+        .btn-primario { background: var(--primary-blue); border-color: var(--primary-blue); color: #fff; }
+        .btn-primario:hover { background: var(--primary-hover); border-color: var(--primary-hover); color: #fff; }
+
+        .subtitulo { color: var(--text-muted); font-size: 14px; margin: 0 0 35px; max-width: 70ch; line-height: 1.5; }
+        .contador { color: #555; font-size: 12px; }
+
+        /* SEÇÕES */
+        .secao-titulo { font-size: 14px; font-weight: 600; margin: 0 0 15px; display: flex; align-items: center; gap: 8px; }
+        .secao { margin-bottom: 40px; }
+
+        /* GRID E CARDS */
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 20px; }
+        .card { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 14px; transition: border-color 0.2s; }
+        .card:hover { border-color: #333; }
+        .card.recebido { border-color: rgba(189, 0, 255, 0.45); }
+
+        .card-nome { font-weight: 600; font-size: 15px; margin: 0; overflow-wrap: anywhere; }
+        .card-desc { color: var(--text-muted); font-size: 13px; line-height: 1.5; margin: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; min-height: 2.9em; }
+        .card-desc.vazia { color: #444; font-style: italic; }
+        .card-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 12px; color: #666; align-items: center; }
+        .badge { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; border: 1px solid #333; background: #1a1a1a; color: #aaa; display: inline-flex; align-items: center; gap: 4px; }
+        .badge.recebido-de { border-color: var(--primary-purple); color: #d980ff; background: rgba(189, 0, 255, 0.08); }
+        .badge.link-ativo { border-color: var(--success); color: var(--success); background: rgba(0, 224, 84, 0.08); cursor: pointer; }
+        .badge.vazio { border-color: var(--warning); color: var(--warning); background: rgba(255, 153, 0, 0.08); }
+
+        .card-acoes { display: flex; gap: 8px; margin-top: auto; }
+        .btn-abrir { flex: 1; background: var(--primary-blue); color: #fff; border: none; padding: 11px; border-radius: 6px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; transition: 0.2s; }
+        .btn-abrir:hover { background: var(--primary-hover); }
+        .btn-aceitar { flex: 1; background: var(--success); color: #000; border: none; padding: 11px; border-radius: 6px; font-weight: 700; font-size: 13px; cursor: pointer; }
+        .btn-icone { width: 42px; background: #1a1a1a; border: 1px solid #333; color: #888; border-radius: 6px; cursor: pointer; display: flex; justify-content: center; align-items: center; font-size: 16px; transition: 0.2s; }
+        .btn-icone:hover { border-color: var(--primary-blue); color: var(--primary-blue); }
+        .btn-icone.perigo:hover { background: #220000; border-color: #550000; color: #ff4444; }
+
+        /* ESTADO VAZIO */
+        .vazio-estado { border: 1px dashed #333; border-radius: 8px; padding: 50px 20px; text-align: center; color: var(--text-muted); }
+        .vazio-estado strong { display: block; color: #fff; font-size: 16px; margin-bottom: 8px; }
+        .vazio-estado p { margin: 0 0 20px; font-size: 13px; }
+
+        /* MODAIS (SweetAlert) */
+        .swal2-popup { background: #111 !important; border: 1px solid #333 !important; }
+        .swal2-title, .swal2-html-container { color: #fff !important; }
+        .swal2-input, .swal2-textarea, .swal2-select { background: #000 !important; color: #fff !important; border: 1px solid #333 !important; font-size: 14px !important; }
+        .opcoes-envio { display: grid; gap: 10px; margin-top: 5px; }
+        .opcao-envio { background: #0a0a0a; border: 1px solid #2a2a2a; color: #fff; border-radius: 8px; padding: 14px 16px; text-align: left; cursor: pointer; display: flex; gap: 12px; align-items: flex-start; transition: 0.2s; }
+        .opcao-envio:hover { border-color: var(--primary-blue); }
+        .opcao-envio i { font-size: 20px; color: var(--primary-blue); margin-top: 1px; }
+        .opcao-envio b { display: block; font-size: 14px; margin-bottom: 3px; }
+        .opcao-envio span { font-size: 12px; color: #888; line-height: 1.4; }
+        .campo-rotulo { display: block; text-align: left; font-size: 12px; color: #aaa; margin: 12px 0 4px; }
+        .campo-check { display: flex; gap: 8px; align-items: center; text-align: left; font-size: 13px; color: #ccc; margin-top: 14px; }
+
+        @media (max-width: 640px) {
+            body { padding: 20px; }
+            .grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo"><i class="ri-flow-chart"></i> Meus Fluxos</div>
+        <div class="header-actions">
+            <a href="/dashboard" class="btn-voltar"><i class="ri-arrow-left-line"></i> Dashboard</a>
+            <input type="file" id="arquivo-importar" accept=".json,application/json" style="display:none">
+            <button class="btn" id="btn-importar-arquivo"><i class="ri-upload-2-line"></i> Importar arquivo</button>
+            <button class="btn btn-primario" id="btn-novo"><i class="ri-add-line"></i> Novo fluxo</button>
+        </div>
+    </div>
+    <p class="subtitulo">
+        Monte fluxos prontos, guarde quantos quiser e use em qualquer bot. Dentro do editor você importa daqui,
+        copia, exporta e envia o que estiver na tela.
+        <span class="contador">(<%= modelos.filter(m => !m.pendente).length %> de <%= limite %>)</span>
+    </p>
+
+    <% const recebidos = modelos.filter(m => m.pendente); const meus = modelos.filter(m => !m.pendente); %>
+
+    <% if (recebidos.length > 0) { %>
+    <div class="secao">
+        <h2 class="secao-titulo"><i class="ri-inbox-line"></i> Recebidos (<%= recebidos.length %>)</h2>
+        <div class="grid">
+            <% recebidos.forEach(m => { %>
+            <div class="card recebido" data-id="<%= m.id %>" data-nome="<%= m.nome %>">
+                <p class="card-nome"><%= m.nome %></p>
+                <p class="card-desc <%= m.descricao ? '' : 'vazia' %>"><%= m.descricao || 'Sem descrição' %></p>
+                <div class="card-meta">
+                    <span class="badge recebido-de"><i class="ri-user-received-line"></i> de <%= m.recebidoDe || 'outro usuário' %></span>
+                    <span><%= m.totalNos %> blocos</span>
+                </div>
+                <div class="card-acoes">
+                    <button class="btn-aceitar" data-acao="aceitar">Adicionar à biblioteca</button>
+                    <button class="btn-icone perigo" data-acao="excluir" title="Recusar fluxo" aria-label="Recusar fluxo"><i class="ri-close-line"></i></button>
+                </div>
+            </div>
+            <% }) %>
+        </div>
+    </div>
+    <% } %>
+
+    <div class="secao">
+        <% if (meus.length === 0) { %>
+            <div class="vazio-estado">
+                <strong>Nenhum fluxo na biblioteca</strong>
+                <p>Crie um fluxo do zero ou importe um arquivo .json exportado do editor.</p>
+                <button class="btn btn-primario" id="btn-novo-vazio"><i class="ri-add-line"></i> Novo fluxo</button>
+            </div>
+        <% } else { %>
+        <div class="grid">
+            <% meus.forEach(m => { %>
+            <div class="card" data-id="<%= m.id %>" data-nome="<%= m.nome %>" data-descricao="<%= m.descricao || '' %>" data-nos="<%= m.totalNos %>" data-link="<%= m.shareToken ? '1' : '' %>">
+                <p class="card-nome"><%= m.nome %></p>
+                <p class="card-desc <%= m.descricao ? '' : 'vazia' %>"><%= m.descricao || 'Sem descrição' %></p>
+                <div class="card-meta">
+                    <% if (m.totalNos === 0) { %>
+                        <span class="badge vazio">Vazio</span>
+                    <% } else { %>
+                        <span><%= m.totalNos %> blocos</span>
+                    <% } %>
+                    <span>Atualizado em <%= new Date(m.atualizadoEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) %></span>
+                    <% if (m.recebidoDe) { %><span class="badge recebido-de"><i class="ri-user-received-line"></i> de <%= m.recebidoDe %></span><% } %>
+                    <% if (m.shareToken) { %><span class="badge link-ativo" data-acao="link" title="Ver ou desativar o link"><i class="ri-links-line"></i> Link ativo</span><% } %>
+                </div>
+                <div class="card-acoes">
+                    <a class="btn-abrir" href="/dashboard/fluxos/<%= m.id %>/editor"><i class="ri-edit-box-line"></i> Abrir no editor</a>
+                    <button class="btn-icone" data-acao="enviar" title="Enviar" aria-label="Enviar"><i class="ri-send-plane-line"></i></button>
+                    <button class="btn-icone" data-acao="duplicar" title="Duplicar" aria-label="Duplicar"><i class="ri-file-copy-line"></i></button>
+                    <button class="btn-icone" data-acao="exportar" title="Exportar arquivo" aria-label="Exportar arquivo"><i class="ri-download-2-line"></i></button>
+                    <button class="btn-icone" data-acao="editar" title="Renomear" aria-label="Renomear"><i class="ri-pencil-line"></i></button>
+                    <button class="btn-icone perigo" data-acao="excluir" title="Excluir" aria-label="Excluir"><i class="ri-delete-bin-line"></i></button>
+                </div>
+            </div>
+            <% }) %>
+        </div>
+        <% } %>
+    </div>
+
+    <script type="application/json" id="dados-clientes"><%- JSON.stringify(clientes).replace(/</g, '\\u003c') %></script>
+
+    <script>
+        const CLIENTES = JSON.parse(document.getElementById('dados-clientes').textContent);
+        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+        // ---------- Utilitários ----------
+        async function chamar(url, metodo = 'GET', corpo) {
+            try {
+                const res = await fetch(url, {
+                    method: metodo,
+                    headers: corpo ? { 'Content-Type': 'application/json' } : undefined,
+                    body: corpo ? JSON.stringify(corpo) : undefined
+                });
+                const dados = await res.json().catch(() => ({ success: false, error: 'Sessão expirada. Entre novamente.' }));
+                return { ok: res.ok && dados.success !== false, dados };
+            } catch (e) {
+                return { ok: false, dados: { error: 'Sem conexão com o servidor.' } };
+            }
+        }
+        const erro = (msg) => Swal.fire({ icon: 'error', title: 'Não foi possível', text: msg || 'Tente novamente.', confirmButtonColor: '#0066ff' });
+        const pronto = (titulo, texto) => Swal.fire({ icon: 'success', title: titulo, text: texto, confirmButtonColor: '#0066ff' });
+        const recarregar = () => location.reload();
+
+        async function copiarTexto(texto) {
+            try { await navigator.clipboard.writeText(texto); return true; }
+            catch (e) {
+                const t = document.createElement('textarea');
+                t.value = texto; t.style.position = 'fixed'; t.style.opacity = '0';
+                document.body.appendChild(t); t.select();
+                let ok = false;
+                try { ok = document.execCommand('copy'); } catch (_) {}
+                t.remove();
+                return ok;
+            }
+        }
+
+        // ---------- Novo fluxo / importar arquivo ----------
+        async function novoFluxo() {
+            const { value: nome } = await Swal.fire({
+                title: 'Novo fluxo', input: 'text', inputLabel: 'Nome do fluxo',
+                inputPlaceholder: 'Ex: Atendimento de barbearia',
+                showCancelButton: true, confirmButtonText: 'Criar e abrir', cancelButtonText: 'Cancelar',
+                confirmButtonColor: '#0066ff',
+                inputValidator: (v) => !v || !v.trim() ? 'Dê um nome ao fluxo.' : undefined
+            });
+            if (!nome) return;
+            const r = await chamar('/api/fluxos', 'POST', { nome });
+            if (!r.ok) return erro(r.dados.error);
+            location.href = `/dashboard/fluxos/${r.dados.id}/editor`;
+        }
+
+        document.getElementById('btn-novo').onclick = novoFluxo;
+        const btnVazio = document.getElementById('btn-novo-vazio');
+        if (btnVazio) btnVazio.onclick = novoFluxo;
+
+        const inputArquivo = document.getElementById('arquivo-importar');
+        document.getElementById('btn-importar-arquivo').onclick = () => inputArquivo.click();
+        inputArquivo.onchange = () => {
+            const arquivo = inputArquivo.files[0];
+            if (!arquivo) return;
+            const leitor = new FileReader();
+            leitor.onload = async (e) => {
+                let json;
+                try { json = JSON.parse(e.target.result); }
+                catch (_) { inputArquivo.value = ''; return erro('O arquivo não é um JSON válido.'); }
+                inputArquivo.value = '';
+                const { value: nome } = await Swal.fire({
+                    title: 'Importar fluxo', input: 'text', inputLabel: 'Nome na biblioteca',
+                    inputValue: arquivo.name.replace(/\.json$/i, ''),
+                    showCancelButton: true, confirmButtonText: 'Importar', cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#0066ff',
+                    inputValidator: (v) => !v || !v.trim() ? 'Dê um nome ao fluxo.' : undefined
+                });
+                if (!nome) return;
+                const r = await chamar('/api/fluxos', 'POST', { nome, fluxo: json });
+                if (!r.ok) return erro(r.dados.error);
+                recarregar();
+            };
+            leitor.readAsText(arquivo);
+        };
+
+        // ---------- Ações dos cards ----------
+        document.addEventListener('click', (ev) => {
+            const alvo = ev.target.closest('[data-acao]');
+            if (!alvo) return;
+            const card = alvo.closest('.card');
+            if (!card) return;
+            const m = { id: card.dataset.id, nome: card.dataset.nome, descricao: card.dataset.descricao || '', nos: Number(card.dataset.nos || 0) };
+            const acoes = { enviar, duplicar, exportar, editar, excluir, aceitar, link: () => mostrarLink(m) };
+            if (acoes[alvo.dataset.acao]) acoes[alvo.dataset.acao](m);
+        });
+
+        async function duplicar(m) {
+            const r = await chamar(`/api/fluxos/${m.id}/duplicar`, 'POST');
+            if (!r.ok) return erro(r.dados.error);
+            recarregar();
+        }
+
+        function exportar(m) {
+            if (m.nos === 0) return erro('Este fluxo está vazio. Abra no editor e monte antes de exportar.');
+            location.href = `/api/fluxos/${m.id}/exportar`;
+        }
+
+        async function editar(m) {
+            const r = await Swal.fire({
+                title: 'Editar fluxo',
+                html: `<label class="campo-rotulo" for="sw-nome">Nome</label>
+                       <input id="sw-nome" class="swal2-input" style="margin:0;width:100%" maxlength="100" value="${esc(m.nome)}">
+                       <label class="campo-rotulo" for="sw-desc">Descrição (opcional)</label>
+                       <textarea id="sw-desc" class="swal2-textarea" style="margin:0;width:100%" maxlength="300">${esc(m.descricao)}</textarea>`,
+                showCancelButton: true, confirmButtonText: 'Salvar', cancelButtonText: 'Cancelar', confirmButtonColor: '#0066ff',
+                focusConfirm: false,
+                preConfirm: () => {
+                    const nome = document.getElementById('sw-nome').value.trim();
+                    if (!nome) { Swal.showValidationMessage('Dê um nome ao fluxo.'); return false; }
+                    return { nome, descricao: document.getElementById('sw-desc').value.trim() };
+                }
+            });
+            if (!r.isConfirmed) return;
+            const resp = await chamar(`/api/fluxos/${m.id}`, 'PUT', r.value);
+            if (!resp.ok) return erro(resp.dados.error);
+            recarregar();
+        }
+
+        async function excluir(m) {
+            const r = await Swal.fire({
+                title: 'Excluir fluxo?',
+                text: `"${m.nome}" será removido da biblioteca. Bots que já usam esse fluxo não são afetados.`,
+                icon: 'warning', showCancelButton: true,
+                confirmButtonText: 'Excluir', cancelButtonText: 'Cancelar', confirmButtonColor: '#ff3333'
+            });
+            if (!r.isConfirmed) return;
+            const resp = await chamar(`/api/fluxos/${m.id}`, 'DELETE');
+            if (!resp.ok) return erro(resp.dados.error);
+            recarregar();
+        }
+
+        async function aceitar(m) {
+            const r = await chamar(`/api/fluxos/${m.id}/aceitar`, 'POST');
+            if (!r.ok) return erro(r.dados.error);
+            recarregar();
+        }
+
+        // ---------- Enviar ----------
+        function enviar(m) {
+            if (m.nos === 0) return erro('Este fluxo está vazio. Abra no editor e monte antes de enviar.');
+            Swal.fire({
+                title: 'Enviar fluxo',
+                html: `<div class="opcoes-envio">
+                         <button type="button" class="opcao-envio" data-destino="bot"><i class="ri-robot-2-line"></i><div><b>Aplicar em um bot</b><span>O bot passa a usar este fluxo agora.</span></div></button>
+                         <button type="button" class="opcao-envio" data-destino="usuario"><i class="ri-user-shared-line"></i><div><b>Enviar para outro usuário</b><span>Ele recebe uma cópia e escolhe se aceita.</span></div></button>
+                         <button type="button" class="opcao-envio" data-destino="link"><i class="ri-links-line"></i><div><b>Gerar link</b><span>Quem tiver o link e uma conta adiciona uma cópia.</span></div></button>
+                       </div>`,
+                showConfirmButton: false, showCloseButton: true,
+                didOpen: (el) => el.querySelectorAll('[data-destino]').forEach(b => {
+                    b.onclick = () => { Swal.close(); ({ bot: enviarParaBot, usuario: enviarParaUsuario, link: gerarLink })[b.dataset.destino](m); };
+                })
+            });
+        }
+
+        async function enviarParaBot(m) {
+            if (CLIENTES.length === 0) return erro('Você ainda não tem bots. Crie um no dashboard.');
+            const opcoes = CLIENTES.map(c => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('');
+            const r = await Swal.fire({
+                title: 'Aplicar em um bot',
+                html: `<label class="campo-rotulo" for="sw-bot">Bot</label>
+                       <select id="sw-bot" class="swal2-select" style="margin:0;width:100%">${opcoes}</select>
+                       <label class="campo-check"><input type="checkbox" id="sw-backup" checked> Guardar o fluxo atual do bot na biblioteca (backup)</label>
+                       <p style="font-size:12px;color:#ff9900;text-align:left;margin:14px 0 0">O fluxo que está no bot será substituído por "${esc(m.nome)}".</p>`,
+                showCancelButton: true, confirmButtonText: 'Aplicar', cancelButtonText: 'Cancelar', confirmButtonColor: '#0066ff',
+                preConfirm: () => ({ clienteId: document.getElementById('sw-bot').value, backup: document.getElementById('sw-backup').checked })
+            });
+            if (!r.isConfirmed) return;
+            const resp = await chamar('/api/fluxos/enviar/cliente', 'POST', { modeloId: m.id, ...r.value });
+            if (!resp.ok) return erro(resp.dados.error);
+            await pronto('Fluxo aplicado', `${resp.dados.cliente} já está usando este fluxo.` + (resp.dados.backupFeito ? ' O fluxo anterior foi guardado na biblioteca.' : ''));
+            if (resp.dados.backupFeito) recarregar();
+        }
+
+        async function enviarParaUsuario(m) {
+            const r = await Swal.fire({
+                title: 'Enviar para outro usuário',
+                html: `<label class="campo-rotulo" for="sw-email">E-mail da conta</label>
+                       <input id="sw-email" type="email" class="swal2-input" style="margin:0;width:100%" placeholder="nome@exemplo.com">`,
+                showCancelButton: true, confirmButtonText: 'Enviar', cancelButtonText: 'Cancelar', confirmButtonColor: '#0066ff',
+                preConfirm: () => {
+                    const email = document.getElementById('sw-email').value.trim();
+                    if (!email) { Swal.showValidationMessage('Informe o e-mail.'); return false; }
+                    return email;
+                }
+            });
+            if (!r.isConfirmed) return;
+            const resp = await chamar('/api/fluxos/enviar/usuario', 'POST', { modeloId: m.id, email: r.value });
+            if (!resp.ok) return erro(resp.dados.error);
+            pronto('Fluxo enviado', `${resp.dados.destinatario} vai ver o fluxo na caixa "Recebidos" da biblioteca.`);
+        }
+
+        async function gerarLink(m) {
+            const r = await chamar('/api/fluxos/enviar/link', 'POST', { modeloId: m.id });
+            if (!r.ok) return erro(r.dados.error);
+            mostrarLink(m, r.dados.url);
+        }
+
+        async function mostrarLink(m, url) {
+            if (!url) {
+                const r = await chamar('/api/fluxos/enviar/link', 'POST', { modeloId: m.id });
+                if (!r.ok) return erro(r.dados.error);
+                url = r.dados.url;
+            }
+            const r = await Swal.fire({
+                title: 'Link de compartilhamento',
+                html: `<input id="sw-link" class="swal2-input" style="margin:0;width:100%" readonly value="${esc(url)}">
+                       <p style="font-size:12px;color:#888;text-align:left;margin:12px 0 0">O link sempre entrega a versão mais recente do fluxo. Quem abrir precisa ter conta no sistema.</p>`,
+                showCancelButton: true, showDenyButton: true,
+                confirmButtonText: 'Copiar link', denyButtonText: 'Desativar link', cancelButtonText: 'Fechar',
+                confirmButtonColor: '#0066ff', denyButtonColor: '#ff3333',
+                didOpen: () => document.getElementById('sw-link').select()
+            });
+            if (r.isConfirmed) {
+                const ok = await copiarTexto(url);
+                Swal.fire({ icon: ok ? 'success' : 'info', title: ok ? 'Link copiado' : 'Copie o link manualmente', timer: 1400, showConfirmButton: false });
+                if (!ok) mostrarLink(m, url);
+            } else if (r.isDenied) {
+                const resp = await chamar(`/api/fluxos/${m.id}/link`, 'DELETE');
+                if (!resp.ok) return erro(resp.dados.error);
+                recarregar();
+            } else if (r.dismiss === Swal.DismissReason.cancel && !document.querySelector(`.card[data-id="${m.id}"][data-link="1"]`)) {
+                recarregar(); // o link acabou de ser criado: atualiza o selo "Link ativo"
+            }
+        }
+    </script>
+</body>
+</html>

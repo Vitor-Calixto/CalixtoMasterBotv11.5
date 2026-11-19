@@ -26,7 +26,15 @@ model Usuario {
   termsAcceptedAt DateTime?
   signupIp        String?
   plano           String    @default("ESSENTIAL") 
+
+  // 🔐 Contas e assinatura (painel do administrador)
+  trocarSenha     Boolean   @default(false) // true = no próximo login cria a própria senha
+  versaoSessao    Int       @default(0)     // muda quando a senha/acesso muda: derruba sessões antigas
+  ultimoLogin     DateTime?
+  periodo         String?                   // último período dado: 30, 60, 90, 120, 365 ou vitalicio
+
   clientes        Cliente[] 
+  fluxosModelo    FluxoModelo[]
   criadoEm        DateTime  @default(now())
 }
 
@@ -78,18 +86,31 @@ model Contato {
   nome      String?
   clienteId String
   criadoEm  DateTime @default(now())
+
+  // 💬 Conversas ao vivo (dashboard)
+  ultimaEm       DateTime @default(now())  // hora da última mensagem (ordena a lista)
+  ultimaMensagem String?                   // prévia mostrada na lista
+
   cliente   Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   mensagens Mensagem[]
+
+  @@unique([clienteId, remoteJid])
+  @@index([clienteId, ultimaEm])
 }
 
 model Mensagem {
   id        String   @id @default(uuid())
   texto     String
-  tipo      String   @default("texto")
+  tipo      String   @default("texto")   // texto | imagem | video | audio | documento | sistema ...
   fromMe    Boolean
+  origem    String?                       // CLIENTE | BOT | HUMANO (dashboard) | CELULAR | SISTEMA
+  waId      String?                       // id da mensagem no WhatsApp (evita gravar duas vezes)
   contatoId String
   criadoEm  DateTime @default(now())
   contato   Contato  @relation(fields: [contatoId], references: [id], onDelete: Cascade)
+
+  @@unique([contatoId, waId])
+  @@index([contatoId, criadoEm])
 }
 
 model ContratoTemplate {
@@ -114,4 +135,22 @@ model Lembrete {
   clienteId       String
   cliente         Cliente  @relation(fields: [clienteId], references: [id], onDelete: Cascade)
   createdAt       DateTime @default(now())
+}
+
+// 📚 --- BIBLIOTECA DE FLUXOS (modelos pré-montados, independentes de qualquer bot) ---
+model FluxoModelo {
+  id           String   @id @default(uuid())
+  nome         String
+  descricao    String?
+  fluxoJson    Json                      // mesmo formato do Cliente.fluxoJson (export do Drawflow)
+  totalNos     Int      @default(0)
+  recebidoDe   String?                   // nome de quem enviou (envio direto ou link)
+  pendente     Boolean  @default(false)  // true = recebido de outro usuário, aguardando aceite
+  shareToken   String?  @unique          // preenchido = link de compartilhamento ativo
+  donoId       String
+  dono         Usuario  @relation(fields: [donoId], references: [id], onDelete: Cascade)
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  @@index([donoId])
 }

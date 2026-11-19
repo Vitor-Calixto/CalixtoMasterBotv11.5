@@ -2,704 +2,428 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Calixto OmniSystem | Atendimento Automatizado para Empresas</title>
-    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calixto OmniSystem | Atendimento automático no WhatsApp</title>
+    <meta name="description" content="Robô de atendimento para WhatsApp e Instagram: responde na hora, agenda, lembra o cliente e passa para sua equipe quem está pronto para fechar.">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;500;700;800;900&display=swap" rel="stylesheet">
 
     <style>
-        /* ==================== CSS BASE ==================== */
         :root {
-            var(--neon-cyan): #00f3ff;
-            --neon-cyan: #00f3ff;
-            --neon-blue: #0066ff;
-            --neon-white: #e0ffff;
-            --bg-dark: #020408;
-            --neon-pink: #ff0055;
-            --neon-purple: #bd00ff;
-            --glass-dark: rgba(10, 10, 10, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.15);
+            --tinta: #16211c;
+            --tinta-2: #4b5a53;
+            --tinta-3: #7a8a82;
+            --fundo: #f5f7f4;
+            --papel: #ffffff;
+            --linha: #dfe5e0;
+            --floresta: #0e3b2e;
+            --floresta-2: #15513f;
+            --acao: #128c6b;
+            --acao-hover: #0e7458;
+            --menta: #dff3ea;
+            --sol: #f2c14e;
+            --balao-out: #dcf8c6;
+            --raio: 14px;
+            --largura: 1120px;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; scroll-behavior: smooth; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body { background: var(--fundo); color: var(--tinta); font-family: 'Instrument Sans', system-ui, sans-serif; font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+        h1, h2, h3, .marca { font-family: 'Bricolage Grotesque', system-ui, sans-serif; font-optical-sizing: auto; }
+        a { color: inherit; }
+        img { max-width: 100%; display: block; }
+        :focus-visible { outline: 3px solid var(--acao); outline-offset: 3px; border-radius: 4px; }
+        .container { width: min(var(--largura), 100% - 40px); margin-inline: auto; }
 
-        body {
-            background-color: var(--bg-dark);
-            color: var(--neon-white);
-            font-family: 'Rajdhani', sans-serif;
-            overflow-x: hidden;
-            background-image: url('/uploads/illustration-rain-futuristic-city_23-2151406573.avif');
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            min-height: 100vh;
+        /* ---------- botões ---------- */
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 9px; padding: 14px 22px; border-radius: 999px; font: 600 16px/1 'Instrument Sans', sans-serif; text-decoration: none; border: 1.5px solid transparent; cursor: pointer; transition: background .2s, border-color .2s, color .2s; white-space: nowrap; }
+        .btn-primario { background: var(--acao); color: #fff; }
+        .btn-primario:hover { background: var(--acao-hover); }
+        .btn-contorno { border-color: var(--linha); background: var(--papel); color: var(--tinta); }
+        .btn-contorno:hover { border-color: var(--tinta-3); }
+        .btn i { font-size: 19px; }
+
+        /* ---------- topo ---------- */
+        .topo { position: sticky; top: 0; z-index: 20; background: rgba(245, 247, 244, .88); backdrop-filter: saturate(160%) blur(10px); border-bottom: 1px solid transparent; transition: border-color .2s; }
+        .topo.rolou { border-color: var(--linha); }
+        .topo .container { display: flex; align-items: center; justify-content: space-between; height: 68px; gap: 16px; }
+        .marca { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 800; letter-spacing: -.3px; text-decoration: none; user-select: none; }
+        .marca-icone { width: 32px; height: 32px; border-radius: 9px; background: var(--floresta); color: #fff; display: grid; place-items: center; font-size: 18px; }
+        .topo nav { display: flex; align-items: center; gap: 26px; }
+        .topo nav a.link { text-decoration: none; color: var(--tinta-2); font-weight: 500; font-size: 15.5px; }
+        .topo nav a.link:hover { color: var(--tinta); }
+        .topo .btn { padding: 11px 18px; font-size: 15px; }
+
+        /* ---------- hero ---------- */
+        .hero { padding: 72px 0 88px; }
+        .hero .container { display: grid; grid-template-columns: 1.05fr .95fr; gap: 64px; align-items: center; }
+        .hero h1 { font-size: clamp(40px, 5.6vw, 66px); line-height: 1.02; letter-spacing: -1.6px; font-weight: 800; max-width: 13ch; }
+        .hero p.sub { font-size: 19px; color: var(--tinta-2); margin: 24px 0 34px; max-width: 46ch; }
+        .hero-acoes { display: flex; gap: 12px; flex-wrap: wrap; }
+        .hero-nota { margin-top: 22px; font-size: 14.5px; color: var(--tinta-3); display: flex; align-items: center; gap: 8px; }
+        .hero-nota i { color: var(--acao); font-size: 17px; }
+
+        /* demonstração: uma conversa real do robô */
+        .demo { background: #efeae2; border-radius: 22px; overflow: hidden; box-shadow: 0 30px 60px -28px rgba(14, 59, 46, .45), 0 0 0 1px rgba(14, 59, 46, .08); max-width: 460px; justify-self: end; width: 100%; }
+        .demo-topo { background: var(--floresta); color: #fff; display: flex; align-items: center; gap: 12px; padding: 14px 18px; }
+        .demo-topo .av { width: 38px; height: 38px; border-radius: 50%; background: var(--sol); color: var(--floresta); display: grid; place-items: center; font-weight: 700; font-family: 'Bricolage Grotesque'; }
+        .demo-topo b { display: block; font-weight: 600; font-size: 15.5px; }
+        .demo-topo small { font-size: 12.5px; opacity: .75; }
+        .demo-corpo { padding: 18px 16px 20px; display: flex; flex-direction: column; gap: 6px; min-height: 420px; font-size: 14.5px; line-height: 1.42; }
+        .msg { align-self: flex-start; max-width: 82%; padding: 7px 10px 6px; border-radius: 9px; box-shadow: 0 1px .5px rgba(11, 20, 26, .13); background: #fff; position: relative; }
+        .msg.out { align-self: flex-end; background: var(--balao-out); }
+        .msg small { display: block; text-align: right; font-size: 11px; color: #667781; margin-top: 2px; }
+        .msg .quem { display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 1px; }
+        .msg .quem.bot { color: #06a07a; }
+        .msg .quem.humano { color: #027eb5; }
+        .aviso-demo { align-self: center; background: #fff3c4; color: #54656f; font-size: 12.5px; padding: 5px 11px; border-radius: 7px; margin: 6px 0; }
+        .demo-corpo > * { opacity: 0; transform: translateY(6px); animation: entra .35s ease forwards; }
+        @keyframes entra { to { opacity: 1; transform: none; } }
+
+        /* ---------- seções ---------- */
+        section.bloco { padding: 96px 0; }
+        .titulo-secao { font-size: clamp(30px, 3.6vw, 44px); line-height: 1.08; letter-spacing: -1px; font-weight: 800; max-width: 22ch; }
+        .intro-secao { color: var(--tinta-2); margin-top: 14px; max-width: 56ch; font-size: 18px; }
+
+        /* o que faz */
+        .recursos { margin-top: 52px; display: grid; grid-template-columns: repeat(2, 1fr); border-top: 1px solid var(--linha); }
+        .recurso { padding: 34px 40px 34px 0; display: grid; grid-template-columns: 48px 1fr; gap: 18px; border-bottom: 1px solid var(--linha); }
+        .recurso:nth-child(odd) { border-right: 1px solid var(--linha); }
+        .recurso:nth-child(even) { padding-left: 40px; }
+        .recurso .ic { width: 48px; height: 48px; border-radius: 12px; background: var(--menta); color: var(--floresta); display: grid; place-items: center; font-size: 23px; }
+        .recurso h3 { font-size: 21px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 6px; }
+        .recurso p { color: var(--tinta-2); font-size: 16px; }
+
+        /* como funciona (é uma sequência de verdade) */
+        .passos-wrap { background: var(--floresta); color: #e7f1ec; border-radius: 28px; padding: 64px 56px; }
+        .passos-wrap .titulo-secao { color: #fff; }
+        .passos-wrap .intro-secao { color: #a9c4b8; }
+        .passos { list-style: none; margin-top: 48px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; counter-reset: passo; }
+        .passos li { counter-increment: passo; border-top: 1px solid rgba(255,255,255,.18); padding-top: 22px; }
+        .passos li::before { content: counter(passo); font-family: 'Bricolage Grotesque'; font-weight: 800; font-size: 46px; line-height: 1; color: var(--sol); display: block; margin-bottom: 18px; }
+        .passos h3 { font-size: 21px; color: #fff; margin-bottom: 8px; letter-spacing: -.3px; }
+        .passos p { font-size: 16px; color: #b9d0c5; }
+
+        /* planos */
+        .planos-topo { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; flex-wrap: wrap; }
+        .abas { display: inline-flex; background: var(--papel); border: 1px solid var(--linha); border-radius: 999px; padding: 4px; }
+        .aba { border: 0; background: transparent; padding: 10px 18px; border-radius: 999px; font: 600 15px 'Instrument Sans', sans-serif; color: var(--tinta-2); cursor: pointer; }
+        .aba[aria-selected="true"] { background: var(--tinta); color: #fff; }
+        .grade-planos { margin-top: 40px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; }
+        .grade-planos[hidden] { display: none; }
+        .grade-planos.duas { grid-template-columns: repeat(2, minmax(0, 360px)); }
+        .plano { background: var(--papel); border: 1px solid var(--linha); border-radius: 20px; padding: 30px 28px; display: flex; flex-direction: column; position: relative; }
+        .plano.destaque { border: 2px solid var(--floresta); }
+        .plano .selo { position: absolute; top: -13px; left: 26px; background: var(--sol); color: var(--floresta); font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 999px; }
+        .plano h3 { font-size: 18px; font-weight: 700; color: var(--tinta-2); }
+        .preco { margin: 14px 0 4px; display: flex; align-items: baseline; gap: 6px; }
+        .preco b { font-family: 'Bricolage Grotesque'; font-size: 46px; font-weight: 800; letter-spacing: -1.4px; line-height: 1; }
+        .preco span { color: var(--tinta-3); font-size: 15px; }
+        .plano .obs { color: var(--tinta-3); font-size: 14px; min-height: 22px; }
+        .plano ul { list-style: none; margin: 22px 0 28px; display: grid; gap: 11px; font-size: 15.5px; }
+        .plano li { display: flex; gap: 10px; align-items: flex-start; }
+        .plano li i { color: var(--acao); font-size: 19px; line-height: 1.3; }
+        .plano .btn { margin-top: auto; width: 100%; }
+        .garantia { margin-top: 28px; display: flex; gap: 14px; align-items: flex-start; color: var(--tinta-2); font-size: 15.5px; max-width: 70ch; }
+        .garantia i { font-size: 24px; color: var(--acao); }
+
+        /* dúvidas */
+        .duvidas { margin-top: 40px; border-top: 1px solid var(--linha); max-width: 820px; }
+        .duvidas details { border-bottom: 1px solid var(--linha); }
+        .duvidas summary { list-style: none; cursor: pointer; padding: 24px 0; font-weight: 600; font-size: 19px; display: flex; justify-content: space-between; gap: 20px; }
+        .duvidas summary::-webkit-details-marker { display: none; }
+        .duvidas summary i { color: var(--tinta-3); transition: transform .2s; font-size: 22px; }
+        .duvidas details[open] summary i { transform: rotate(45deg); }
+        .duvidas details p { color: var(--tinta-2); padding: 0 40px 26px 0; max-width: 68ch; }
+
+        /* chamada final */
+        .final { background: var(--papel); border: 1px solid var(--linha); border-radius: 28px; padding: 56px; display: flex; justify-content: space-between; align-items: center; gap: 32px; flex-wrap: wrap; }
+        .final h2 { font-size: clamp(28px, 3.2vw, 40px); letter-spacing: -.9px; line-height: 1.1; max-width: 20ch; }
+        .final p { color: var(--tinta-2); margin-top: 10px; }
+
+        /* rodapé */
+        footer { padding: 56px 0 40px; color: var(--tinta-2); font-size: 15px; }
+        .rodape-grade { display: flex; justify-content: space-between; gap: 32px; flex-wrap: wrap; padding-bottom: 32px; border-bottom: 1px solid var(--linha); }
+        .rodape-links { display: flex; gap: 48px; flex-wrap: wrap; }
+        .rodape-links div { display: grid; gap: 10px; align-content: start; }
+        .rodape-links b { color: var(--tinta); font-size: 14px; font-weight: 600; }
+        .rodape-links a { text-decoration: none; display: inline-flex; align-items: center; gap: 7px; }
+        .rodape-links a:hover { color: var(--tinta); }
+        .legal { padding-top: 24px; font-size: 13px; color: var(--tinta-3); display: flex; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+        .legal p { max-width: 72ch; }
+
+        /* ---------- responsivo ---------- */
+        @media (max-width: 960px) {
+            .hero .container { grid-template-columns: 1fr; gap: 48px; }
+            .demo { justify-self: stretch; max-width: 520px; }
+            .recursos { grid-template-columns: 1fr; }
+            .recurso, .recurso:nth-child(even) { padding: 28px 0; border-right: 0 !important; }
+            .passos { grid-template-columns: 1fr; gap: 28px; }
+            .passos-wrap { padding: 44px 26px; border-radius: 22px; }
+            .grade-planos, .grade-planos.duas { grid-template-columns: 1fr; max-width: 440px; }
+            .final { padding: 36px 26px; }
         }
-
-        body::before {
-            content: ''; 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            height: 100%;
-            background: linear-gradient(to bottom, rgba(2, 4, 8, 0.4), rgba(2, 4, 8, 0.9)); 
-            z-index: -1; 
-            pointer-events: none;
+        @media (max-width: 640px) {
+            body { font-size: 16px; }
+            .topo nav a.link { display: none; }
+            .hero { padding: 40px 0 64px; }
+            section.bloco { padding: 68px 0; }
+            .hero-acoes .btn { width: 100%; }
+            .demo-corpo { min-height: 0; }
         }
-        
-        /* ==================== JARVIS HUD LOADER ==================== */
-        #jarvis-loader {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: radial-gradient(ellipse at center, #0b2e4a 0%, #020408 60%, #000000 100%);
-            z-index: 99999;
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            transition: opacity 0.8s ease-out, visibility 0.8s;
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            .demo-corpo > * { animation: none; opacity: 1; transform: none; }
         }
-        #jarvis-loader.loaded { opacity: 0; visibility: hidden; }
-
-        #jarvis-loader::after {
-            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            background-image: linear-gradient(rgba(0, 243, 255, 0.03) 1px, transparent 1px),
-                              linear-gradient(90deg, rgba(0, 243, 255, 0.03) 1px, transparent 1px);
-            background-size: 50px 50px; pointer-events: none;
-        }
-
-        .hud-ring-wrapper { position: relative; width: 420px; height: 420px; display: flex; align-items: center; justify-content: center; margin-bottom: 30px; }
-        .hud-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; fill: none; overflow: visible; z-index: 1; }
-        
-        .hud-title-internal {
-            position: absolute; z-index: 10; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-family: 'Orbitron', sans-serif; font-size: 34px; font-weight: 900; letter-spacing: 4px; color: #fff;
-            text-shadow: 0 0 15px var(--neon-cyan), 0 0 35px var(--neon-cyan); margin: 0; white-space: nowrap; animation: text-pulse 3s infinite alternate;
-        }
-
-        .ring-outer-segments { stroke: var(--neon-cyan); stroke-width: 6; stroke-dasharray: 100 20 50 20 100 20; filter: drop-shadow(0 0 10px var(--neon-cyan)); opacity: 0.8; transform-origin: center; animation: spin-slow 25s linear infinite; }
-        .ring-ticks { stroke: var(--neon-blue); stroke-width: 12; stroke-dasharray: 2 6; opacity: 0.4; transform-origin: center; animation: spin-reverse 40s linear infinite; }
-        .ring-thin-solid { stroke: rgba(224, 255, 255, 0.3); stroke-width: 1; transform-origin: center; }
-        .ring-loader-arc { stroke: var(--neon-white); stroke-width: 3; stroke-dasharray: 60 200; stroke-linecap: round; filter: drop-shadow(0 0 8px #fff); transform-origin: center; animation: spin-fast 4s linear infinite; }
-        .core-circle { stroke: var(--neon-cyan); stroke-width: 2; fill: rgba(0, 243, 255, 0.05); filter: drop-shadow(0 0 25px var(--neon-cyan)); transform-origin: center; animation: pulse 2s ease-in-out infinite alternate; }
-
-        .hud-content-below { position: relative; z-index: 10; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        .hud-subtitle { font-family: 'Share Tech Mono', monospace; font-size: 14px; color: var(--neon-cyan); letter-spacing: 3px; margin-bottom: 20px; opacity: 0.8; text-transform: uppercase; }
-        .loading-bar-frame { width: 250px; height: 3px; background: rgba(0, 243, 255, 0.15); position: relative; overflow: hidden; border-radius: 4px; box-shadow: 0 0 10px rgba(0, 243, 255, 0.1); }
-        .loading-bar-fill { position: absolute; top: 0; left: 0; height: 100%; width: 100%; background: linear-gradient(90deg, transparent, var(--neon-cyan), var(--neon-white), transparent); box-shadow: 0 0 15px var(--neon-cyan); transform: translateX(-100%); animation: loading 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
-
-        @keyframes spin-slow { 100% { transform: rotate(360deg); } }
-        @keyframes spin-reverse { 100% { transform: rotate(-360deg); } }
-        @keyframes spin-fast { 100% { transform: rotate(360deg); } }
-        @keyframes pulse { 0% { transform: scale(0.97); opacity: 0.8; } 100% { transform: scale(1.03); opacity: 1; } }
-        @keyframes text-pulse { 0% { opacity: 0.9; text-shadow: 0 0 10px var(--neon-cyan); } 100% { opacity: 1; text-shadow: 0 0 25px var(--neon-cyan), 0 0 50px var(--neon-white); } }
-        @keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
-
-        /* ==================== RESTO DO SITE ==================== */
-        h1, h2, h3, .logo, .btn-plan, .section-title, .hero-badge { font-family: 'Orbitron', sans-serif; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
-        .section-padding { padding: 100px 0; }
-        .text-center { text-align: center; }
-
-        .section-title { font-size: clamp(2rem, 5vw, 3rem); margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 15px var(--neon-cyan); color: #fff; }
-        .section-subtitle { color: #ddd; font-size: 1.2rem; margin-bottom: 60px; max-width: 700px; margin-left: auto; margin-right: auto; }
-
-        .cta-btn { display: inline-block; padding: 18px 45px; background: linear-gradient(90deg, var(--neon-pink), var(--neon-purple)); color: #fff; text-decoration: none; font-weight: 700; border-radius: 5px; text-transform: uppercase; letter-spacing: 2px; transition: 0.3s; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 0 20px rgba(255, 0, 85, 0.4); font-family: 'Orbitron'; font-size: 0.9rem; }
-        .cta-btn:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255, 0, 85, 0.8); background: #fff; color: #000; }
-
-        nav { display: flex; justify-content: space-between; align-items: center; padding: 15px 5%; position: fixed; width: 100%; top: 0; z-index: 1000; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(10px); border-bottom: 1px solid var(--glass-border); }
-        .logo { font-size: 1.5rem; font-weight: 900; color: #fff; cursor: pointer; user-select: none; letter-spacing: 2px; }
-        .logo span { color: var(--neon-cyan); }
-        .nav-right { display: flex; align-items: center; gap: 30px; }
-        .social-link { color: #ddd; text-decoration: none; font-weight: 600; font-size: 0.9rem; transition: 0.3s; text-transform: uppercase; font-family: 'Orbitron'; letter-spacing: 1px; cursor: pointer; }
-        .social-link:hover { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); }
-        .btn-login-nav { border: 1px solid var(--neon-cyan); padding: 8px 25px; border-radius: 4px; color: var(--neon-cyan) !important; text-decoration: none; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; transition: 0.3s; font-family: 'Orbitron'; }
-        .btn-login-nav:hover { background: var(--neon-cyan); color: #000 !important; box-shadow: 0 0 20px var(--neon-cyan); }
-        @media(max-width: 768px) { .nav-right .social-link { display: none; } }
-
-        .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 120px 20px 80px; position: relative; }
-        .hero-content { position: relative; z-index: 1; max-width: 900px; }
-        .hero-badge { display: inline-block; background: linear-gradient(90deg, var(--neon-purple), var(--neon-pink)); padding: 5px 15px; font-size: 0.8rem; font-weight: 800; margin-bottom: 30px; transform: skew(-10deg); box-shadow: 0 0 15px rgba(255,0,85,0.5); }
-        .hero h1 { font-size: clamp(2.5rem, 8vw, 5rem); line-height: 1.1; margin-bottom: 30px; text-transform: uppercase; text-shadow: 0 0 30px rgba(0,0,0,0.8); }
-        .hero h1 .outline { -webkit-text-stroke: 1px #fff; color: transparent; display: block; opacity: 0.7; font-size: 0.6em; margin-bottom: 10px; }
-        .hero h1 strong { background: linear-gradient(to bottom, #fff, var(--neon-cyan)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; filter: drop-shadow(0 0 10px var(--neon-cyan)); }
-        #secret-o { cursor: default; transition: 0.3s; }
-        #secret-o.activated { text-shadow: 0 0 20px #fff, 0 0 40px var(--neon-cyan); color: #fff !important; -webkit-text-fill-color: #fff !important; }
-        .hero p { font-size: 1.25rem; color: #eee; margin-bottom: 50px; text-shadow: 0 2px 4px #000; line-height: 1.6; font-weight: 500; }
-        .hero-btns { display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; }
-
-        /* --- NOVO GRID DO ARSENAL --- */
-        .arsenal-section { background-color: transparent; padding: 80px 20px; position: relative; border-bottom: 1px solid #1a1a1a; }
-        .arsenal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; max-width: 1200px; margin: 0 auto; position: relative; z-index: 2; }
-        .arsenal-card { background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(10px); border: 1px solid rgba(0, 243, 255, 0.2); border-radius: 12px; padding: 40px 30px; text-align: left; transition: all 0.4s ease; position: relative; overflow: hidden; }
-        .arsenal-card:hover { transform: translateY(-10px); border-color: #00f3ff; box-shadow: 0 0 30px rgba(0, 243, 255, 0.15); }
-        .arsenal-card::after { content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(0, 243, 255, 0.1), transparent); transition: 0.5s; }
-        .arsenal-card:hover::after { left: 100%; }
-        .arsenal-icon { font-size: 2.5rem; color: var(--neon-cyan); margin-bottom: 20px; text-shadow: 0 0 15px var(--neon-cyan); }
-        .arsenal-card.pink .arsenal-icon { color: var(--neon-pink); text-shadow: 0 0 15px var(--neon-pink); }
-        .arsenal-card.pink:hover { border-color: var(--neon-pink); box-shadow: 0 0 30px rgba(255, 0, 85, 0.15); }
-        .arsenal-title { font-family: 'Orbitron', sans-serif; font-size: 1.3rem; color: #fff; margin-bottom: 15px; text-transform: uppercase; }
-        .arsenal-desc { color: #ccc; font-size: 1.05rem; line-height: 1.6; }
-
-        .ai-cta-text { font-family: 'Orbitron', sans-serif; color: var(--neon-pink); font-weight: 800; font-size: 1.4rem; margin-top: 40px; margin-bottom: 20px; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 15px var(--neon-pink); animation: pulse-pink 2s infinite alternate; }
-        @keyframes pulse-pink { from { opacity: 0.8; text-shadow: 0 0 10px var(--neon-pink); } to { opacity: 1; text-shadow: 0 0 30px var(--neon-pink); } }
-
-        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; margin-top: 30px; }
-        .gallery-item { width: 100%; aspect-ratio: 16/9; background: #000; border: 1px solid var(--neon-purple); position: relative; overflow: hidden; border-radius: 10px; box-shadow: 0 0 15px rgba(189, 0, 255, 0.1); transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        .gallery-item video, .gallery-item img { width: 100%; height: 100%; object-fit: cover; opacity: 0.85; transition: 0.4s; }
-        .gallery-item:hover { transform: translateY(-5px) scale(1.02); box-shadow: 0 0 30px rgba(189, 0, 255, 0.4); border-color: var(--neon-cyan); }
-        .gallery-item:hover video, .gallery-item:hover img { opacity: 1; transform: scale(1.05); }
-        .gallery-overlay { position: absolute; bottom: 0; left: 0; width: 100%; padding: 20px 15px; background: linear-gradient(to top, rgba(0,0,0,0.95) 10%, transparent); font-family: 'Share Tech Mono', monospace; color: var(--neon-cyan); font-size: 1rem; font-weight: bold; letter-spacing: 1px; text-shadow: 0 0 5px var(--neon-cyan); transform: translateY(100%); transition: 0.4s; }
-        .gallery-item:hover .gallery-overlay { transform: translateY(0); }
-
-        .comparison-wrapper { background: rgba(0,0,0,0.7); border: 1px solid var(--neon-cyan); border-radius: 5px; overflow: hidden; max-width: 900px; margin: 0 auto; box-shadow: 0 0 20px rgba(0, 243, 255, 0.1); }
-        .comparison-table { display: grid; grid-template-columns: 1fr 1fr; }
-        .comp-col { padding: 50px 30px; text-align: center; }
-        .comp-human { border-right: 1px solid rgba(255,255,255,0.1); }
-        .comp-ai { background: rgba(0, 243, 255, 0.05); position: relative; }
-        .comp-ai::before { content: ''; position: absolute; top:0; left:0; width:100%; height:2px; background: var(--neon-cyan); box-shadow: 0 0 15px var(--neon-cyan); }
-        .comp-title { font-size: 1.2rem; font-weight: 700; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
-        .comp-price { font-size: 2.5rem; font-weight: 700; color: #fff; margin-bottom: 20px; }
-        .comp-list li { list-style: none; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; color: #ddd; font-size: 1.05rem; text-align: left; }
-        @media(max-width: 768px) { .comparison-table { grid-template-columns: 1fr; } .comp-human { border-right: none; border-bottom: 1px solid rgba(255,255,255,0.1); } }
-
-        .testimonials-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 30px; }
-        .testimonial-card { background: rgba(10, 10, 10, 0.9); border: 1px solid var(--glass-border); padding: 30px; border-radius: 5px; position: relative; transition: 0.3s; }
-        .testimonial-card:hover { border-color: var(--neon-purple); box-shadow: 0 0 20px rgba(189, 0, 255, 0.2); transform: translateY(-5px); }
-        .test-text { font-style: italic; color: #eee; margin-bottom: 20px; font-size: 1.05rem; line-height: 1.6; }
-        .test-author { display: flex; align-items: center; gap: 15px; }
-        .test-avatar { width: 50px; height: 50px; background: #222; border-radius: 50%; border: 1px solid var(--neon-purple); background-size: cover; }
-        .test-info h4 { color: #fff; font-weight: 700; font-family: 'Orbitron'; font-size: 0.9rem; }
-        .test-info p { font-size: 0.8rem; color: #aaa; }
-
-        /* GRID DE PREÇOS REFINADO E SIMÉTRICO */
-        .pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 30px; max-width: 1200px; margin: 0 auto; align-items: stretch; }
-        .price-card { background: var(--glass-dark); border: 1px solid var(--glass-border); backdrop-filter: blur(20px); padding: 40px 30px; border-radius: 5px; display: flex; flex-direction: column; text-align: center; transition: 0.4s; position: relative; height: 100%; }
-        .price-card:hover { transform: translateY(-10px); border-color: var(--neon-cyan); box-shadow: 0 0 30px rgba(0, 243, 255, 0.2); }
-        
-        .price-card.featured { border: 2px solid var(--neon-pink); background: linear-gradient(180deg, rgba(20, 0, 10, 0.95), rgba(0,0,0,0.95)); box-shadow: 0 0 30px rgba(255, 0, 85, 0.3); z-index: 10; }
-        .badge-popular { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: var(--neon-pink); color: #fff; padding: 5px 20px; font-size: 0.85rem; font-weight: 800; border-radius: 20px; text-transform: uppercase; font-family: 'Orbitron'; letter-spacing: 2px; box-shadow: 0 0 15px rgba(255,0,85,0.6); white-space: nowrap; }
-
-        .plan-name { font-size: 1.6rem; margin-bottom: 10px; color: #fff; letter-spacing: 2px; }
-        .price { font-size: 3.5rem; font-weight: 700; color: #fff; display: block; margin: 20px 0; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
-        .price span { font-size: 1rem; color: #ccc; font-weight: 400; }
-        .setup-fee { display: block; margin-bottom: 25px; font-size: 0.95rem; color: #ddd; background: rgba(255,255,255,0.05); padding: 8px; border-radius: 4px; }
-
-        .features-list { list-style: none; text-align: left; margin-bottom: 40px; flex-grow: 1; }
-        .features-list li { padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.1); color: #eee; display: flex; align-items: center; gap: 10px; font-size: 1rem; }
-        .features-list li i { color: var(--neon-cyan); font-size: 1.2rem; }
-        .featured .features-list li i { color: var(--neon-pink); }
-        
-        .btn-plan { display: block; width: 100%; padding: 18px 0; text-decoration: none; color: #fff; border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; font-weight: bold; text-transform: uppercase; transition: 0.3s; cursor: pointer; letter-spacing: 2px; background: transparent; margin-top: auto; }
-        .btn-plan:hover { background: #fff; color: #000; box-shadow: 0 0 15px #fff; }
-        .featured .btn-plan { background: var(--neon-pink); border-color: var(--neon-pink); box-shadow: 0 0 15px rgba(255,0,85,0.4); }
-        .featured .btn-plan:hover { background: #ff3377; color: #fff; box-shadow: 0 0 30px var(--neon-pink); }
-
-        .faq-grid { max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 15px; }
-        .faq-item { background: rgba(0,0,0,0.7); border: 1px solid var(--glass-border); border-radius: 5px; overflow: hidden; transition: 0.3s; }
-        .faq-question { width: 100%; padding: 20px; text-align: left; background: transparent; border: none; color: #fff; font-family: 'Rajdhani'; font-weight: 700; font-size: 1.15rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-        .faq-answer { padding: 0 20px; max-height: 0; overflow: hidden; transition: max-height 0.3s ease-out; color: #ddd; font-size: 1.05rem; }
-        .faq-item.active { border-color: var(--neon-cyan); box-shadow: 0 0 10px rgba(0, 243, 255, 0.1); }
-        .faq-item.active .faq-answer { max-height: 200px; padding-bottom: 20px; }
-        .faq-item.active i { transform: rotate(180deg); transition: 0.3s; color: var(--neon-cyan); }
-
-        footer { background: #000; padding: 80px 0 30px; margin-top: 100px; border-top: 1px solid rgba(255,255,255,0.1); font-size: 0.95rem; color: #aaa; }
-        .footer-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 40px; margin-bottom: 60px; }
-        .footer-logo { font-size: 1.5rem; font-weight: 900; color: #fff; margin-bottom: 20px; display: block; font-family: 'Orbitron'; letter-spacing: 2px; }
-        .footer-logo span { color: var(--neon-cyan); }
-        .footer-col h4 { font-size: 1.1rem; color: #fff; margin-bottom: 20px; font-family: 'Orbitron'; letter-spacing: 1px; }
-        .footer-links { list-style: none; }
-        .footer-links li { margin-bottom: 12px; }
-        .footer-links a { color: #aaa; text-decoration: none; transition: 0.3s; font-family: 'Share Tech Mono'; }
-        .footer-links a:hover { color: var(--neon-cyan); text-shadow: 0 0 5px var(--neon-cyan); }
-        .copyright { text-align: center; padding-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); font-family: 'Share Tech Mono'; }
-
-        /* EASTER EGGS / CONSOLE */
-        #god-console { position: fixed; bottom: -300px; left: 0; width: 100%; height: 250px; background: rgba(0, 0, 0, 0.95); border-top: 2px solid #0f0; color: #0f0; font-family: 'Share Tech Mono', monospace; z-index: 1000000; transition: bottom 0.5s; display: flex; flex-direction: column; }
-        #god-console.active { bottom: 0; }
-        .console-header { background: #0f0; color: #000; padding: 5px 10px; font-weight: bold; font-size: 12px; letter-spacing: 1px; }
-        .console-output { flex: 1; padding: 10px; overflow-y: auto; font-size: 14px; opacity: 0.8; }
-        .console-input-line { display: flex; align-items: center; padding: 10px; background: #0a0a0a; border-top: 1px solid #333; }
-        #console-input { flex: 1; background: transparent; border: none; color: #fff; font-family: 'Share Tech Mono', monospace; font-size: 16px; margin-left: 10px; outline: none; }
-
-        body.matrix-mode { background-image: url('https://media.giphy.com/media/hzIg4f671gBkA/giphy.gif') !important; background-size: cover; }
-        body.matrix-mode * { color: #0f0 !important; border-color: #0f0 !important; text-shadow: 0 0 5px #0f0 !important; }
-        body.red-alert-mode { filter: sepia(1) saturate(5) hue-rotate(-50deg) !important; animation: pulse-red 0.5s infinite alternate; }
-        @keyframes pulse-red { from { box-shadow: inset 0 0 0 red; } to { box-shadow: inset 0 0 50px red; } }
-        body.nuke-mode { animation: flash 0.1s infinite; }
-        @keyframes flash { 0% { background: #fff; filter: invert(1); } 50% { background: #000; filter: invert(0); } 100% { background: #fff; } }
     </style>
 </head>
 <body>
 
-    <div id="jarvis-loader">
-        <div class="hud-ring-wrapper">
-            <svg class="hud-svg" viewBox="0 0 600 600">
-                <circle class="ring-thin-solid" cx="300" cy="300" r="280" fill="none" />
-                <circle class="ring-outer-segments" cx="300" cy="300" r="260" fill="none" />
-                <circle class="ring-ticks" cx="300" cy="300" r="230" fill="none" />
-                <circle class="ring-loader-arc" cx="300" cy="300" r="180" fill="none" />
-                <circle class="core-circle" cx="300" cy="300" r="140" />
-            </svg>
-            <h1 class="hud-title-internal">CALIXTO AI</h1>
-        </div>
-        <div class="hud-content-below">
-            <p class="hud-subtitle">INICIALIZANDO ...</p>
-            <div class="loading-bar-frame">
-                <div class="loading-bar-fill"></div>
-            </div>
-        </div>
-    </div>
-
-    <div id="god-console">
-        <div class="console-header">⚡ CALIXTO DEV_CONSOLE // ROOT ACCESS</div>
-        <div class="console-output" id="console-output">> Sistema inicializado. Aguardando comando...<br></div>
-        <div class="console-input-line"><span>root@calixto:~#</span><input type="text" id="console-input" autocomplete="off"></div>
-    </div>
-
-    <nav>
-        <div class="logo" id="secret-trigger">CALIXTO <span>AI</span></div>
-        <div class="nav-right">
-            <a href="#funcionalidades" class="social-link">O SISTEMA</a>
-            <a href="#precos" class="social-link">PLANOS</a>
-            
-            <a href="https://instagram.com/calixto.dev" target="_blank" class="social-link" style="font-size: 1.4rem; display: flex; align-items: center;" title="Instagram @calixto.dev">
-                <i class="ri-instagram-line"></i>
-            </a>
-            <a href="https://wa.me/5521990026871?text=Ol%C3%A1%21%20Estou%20no%20site%20da%20Calixto%20AI%20e%20gostaria%20de%20falar%20com%20um%20especialista." target="_blank" class="social-link" style="font-size: 1.4rem; display: flex; align-items: center;" title="Atendimento via WhatsApp">
-                <i class="ri-whatsapp-line"></i>
-            </a>
-
-            <div style="width:1px; height:20px; background:rgba(255,255,255,0.2); margin:0 15px;"></div>
-            <a href="/login" class="btn-login-nav">Área do Cliente</a>
-        </div>
-    </nav>
-
-    <header class="hero">
-        <div class="hero-content">
-            <div class="hero-badge">Sua Nova Recepcionista 24/7</div>
-            <h1>
-                <span class="outline">CALIXTO</span>
-                <strong><span id="secret-o">O</span>MNISYSTEM</strong>
-            </h1>
-            <p>Transforme seu WhatsApp em uma máquina de vendas e agendamentos automáticos. Elimine no-shows, feche contratos em PDF em segundos e repasse para sua equipe apenas os clientes prontos para comprar.</p>
-            <div class="hero-btns">
-                <a href="https://wa.me/5521991593547?text=Oi" target="_blank" class="cta-btn">TESTAR O ROBÔ NA PRÁTICA</a>
-                <a href="#precos" class="cta-btn" style="background: transparent; border: 1px solid var(--neon-purple); color: var(--neon-purple);">VER PLANOS</a>
-            </div>
+    <header class="topo" id="topo">
+        <div class="container">
+            <span class="marca" id="marca" aria-label="Calixto OmniSystem">
+                <span class="marca-icone" aria-hidden="true"><i class="ri-chat-smile-3-fill"></i></span>
+                Calixto
+            </span>
+            <nav aria-label="Principal">
+                <a class="link" href="#recursos">O que faz</a>
+                <a class="link" href="#planos">Planos</a>
+                <% if (usuario) { %>
+                    <a class="btn btn-primario" href="/dashboard">Ir para o painel</a>
+                <% } else { %>
+                    <a class="btn btn-contorno" href="/login">Entrar</a>
+                <% } %>
+            </nav>
         </div>
     </header>
 
-    <section id="funcionalidades" class="arsenal-section">
-        <div class="container text-center" style="margin-bottom: 50px;">
-            <h2 class="section-title">O ARSENAL <span style="color: var(--neon-cyan);">OMNISYSTEM</span></h2>
-            <p class="section-subtitle">A tecnologia definitiva para acabar com o caos no atendimento de Clínicas, E-commerces e Negócios de Alta Demanda.</p>
-        </div>
-    
-        <div class="arsenal-grid">
-            <div class="arsenal-card">
-                <i class="ri-flow-chart-line arsenal-icon"></i>
-                <h3 class="arsenal-title">Funis Visuais de Atendimento</h3>
-                <p class="arsenal-desc">Desenhe o atendimento da sua empresa arrastando blocos. O robô atende, educa o cliente e faz a triagem 24h por dia, organizando o seu fluxo sem você precisar programar.</p>
-            </div>
-            
-            <div class="arsenal-card pink">
-                <i class="ri-calendar-check-line arsenal-icon"></i>
-                <h3 class="arsenal-title">Agendamento Inteligente</h3>
-                <p class="arsenal-desc">O cliente escolhe a data no WhatsApp e o robô cruza com sua agenda. Tentou marcar de madrugada? O sistema instrui educadamente a escolha dentro do seu expediente comercial.</p>
-            </div>
-            
-            <div class="arsenal-card">
-                <i class="ri-notification-badge-line arsenal-icon"></i>
-                <h3 class="arsenal-title">Lembretes Anti-Falta</h3>
-                <p class="arsenal-desc">O pesadelo de quem marca e não aparece acabou. O sistema avisa o cliente automaticamente. Se ele desmarcar, o horário volta a ficar livre na sua agenda na hora.</p>
-            </div>
-            
-            <div class="arsenal-card pink">
-                <i class="ri-file-pdf-2-line arsenal-icon"></i>
-                <h3 class="arsenal-title">Gerador de Contratos PDF</h3>
-                <p class="arsenal-desc">Feche vendas mais rápido. O robô coleta os dados do cliente na conversa, preenche o seu modelo timbrado e devolve um documento pronto para assinatura em 3 segundos.</p>
-            </div>
-            
-            <div class="arsenal-card">
-                <i class="ri-customer-service-2-line arsenal-icon"></i>
-                <h3 class="arsenal-title">Repasse Inteligente (Humano)</h3>
-                <p class="arsenal-desc">Quando o cliente está pronto, o robô pausa e avisa você ou seus atendentes. Você atende de onde estiver, recebendo apenas contatos quentes e qualificados.</p>
-            </div>
-            
-            <div class="arsenal-card pink">
-                <i class="ri-broadcast-line arsenal-icon"></i>
-                <h3 class="arsenal-title">Mensagens em Massa & Remarketing</h3>
-                <p class="arsenal-desc">Venda de novo para a mesma base. Envie mensagens programadas lembrando de retornos, cobranças ou crie campanhas promocionais para centenas de contatos em um clique.</p>
-            </div>
-        </div>
-    </section>
-
-    <section id="ai-studio" class="section-padding container text-center" style="background: transparent; border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);">
-        <h2 class="section-title" style="text-shadow: 0 0 15px var(--neon-purple);">NEURAL STUDIO</h2>
-        <p class="section-subtitle">Geração de Vídeo e Imagem por Inteligência Artificial. Soluções de elite para seu marketing.</p>
-
-        <p class="ai-cta-text">CRIE O IMPOSSÍVEL</p>
-
-        <div class="gallery-grid">
-            <div class="gallery-item">
-                <video autoplay loop muted playsinline>
-                    <source src="/uploads/leonidas.mp4" type="video/mp4">
-                </video>
-                <div class="gallery-overlay">⚡ RENDERIZAÇÃO CINEMÁTICA 4K</div>
-            </div>
-            <div class="gallery-item">
-                <img src="/uploads/tokyojpg.jpg" alt="AI Art Cyberpunk City">
-                <div class="gallery-overlay">🌆 ESTILO REALISTA & COMERCIAL</div>
-            </div>
-            <div class="gallery-item">
-                <video autoplay loop muted playsinline>
-                    <source src="/uploads/robot.mp4" type="video/mp4">
-                </video>
-                <div class="gallery-overlay">🤖 GERAÇÃO DE MOVIMENTO COMPLEXO</div>
-            </div>
-        </div>
-    </section>
-
-    <section id="comparativo" class="section-padding container text-center">
-        <h2 class="section-title">ECONOMIA INTELIGENTE</h2>
-        <p class="section-subtitle">A diferença brutal de custo e eficiência no fechamento de caixa.</p>
-        <div class="comparison-wrapper">
-            <div class="comparison-table">
-                <div class="comp-col comp-human">
-                    <div class="comp-title" style="color: #ff4444;">ATENDIMENTO CONVENCIONAL</div>
-                    <div class="comp-price" style="color: #ff4444;">R$ 3.500<small>/mês</small></div>
-                    <ul class="comp-list">
-                        <li><i class="ri-close-line" style="color:#ff4444"></i> Salários, Encargos e Benefícios</li>
-                        <li><i class="ri-close-line" style="color:#ff4444"></i> Horário limitado (8h às 18h)</li>
-                        <li><i class="ri-close-line" style="color:#ff4444"></i> Perde vendas se demorar a responder</li>
-                        <li><i class="ri-close-line" style="color:#ff4444"></i> Falhas no envio de lembretes</li>
-                    </ul>
+    <main>
+        <!-- HERO -->
+        <section class="hero">
+            <div class="container">
+                <div>
+                    <h1>Seu WhatsApp atende sozinho. Você entra só para fechar.</h1>
+                    <p class="sub">O robô responde na hora, agenda, lembra o cliente da consulta e passa para sua equipe quem está pronto para comprar. Você acompanha tudo ao vivo e assume qualquer conversa com um toque.</p>
+                    <div class="hero-acoes">
+                        <a class="btn btn-primario" href="https://wa.me/5521991593547?text=Oi" target="_blank" rel="noopener"><i class="ri-whatsapp-line"></i> Testar o robô no WhatsApp</a>
+                        <a class="btn btn-contorno" href="#planos">Ver planos</a>
+                    </div>
+                    <p class="hero-nota"><i class="ri-shield-check-line"></i> Sem fidelidade. 7 dias para pedir o dinheiro de volta.</p>
                 </div>
-                <div class="comp-col comp-ai">
-                    <div class="comp-title" style="color: var(--neon-cyan);">CALIXTO OMNISYSTEM</div>
-                    <div class="comp-price" style="color: var(--neon-cyan);">R$ 500<small>/mês</small></div>
-                    <ul class="comp-list">
-                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Sem CLT ou vínculo trabalhista</li>
-                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Atende e agenda 24h / 7 dias</li>
-                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Dispara Lembretes Anti-Falta automaticamente</li>
-                        <li><i class="ri-check-line" style="color:var(--neon-cyan)"></i> Responde centenas de clientes ao mesmo tempo</li>
-                    </ul>
+
+                <div class="demo" role="img" aria-label="Exemplo de conversa: o robô agenda um horário e depois a atendente assume a conversa">
+                    <div class="demo-topo">
+                        <span class="av" aria-hidden="true">B</span>
+                        <div><b>Clínica Bella</b><small>atendimento automático</small></div>
+                    </div>
+                    <div class="demo-corpo" aria-hidden="true">
+                        <div class="msg">Oi! Queria marcar uma limpeza de pele 🙂<small>19:42</small></div>
+                        <div class="msg out"><span class="quem bot">Robô</span>Claro, Mariana! Tenho quinta às 10h ou sexta às 15h. Qual prefere?<small>19:42</small></div>
+                        <div class="msg">Sexta às 15h<small>19:43</small></div>
+                        <div class="msg out"><span class="quem bot">Robô</span>Agendado para sexta, 15h ✅ Vou te lembrar um dia antes.<small>19:43</small></div>
+                        <div class="msg">Vocês parcelam o pacote de 5 sessões?<small>19:44</small></div>
+                        <div class="aviso-demo">Paula assumiu a conversa</div>
+                        <div class="msg out"><span class="quem humano">Paula</span>Parcelamos em até 6x sem juros! Já deixo reservado para você?<small>19:45</small></div>
+                    </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section id="depoimentos" class="section-padding container text-center">
-        <h2 class="section-title">QUEM USA, APROVA</h2>
-        <p class="section-subtitle">Empresas que escalaram suas operações com o nosso motor.</p>
-        <div class="testimonials-grid">
-            <div class="testimonial-card">
-                <p class="test-text">"Antes, a clínica perdia muito dinheiro com 'no-shows'. Hoje, o robô cobra presença 24h antes. Se o paciente desmarcar, a vaga é preenchida na hora. Minha agenda lotou sem esforço humano."</p>
-                <div class="test-author">
-                    <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=33');"></div>
-                    <div class="test-info" style="text-align: left;"><h4>Dra. Helena</h4><p>Clínica Odontológica</p></div>
+        <!-- O QUE FAZ -->
+        <section class="bloco" id="recursos">
+            <div class="container">
+                <h2 class="titulo-secao">Tudo o que um bom atendente faz, sem fila e sem horário.</h2>
+                <div class="recursos">
+                    <div class="recurso">
+                        <span class="ic"><i class="ri-flow-chart"></i></span>
+                        <div><h3>Fluxos que você monta</h3><p>Desenhe o atendimento arrastando blocos: perguntas, menus, horários e respostas. Sem programar.</p></div>
+                    </div>
+                    <div class="recurso">
+                        <span class="ic"><i class="ri-calendar-check-line"></i></span>
+                        <div><h3>Agenda com lembretes</h3><p>O cliente marca pelo WhatsApp dentro do seu expediente e recebe lembrete antes. Desmarcou, o horário volta a ficar livre.</p></div>
+                    </div>
+                    <div class="recurso">
+                        <span class="ic"><i class="ri-file-text-line"></i></span>
+                        <div><h3>Contratos em PDF</h3><p>O robô coleta os dados na conversa, preenche seu modelo e envia o documento pronto para assinar.</p></div>
+                    </div>
+                    <div class="recurso">
+                        <span class="ic"><i class="ri-customer-service-2-line"></i></span>
+                        <div><h3>Conversas ao vivo</h3><p>Veja cada conversa em tempo real, numa tela igual à do WhatsApp, e assuma quando quiser. O robô pausa só naquele cliente.</p></div>
+                    </div>
                 </div>
             </div>
-            <div class="testimonial-card">
-                <p class="test-text">"O gerador de PDFs mudou meu jogo. O cliente chama no WhatsApp, o robô coleta os dados dele e já manda o contrato preenchido. O cliente assina impressionado com a velocidade."</p>
-                <div class="test-author">
-                    <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=11');"></div>
-                    <div class="test-info" style="text-align: left;"><h4>Roberto Mendes</h4><p>E-commerce / Varejo</p></div>
+        </section>
+
+        <!-- COMO FUNCIONA -->
+        <section class="bloco" style="padding-top: 0">
+            <div class="container">
+                <div class="passos-wrap">
+                    <h2 class="titulo-secao">No ar no mesmo dia.</h2>
+                    <p class="intro-secao">Roda nos nossos servidores: seu celular e seu computador não precisam ficar ligados.</p>
+                    <ol class="passos">
+                        <li><h3>Conecte seu número</h3><p>Digite o código de pareamento em Aparelhos conectados, no seu WhatsApp. Leva um minuto.</p></li>
+                        <li><h3>Monte o atendimento</h3><p>Comece por um fluxo pronto ou monte o seu. A gente ajuda na configuração.</p></li>
+                        <li><h3>Acompanhe e assuma</h3><p>O robô atende. Quando o cliente pede uma pessoa, você recebe o aviso e continua a conversa.</p></li>
+                    </ol>
                 </div>
             </div>
-            <div class="testimonial-card">
-                <p class="test-text">"O repasse é fantástico. Eu não preciso ficar preso a um painel. O robô faz toda a triagem fria e só manda o link pro meu celular quando o cliente já está com o cartão na mão."</p>
-                <div class="test-author">
-                    <div class="test-avatar" style="background-image: url('https://i.pravatar.cc/100?img=60');"></div>
-                    <div class="test-info" style="text-align: left;"><h4>Marcos Paulo</h4><p>Consultor Comercial</p></div>
+        </section>
+
+        <!-- PLANOS -->
+        <section class="bloco" id="planos" style="padding-top: 0">
+            <div class="container">
+                <div class="planos-topo">
+                    <div>
+                        <h2 class="titulo-secao">Planos</h2>
+                        <p class="intro-secao">Sem contrato de fidelidade. Quanto maior o período, menor a mensalidade.</p>
+                    </div>
+                    <div class="abas" role="tablist" aria-label="Canal">
+                        <button class="aba" role="tab" id="aba-wa" aria-controls="planos-wa" aria-selected="true">WhatsApp</button>
+                        <button class="aba" role="tab" id="aba-ig" aria-controls="planos-ig" aria-selected="false" tabindex="-1">Instagram</button>
+                        <button class="aba" role="tab" id="aba-combo" aria-controls="planos-combo" aria-selected="false" tabindex="-1">WhatsApp + Instagram</button>
+                    </div>
+                </div>
+
+                <%
+                    const contato = (plano) => 'https://wa.me/5521990026871?text=' + encodeURIComponent('Olá! Vim pelo site e quero assinar o plano ' + plano + '.');
+                    const grupos = [
+                        { id: 'wa', planos: [
+                            { nome: 'Mensal', preco: 550, obs: '', itens: ['1 número de WhatsApp', 'Fluxos ilimitados', 'Suporte por ticket'] },
+                            { nome: 'Trimestral', preco: 480, obs: 'Economia de R$ 210', itens: ['Tudo do Mensal', 'Configuração prioritária'] },
+                            { nome: 'Semestral', preco: 390, obs: 'Sem taxa de configuração', destaque: 'Melhor custo', itens: ['Tudo do Trimestral', 'Suporte VIP no WhatsApp', 'Consultoria de fluxos'] }
+                        ]},
+                        { id: 'ig', planos: [
+                            { nome: 'Mensal', preco: 450, obs: '', itens: ['1 conta do Instagram', 'Respostas automáticas no Direct', 'Resposta a comentários'] },
+                            { nome: 'Trimestral', preco: 350, obs: '', destaque: 'Mais escolhido', itens: ['Tudo do Mensal', 'Automação de Stories', 'Painel de contatos'] },
+                            { nome: 'Semestral', preco: 290, obs: 'Sem taxa de configuração', itens: ['Tudo do Trimestral'] }
+                        ]},
+                        { id: 'combo', planos: [
+                            { nome: 'Mensal', preco: 850, obs: '', itens: ['WhatsApp e Instagram', 'Contatos dos dois canais juntos'] },
+                            { nome: 'Semestral', preco: 590, obs: '', destaque: 'Mais completo', itens: ['WhatsApp e Instagram', 'Vários atendentes', 'Treinamento individual', 'Consultoria estratégica'] }
+                        ]}
+                    ];
+                    const nomeCanal = { wa: 'WhatsApp', ig: 'Instagram', combo: 'WhatsApp + Instagram' };
+                %>
+                <% grupos.forEach((g, gi) => { %>
+                <div class="grade-planos <%= g.planos.length === 2 ? 'duas' : '' %>" id="planos-<%= g.id %>" role="tabpanel" aria-labelledby="aba-<%= g.id %>" <%= gi === 0 ? '' : 'hidden' %>>
+                    <% g.planos.forEach(p => { %>
+                    <article class="plano <%= p.destaque ? 'destaque' : '' %>">
+                        <% if (p.destaque) { %><span class="selo"><%= p.destaque %></span><% } %>
+                        <h3><%= p.nome %></h3>
+                        <div class="preco"><b>R$ <%= p.preco %></b><span>/mês</span></div>
+                        <div class="obs"><%= p.obs %></div>
+                        <ul>
+                            <% p.itens.forEach(i => { %><li><i class="ri-check-line" aria-hidden="true"></i><%= i %></li><% }) %>
+                        </ul>
+                        <a class="btn <%= p.destaque ? 'btn-primario' : 'btn-contorno' %>" href="<%= contato(nomeCanal[g.id] + ' ' + p.nome) %>" target="_blank" rel="noopener">Assinar o <%= p.nome.toLowerCase() %></a>
+                    </article>
+                    <% }) %>
+                </div>
+                <% }) %>
+
+                <p class="garantia"><i class="ri-shield-check-line"></i><span>Se em até 7 dias depois da implementação você achar que o sistema não organizou seu atendimento, devolvemos 100% do valor pago.</span></p>
+            </div>
+        </section>
+
+        <!-- DÚVIDAS -->
+        <section class="bloco" style="padding-top: 0">
+            <div class="container">
+                <h2 class="titulo-secao">Dúvidas frequentes</h2>
+                <div class="duvidas">
+                    <details>
+                        <summary>Preciso deixar o celular ou o computador ligado? <i class="ri-add-line" aria-hidden="true"></i></summary>
+                        <p>Não. O robô roda nos nossos servidores 24 horas por dia. Você conecta o número uma vez e ele continua atendendo mesmo com o celular desligado.</p>
+                    </details>
+                    <details>
+                        <summary>O robô marca horário fora do meu expediente? <i class="ri-add-line" aria-hidden="true"></i></summary>
+                        <p>Não. Se o cliente pedir um horário fora do expediente, o robô oferece os horários disponíveis dentro dele.</p>
+                    </details>
+                    <details>
+                        <summary>Como eu assumo uma conversa? <i class="ri-add-line" aria-hidden="true"></i></summary>
+                        <p>Quando o cliente pede uma pessoa, você recebe um aviso no celular. Pelo painel, você também acompanha todas as conversas ao vivo e liga "Assumir conversa": o robô pausa só com aquele cliente e você responde dali mesmo.</p>
+                    </details>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section id="precos" class="section-padding container text-center">
-        <div class="hero-badge" style="margin-bottom: 10px;">Billing v2.0</div>
-        <h2 class="section-title">ESTAÇÕES DE <span style="color: var(--neon-pink);">COMBATE</span></h2>
-        <p class="section-subtitle">Escolha o seu poder de fogo. Sem contratos de fidelidade, cancele quando quiser.</p>
-    
-        <!-- Switcher de Canais -->
-        <div class="plan-switcher">
-            <button class="btn-tab wa-tab active" onclick="switchTab('wa')">
-                <i class="ri-whatsapp-line"></i> WHATSAPP
-            </button>
-            <button class="btn-tab ig-tab" onclick="switchTab('ig')">
-                <i class="ri-instagram-line"></i> INSTAGRAM
-            </button>
-            <button class="btn-tab combo-tab featured-tab" onclick="switchTab('combo')">
-                <i class="ri-flashlight-line"></i> COMBO OMNI
-            </button>
-        </div>
-    
-        <!-- WHATSAPP PLANS -->
-        <div id="wa-plans" class="pricing-grid plan-content active">
-            <!-- Mensal -->
-            <div class="price-card">
-                <div class="plan-name">MENSAL</div>
-                <span class="price">R$ 550<span>/mês</span></span>
-                <ul class="features-list">
-                    <li><i class="ri-check-line"></i> 1 Conexão WhatsApp</li>
-                    <li><i class="ri-check-line"></i> Fluxos Ilimitados</li>
-                    <li><i class="ri-check-line"></i> Suporte via Ticket</li>
-                </ul>
-                <a href="#" class="btn-plan">Assinar</a>
+        <!-- CHAMADA FINAL -->
+        <section class="bloco" style="padding-top: 0; padding-bottom: 72px">
+            <div class="container">
+                <div class="final">
+                    <div>
+                        <h2>Quer ver funcionando no seu negócio?</h2>
+                        <p>Conte como é seu atendimento hoje e a gente mostra como fica com o robô.</p>
+                    </div>
+                    <a class="btn btn-primario" href="https://wa.me/5521990026871?text=<%= encodeURIComponent('Olá! Estou no site da Calixto e gostaria de falar com um especialista.') %>" target="_blank" rel="noopener"><i class="ri-whatsapp-line"></i> Falar com um especialista</a>
+                </div>
             </div>
-            <!-- Trimestral -->
-            <div class="price-card">
-                <div class="plan-name">TRIMESTRAL</div>
-                <span class="price">R$ 480<span>/mês</span></span>
-                <ul class="features-list">
-                    <li><i class="ri-check-line"></i> Tudo do Mensal</li>
-                    <li><i class="ri-check-line"></i> Setup Prioritário</li>
-                    <li><i class="ri-subtract-line"></i> Economia de R$ 210</li>
-                </ul>
-                <a href="#" class="btn-plan">Assinar</a>
-            </div>
-            <!-- Semestral -->
-            <div class="price-card featured wa-featured">
-                <div class="badge-popular">MELHOR CUSTO WA</div>
-                <div class="plan-name">SEMESTRAL</div>
-                <span class="price">R$ 390<span>/mês</span></span>
-                <ul class="features-list">
-                    <li><i class="ri-vip-crown-2-line"></i> Suporte VIP (WhatsApp)</li>
-                    <li><i class="ri-check-line"></i> Consultoria de Fluxos</li>
-                    <li><i class="ri-check-line"></i> Setup Isento</li>
-                </ul>
-                <a href="#" class="btn-plan">Dominar Agora</a>
-            </div>
-        </div>
-    
-        <!-- INSTAGRAM PLANS -->
-        <div id="ig-plans" class="pricing-grid plan-content">
-            <div class="price-card">
-                <div class="plan-name">MENSAL</div>
-                <span class="price">R$ 450<span>/mês</span></span>
-                <ul class="features-list">
-                    <li><i class="ri-check-line"></i> 1 Conta Instagram</li>
-                    <li><i class="ri-check-line"></i> Automação de DMs</li>
-                    <li><i class="ri-check-line"></i> Resposta de Comentários</li>
-                </ul>
-                <a href="#" class="btn-plan">Assinar</a>
-            </div>
-            <div class="price-card featured ig-featured">
-                <div class="badge-popular">MAIS VENDIDO IG</div>
-                <div class="plan-name">TRIMESTRAL</div>
-                <span class="price">R$ 350<span>/mês</span></span>
-                <ul class="features-list">
-                    <li><i class="ri-check-line"></i> Tudo do Mensal</li>
-                    <li><i class="ri-check-line"></i> Automação de Stories</li>
-                    <li><i class="ri-check-line"></i> Dashboard de Leads</li>
-                </ul>
-                <a href="#" class="btn-plan">Assinar</a>
-            </div>
-            <div class="price-card">
-                <div class="plan-name">SEMESTRAL</div>
-                <span class="price">R$ 290<span>/mês</span></span>
-                <ul class="features-list">
-                    <li><i class="ri-check-line"></i> Tudo do Trimestral</li>
-                    <li><i class="ri-check-line"></i> Setup Isento</li>
-                    <li><i class="ri-subtract-line"></i> Foco Total em Escala</li>
-                </ul>
-                <a href="#" class="btn-plan">Assinar</a>
-            </div>
-        </div>
-    
-        <!-- COMBO PLANS -->
-        <div id="combo-plans" class="pricing-grid plan-content">
-            <div class="price-card">
-                <div class="plan-name">OMNI MENSAL</div>
-                <span class="price">R$ 850<span>/mês</span></span>
-                <ul class="features-list">
-                    <li><i class="ri-whatsapp-line"></i> WhatsApp Ativo</li>
-                    <li><i class="ri-instagram-line"></i> Instagram Ativo</li>
-                    <li><i class="ri-repeat-2-line"></i> Leads Sincronizados</li>
-                </ul>
-                <a href="#" class="btn-plan">Assinar</a>
-            </div>
-            <div class="price-card featured combo-featured">
-                <div class="badge-popular">O PODER TOTAL</div>
-                <div class="plan-name">OMNI SEMESTRAL</div>
-                <span class="price">R$ 590<span>/mês</span></span>
-                <ul class="features-list">
-                    <li><i class="ri-shield-flash-line"></i> WhatsApp + Instagram</li>
-                    <li><i class="ri-check-line"></i> Multi-atendentes</li>
-                    <li><i class="ri-check-line"></i> Treinamento Individual</li>
-                    <li><i class="ri-check-line"></i> Consultoria Estratégica</li>
-                </ul>
-                <a href="#" class="btn-plan">Garantir Vaga</a>
-            </div>
-        </div>
-    </section>
-
-    <div class="container">
-        <div class="guarantee-block">
-            <i class="ri-shield-check-line guarantee-icon"></i>
-            <div class="guarantee-content">
-                <h3>Risco Zero: Sua Satisfação ou Seu Dinheiro de Volta</h3>
-                <p>Nós assumimos todo o risco. Se em até **7 dias** após a implementação você sentir que o Calixto OmniSystem não organizou seu atendimento ou não poupou o seu tempo, nós devolvemos 100% do valor pago. Sem perguntas, sem burocracia.</p>
-            </div>
-        </div>
-    </div>
-
-
-    <section class="section-padding container">
-        <h2 class="section-title text-center">DÚVIDAS FREQUENTES</h2>
-        <div class="faq-grid" style="margin-top: 40px;">
-            <div class="faq-item">
-                <button class="faq-question">Preciso deixar o PC ligado para o robô funcionar? <i class="ri-arrow-down-s-line"></i></button>
-                <div class="faq-answer"><p>Não! Nosso sistema roda em servidores 24 horas por dia. Você escaneia o QR Code do WhatsApp uma vez e o robô trabalha para você independentemente do seu celular ou PC estarem ligados.</p></div>
-            </div>
-            <div class="faq-item">
-                <button class="faq-question">O robô agenda fora do meu horário comercial? <i class="ri-arrow-down-s-line"></i></button>
-                <div class="faq-answer"><p>Jamais. O OmniSystem possui uma trava inteligente. Se um cliente tentar marcar domingo de madrugada, o robô o instrui a escolher um horário válido no seu expediente.</p></div>
-            </div>
-            <div class="faq-item">
-                <button class="faq-question">Como funciona a transferência para um atendente humano? <i class="ri-arrow-down-s-line"></i></button>
-                <div class="faq-answer"><p>Você não precisa ficar monitorando um painel no computador. O robô pausa o atendimento automático e manda uma notificação direto no seu celular. Você clica e assume a conversa com o cliente que já está qualificado.</p></div>
-            </div>
-        </div>
-    </section>
+        </section>
+    </main>
 
     <footer>
         <div class="container">
-            <div class="footer-grid">
-                
-                <div class="footer-col">
-                    <span class="footer-logo">CALIXTO <span>AI</span></span>
-                    <p style="font-size: 0.95rem; color: #aaa; margin-top: 10px;">
-                        Transformando negócios de Alta Demanda através de automação inteligente de atendimento.
-                    </p>
-                </div>
-
-                <div class="footer-col">
-                    <h4>LINKS RÁPIDOS</h4>
-                    <ul class="footer-links">
-                        <li><a href="#funcionalidades">O Sistema</a></li>
-                        <li><a href="#comparativo">Vantagens</a></li>
-                        <li><a href="#precos">Planos</a></li>
-                        <li><a href="/login">Área do Cliente</a></li>
-                    </ul>
-                </div>
-
-                <div class="footer-col">
-                    <h4>LEGAL</h4>
-                    <ul class="footer-links">
-                        <li><a href="/termos">Termos de Uso</a></li>
-                        <li><a href="/privacidade">Privacidade</a></li>
-                        <li><a href="#">Suporte</a></li>
-                    </ul>
-                </div>
-
-                <div class="footer-col">
-                    <h4>CONTATO</h4>
-                    <ul class="footer-links">
-                        <li><a href="https://wa.me/5521991593547" target="_blank"><i class="ri-whatsapp-line"></i> (21) 96635-4239</a></li>
-                        <li><a href="mailto:contato@calixto.dev"><i class="ri-mail-line"></i> vitorpedrocalixto@gmail.com</a></li>
-                        <li><a href="#"><i class="ri-instagram-line"></i> @calixto.dev</a></li>
-                    </ul>
+            <div class="rodape-grade">
+                <span class="marca"><span class="marca-icone" aria-hidden="true"><i class="ri-chat-smile-3-fill"></i></span>Calixto OmniSystem</span>
+                <div class="rodape-links">
+                    <div>
+                        <b>Contato</b>
+                        <a href="https://wa.me/5521990026871" target="_blank" rel="noopener"><i class="ri-whatsapp-line"></i> WhatsApp</a>
+                        <a href="mailto:vitorpedrocalixto@gmail.com"><i class="ri-mail-line"></i> vitorpedrocalixto@gmail.com</a>
+                        <a href="https://instagram.com/calixto.dev" target="_blank" rel="noopener"><i class="ri-instagram-line"></i> @calixto.dev</a>
+                    </div>
+                    <div>
+                        <b>Legal</b>
+                        <a href="/termos">Termos de uso</a>
+                        <a href="/privacidade">Privacidade</a>
+                    </div>
                 </div>
             </div>
-
-            <div style="border-top: 1px solid #222; margin-top: 40px; padding-top: 20px; text-align: center;">
-                <p style="font-size: 0.8rem; color: #666; max-width: 800px; margin: 0 auto; line-height: 1.5;">
-                    <strong>Aviso Legal:</strong> O Calixto OmniSystem é um software independente desenvolvido para automação e gestão de atendimento. 
-                    Não somos afiliados, associados, autorizados ou de qualquer forma conectados à Meta Platforms, Inc. O nome WhatsApp e imagens relacionadas são marcas registradas de seus respectivos proprietários.
-                </p>
-            </div>
-
-            <div class="copyright" style="margin-top: 20px; color: #888;">
-                &copy; 2026 Calixto OmniSystem. Todos os direitos reservados.
+            <div class="legal">
+                <p>O Calixto OmniSystem é um software independente e não tem vínculo com a Meta Platforms, Inc. WhatsApp e Instagram são marcas registradas de seus respectivos donos.</p>
+                <p>&copy; <%= new Date().getFullYear() %> Calixto OmniSystem</p>
             </div>
         </div>
     </footer>
+
     <script>
-        // LOADER (Tempo otimizado para não perder tráfego - 1 segundo)
-        window.addEventListener('load', () => setTimeout(() => document.getElementById('jarvis-loader').classList.add('loaded'), 1000));
+        // Borda no topo ao rolar
+        const topo = document.getElementById('topo');
+        const aoRolar = () => topo.classList.toggle('rolou', window.scrollY > 8);
+        window.addEventListener('scroll', aoRolar, { passive: true }); aoRolar();
 
-        // FAQ
-        document.querySelectorAll('.faq-question').forEach(button => {
-            button.addEventListener('click', () => {
-                const item = button.parentElement;
-                item.classList.toggle('active');
+        // Conversa de demonstração: as mensagens aparecem uma de cada vez (uma única vez)
+        document.querySelectorAll('.demo-corpo > *').forEach((m, i) => { m.style.animationDelay = (0.35 + i * 0.55) + 's'; });
+
+        // Abas dos planos (setas do teclado também funcionam)
+        const abas = [...document.querySelectorAll('.aba')];
+        function selecionar(aba) {
+            abas.forEach(a => {
+                const ativa = a === aba;
+                a.setAttribute('aria-selected', String(ativa));
+                a.tabIndex = ativa ? 0 : -1;
+                document.getElementById(a.getAttribute('aria-controls')).hidden = !ativa;
+            });
+        }
+        abas.forEach((a, i) => {
+            a.addEventListener('click', () => selecionar(a));
+            a.addEventListener('keydown', (e) => {
+                if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+                const prox = abas[(i + (e.key === 'ArrowRight' ? 1 : abas.length - 1)) % abas.length];
+                selecionar(prox); prox.focus();
             });
         });
 
-        // EASTER EGGS
-        let clicks = 0;
-        const logo = document.getElementById('secret-trigger');
-        const consoleDiv = document.getElementById('god-console');
-        const consoleInput = document.getElementById('console-input');
-        const consoleOutput = document.getElementById('console-output');
-
-        if(logo) {
-            logo.addEventListener('click', () => {
-                clicks++;
-                if(clicks === 5) {
-                    consoleDiv.classList.add('active');
-                    consoleInput.focus();
-                    clicks = 0;
-                }
-                setTimeout(() => clicks = 0, 2000);
-            });
-        }
-
-        consoleInput.addEventListener('keypress', (e) => {
-            if(e.key === 'Enter') {
-                const cmd = consoleInput.value.trim().toLowerCase();
-                consoleInput.value = '';
-                consoleOutput.innerHTML += `> ${cmd}<br>`;
-                
-                if(cmd === 'matrix') { 
-                    document.body.classList.add('matrix-mode'); 
-                    document.body.classList.remove('red-alert-mode'); 
-                    consoleOutput.innerHTML += '> Matrix carregada.<br>'; 
-                }
-                else if(cmd === 'red_alert') { 
-                    document.body.classList.add('red-alert-mode'); 
-                    document.body.classList.remove('matrix-mode'); 
-                    consoleOutput.innerHTML += '> ALERTA VERMELHO!<br>'; 
-                }
-                else if(cmd === 'nuke') {
-                    consoleOutput.innerHTML += '> INICIANDO SEQUÊNCIA DE AUTODESTRUIÇÃO...<br>';
-                    let count = 5;
-                    const timer = setInterval(() => {
-                        consoleOutput.innerHTML += `> ${count}...<br>`;
-                        consoleOutput.scrollTop = consoleOutput.scrollHeight;
-                        count--;
-                        if(count < 0) {
-                            clearInterval(timer);
-                            document.body.classList.add('nuke-mode');
-                            setTimeout(() => { document.body.classList.remove('nuke-mode'); consoleOutput.innerHTML += '> ERRO: SISTEMA REINICIADO.<br>'; document.body.classList.remove('matrix-mode', 'red-alert-mode'); }, 2000);
-                        }
-                    }, 1000);
-                }
-                else if(cmd === 'normal' || cmd === 'reset') { 
-                    document.body.classList.remove('matrix-mode', 'red-alert-mode', 'nuke-mode'); 
-                    consoleOutput.innerHTML += '> Sistema normalizado.<br>'; 
-                }
-                else if(cmd === 'clear') { consoleOutput.innerHTML = ''; }
-                else if(cmd === 'exit') { consoleDiv.classList.remove('active'); }
-                else { consoleOutput.innerHTML += '> Comando desconhecido.<br>'; }
-                
-                consoleOutput.scrollTop = consoleOutput.scrollHeight;
-            }
+        // Acesso discreto ao cadastro (mantido da versão anterior): 3 cliques rápidos na marca
+        let cliques = 0, timer;
+        document.getElementById('marca').addEventListener('click', () => {
+            cliques++; clearTimeout(timer);
+            if (cliques >= 3) { window.location.href = '/registro'; return; }
+            timer = setTimeout(() => { cliques = 0; }, 800);
         });
-
-        // SECRET O
-        const secretO = document.getElementById('secret-o');
-        let oClicks = 0;
-        if(secretO) {
-            secretO.addEventListener('click', () => {
-                oClicks++;
-                if (oClicks === 3) {
-                    secretO.classList.add('activated');
-                    setTimeout(() => window.location.href = "/registro", 500);
-                }
-                setTimeout(() => oClicks = 0, 800);
-            });
-        }
     </script>
 </body>
 </html>

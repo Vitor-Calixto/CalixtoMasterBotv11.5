@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fluxo compartilhado - Calixto OmniSystem</title>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
+
+    <style>
+        :root { --bg-color: #050505; --card-bg: #0f0f0f; --border-color: #222; --primary-blue: #0066ff; --primary-hover: #0052cc; --text-muted: #888; --success: #00e054; --danger: #ff3333; }
+        * { box-sizing: border-box; }
+        body { background: var(--bg-color); color: #fff; font-family: 'Inter', sans-serif; margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+        .caixa { background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 10px; padding: 32px; width: 100%; max-width: 460px; }
+        .rotulo { font-size: 12px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; margin-bottom: 14px; }
+        h1 { font-size: 22px; margin: 0 0 10px; overflow-wrap: anywhere; }
+        .desc { color: #aaa; font-size: 14px; line-height: 1.55; margin: 0 0 20px; }
+        .meta { display: flex; flex-wrap: wrap; gap: 14px; font-size: 13px; color: #888; margin-bottom: 26px; }
+        .btn { width: 100%; border: none; border-radius: 6px; padding: 13px; font-weight: 600; font-size: 14px; cursor: pointer; font-family: inherit; display: flex; justify-content: center; align-items: center; gap: 8px; text-decoration: none; }
+        .btn-primario { background: var(--primary-blue); color: #fff; }
+        .btn-primario:hover { background: var(--primary-hover); }
+        .btn-primario:disabled { opacity: .6; cursor: wait; }
+        .btn-sec { background: #1a1a1a; border: 1px solid #333; color: #ccc; margin-top: 10px; }
+        .btn-sec:hover { border-color: var(--primary-blue); color: #fff; }
+        .msg { font-size: 13px; margin-top: 14px; min-height: 18px; }
+        .msg.erro { color: var(--danger); }
+        .msg.ok { color: var(--success); }
+        :focus-visible { outline: 2px solid var(--primary-blue); outline-offset: 2px; }
+    </style>
+</head>
+<body>
+    <main class="caixa">
+        <% if (!modelo) { %>
+            <div class="rotulo"><i class="ri-link-unlink"></i> Link indisponível</div>
+            <h1>Este link não funciona mais</h1>
+            <p class="desc">O dono do fluxo pode ter desativado o link. Peça um novo link para quem enviou.</p>
+            <a class="btn btn-sec" href="/dashboard/fluxos">Ir para meus fluxos</a>
+        <% } else if (modelo.meu) { %>
+            <div class="rotulo"><i class="ri-flow-chart"></i> Fluxo compartilhado</div>
+            <h1><%= modelo.nome %></h1>
+            <p class="desc">Este link é de um fluxo seu. Quem abrir poderá adicionar uma cópia à biblioteca dele.</p>
+            <a class="btn btn-sec" href="/dashboard/fluxos">Ir para meus fluxos</a>
+        <% } else { %>
+            <div class="rotulo"><i class="ri-user-shared-line"></i> <%= modelo.donoNome || 'Alguém' %> compartilhou um fluxo com você</div>
+            <h1><%= modelo.nome %></h1>
+            <p class="desc"><%= modelo.descricao || 'Sem descrição.' %></p>
+            <div class="meta"><span><i class="ri-shape-line"></i> <%= modelo.totalNos %> blocos</span></div>
+            <button class="btn btn-primario" id="btn-adicionar"><i class="ri-add-line"></i> Adicionar à minha biblioteca</button>
+            <div class="msg" id="msg" role="status"></div>
+        <% } %>
+    </main>
+
+    <% if (modelo && !modelo.meu) { %>
+    <script>
+        const btn = document.getElementById('btn-adicionar');
+        const msg = document.getElementById('msg');
+        btn.onclick = async () => {
+            btn.disabled = true;
+            msg.className = 'msg'; msg.textContent = '';
+            try {
+                const res = await fetch('/api/fluxos/link/<%= encodeURIComponent(token) %>/adicionar', { method: 'POST' });
+                const dados = await res.json().catch(() => ({ success: false, error: 'Sessão expirada. Entre novamente.' }));
+                if (res.ok && dados.success) {
+                    msg.className = 'msg ok';
+                    msg.textContent = 'Fluxo adicionado. Abrindo sua biblioteca...';
+                    setTimeout(() => location.href = '/dashboard/fluxos', 900);
+                    return;
+                }
+                msg.className = 'msg erro';
+                msg.textContent = dados.error || 'Não foi possível adicionar o fluxo.';
+            } catch (e) {
+                msg.className = 'msg erro';
+                msg.textContent = 'Sem conexão com o servidor.';
+            }
+            btn.disabled = false;
+        };
+    </script>
+    <% } %>
+</body>
+</html>

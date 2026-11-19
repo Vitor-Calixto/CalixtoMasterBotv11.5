@@ -117,13 +117,29 @@ async function listarSessoesAtivas() {
     return await redis.keys(`${PREFIX}*`);
 }
 
+// Quem quiser ser avisado quando uma conversa for pausada/reativada (ex: dashboard ao vivo)
+let aoMudarPausa = null;
+function setOnPausaChange(fn) { aoMudarPausa = fn; }
+
 async function setPausado(userNum, status) {
     const key = `${PREFIX_PAUSA}${userNum}`;
+    const antes = (await redis.get(key)) === '1';
     if (status) {
         await redis.set(key, '1');
     } else {
         await redis.del(key);
     }
+    // Só avisa quando o estado realmente mudou
+    if (aoMudarPausa && antes !== !!status) {
+        try { Promise.resolve(aoMudarPausa(userNum, !!status)).catch(() => {}); } catch (e) {}
+    }
+}
+
+// Consulta várias conversas de uma vez: devolve um Set com as que estão pausadas
+async function pausadosEm(userNums) {
+    if (!userNums || userNums.length === 0) return new Set();
+    const valores = await redis.mget(userNums.map(n => `${PREFIX_PAUSA}${n}`));
+    return new Set(userNums.filter((n, i) => valores[i] === '1'));
 }
 
 async function isPausado(userNum) {
@@ -142,5 +158,7 @@ module.exports = {
     limparSessao,
     listarSessoesAtivas,
     setPausado,
-    isPausado
+    isPausado,
+    pausadosEm,
+    setOnPausaChange
 };

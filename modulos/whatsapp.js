@@ -20,6 +20,7 @@ const { PrismaClient } = require('@prisma/client');
 // ----------------------------------------------------------------------------
 const prisma = new PrismaClient();
 const engine = require('./engine'); // O Cérebro V12 que processa os fluxos
+const atendimento = require('./atendimento'); // Conversas ao vivo (dashboard)
 
 // Memória RAM Global: Guarda os Sockets ativos de todos os clientes
 const sessoes = new Map();
@@ -105,6 +106,15 @@ async function iniciarWhatsApp(clienteDado, io) {
             syncFullHistory: false, 
             shouldIgnoreJid: (jid) => isJidBroadcast(jid) || isJidGroup(jid) 
         });
+
+        // 💬 Conversas ao vivo: tudo que SAI por este socket (bot, disparos, atendente)
+        // é registrado e aparece em tempo real no dashboard. Falha no registro nunca barra o envio.
+        const enviarOriginal = sock.sendMessage.bind(sock);
+        sock.sendMessage = async (jid, conteudo, opcoes) => {
+            const resultado = await enviarOriginal(jid, conteudo, opcoes);
+            try { await atendimento.registrarSaida({ clienteId: cliente.id, jid, conteudo, resultado }); } catch (e) {}
+            return resultado;
+        };
 
         // --- E. SISTEMA DE PAREAMENTO (PAIRING CODE) ---
         if (!sock.authState.creds.registered) {
@@ -232,6 +242,23 @@ async function iniciarWhatsApp(clienteDado, io) {
                 const fromMe = msg.key.fromMe;
                 const realMessage = unwrapMessage(msg.message);
                 const texto = (realMessage?.conversation || realMessage?.extendedTextMessage?.text || realMessage?.imageMessage?.caption || "").trim();
+
+                // 💬 Conversas ao vivo: registra tudo que chegou (inclusive mídia) ou foi digitado no celular.
+                // Fica ANTES dos filtros do bot, mas nunca interfere neles.
+                try {
+                    const jidRegistro = msg.key.remoteJid;
+                    if (jidRegistro && !isJidBroadcast(jidRegistro) && !isJidGroup(jidRegistro)) {
+                        const desc = atendimento.descreverRecebida(realMessage);
+                        if (desc && desc.texto) {
+                            atendimento.registrarMensagem({
+                                clienteId: cliente.id, remoteJid: jidRegistro,
+                                nome: fromMe ? undefined : msg.pushName,
+                                fromMe: !!fromMe, origem: fromMe ? 'CELULAR' : 'CLIENTE',
+                                texto: desc.texto, tipo: desc.tipo, waId: msg.key.id
+                            });
+                        }
+                    }
+                } catch (e) { /* o registro nunca pode derrubar o bot */ }
 
                 // 🚨 O ASSASSINO SILENCIOSO (TRAVA TEMPORAL) FOI NEUTRALIZADO AQUI 🚨
                 // Comentamos isso para evitar que o fuso horário do Windows apague a mensagem.

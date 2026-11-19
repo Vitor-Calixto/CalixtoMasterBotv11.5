@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= perfil.nome %> - Usuários</title>
+    <%- include('partials/admin-estilo') %>
+    <style>
+        .migalha { font-size: 14px; margin-bottom: 18px; }
+        .migalha a { text-decoration: none; display: inline-flex; gap: 6px; align-items: center; }
+        .perfil-topo { display: flex; gap: 18px; align-items: center; margin-bottom: 28px; flex-wrap: wrap; }
+        .avatar-g { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-family: 'Bricolage Grotesque', sans-serif; font-size: 28px; font-weight: 700; flex: none; }
+        .perfil-topo .quem { flex: 1; min-width: 220px; }
+        .perfil-topo .linha-info { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 6px; color: var(--tinta-2); }
+        .grade { display: grid; grid-template-columns: 1.15fr .85fr; gap: 20px; align-items: start; }
+        .coluna { display: grid; gap: 20px; }
+        .cartao { background: var(--papel); border: 1px solid var(--linha); border-radius: 16px; padding: 22px; }
+        .cartao h2 { margin-bottom: 4px; }
+        .cartao > .sub { margin: 0 0 18px; font-size: 14.5px; }
+        .destaque-validade { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--fundo); border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; flex-wrap: wrap; }
+        .destaque-validade b { font-family: 'Bricolage Grotesque', sans-serif; font-size: 22px; letter-spacing: -.4px; display: block; }
+        .destaque-validade span { color: var(--tinta-2); font-size: 14px; }
+        .linha-form { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; margin-top: 14px; }
+        .linha-form .campo { flex: 1; min-width: 160px; }
+        .separador { border: 0; border-top: 1px solid var(--linha-2); margin: 20px 0; }
+        .acao-linha { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+        .acao-linha p { color: var(--tinta-2); font-size: 14px; max-width: 46ch; }
+        .acao-linha strong { display: block; color: var(--tinta); font-size: 15px; }
+        .pilha { display: grid; gap: 14px; }
+        .bots { list-style: none; display: grid; gap: 8px; }
+        .bots li { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; background: var(--fundo); border-radius: 10px; font-size: 14.5px; }
+        .dados-lista { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 14px; color: var(--tinta-2); margin-top: 16px; }
+        .dados-lista dt { color: var(--tinta-3); }
+        .dados-lista dd { color: var(--tinta); overflow-wrap: anywhere; }
+        .perigo-zona { border-color: #f4c7c3; }
+        .aviso-faixa { border-radius: 12px; padding: 12px 14px; font-size: 14.5px; display: flex; gap: 10px; align-items: flex-start; margin-bottom: 18px; }
+        .aviso-faixa.info { background: var(--info-fundo); color: var(--info); }
+        .aviso-faixa.alerta { background: var(--alerta-fundo); color: var(--alerta); }
+        @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <%- include('partials/admin-topo', { aba: 'usuarios' }) %>
+    <% const u = perfil; const s = u.status.codigo; const admin = s === 'admin'; %>
+
+    <main class="pagina">
+        <div class="migalha"><a href="/admin/usuarios"><i class="ri-arrow-left-line"></i> Todos os usuários</a></div>
+
+        <div class="perfil-topo">
+            <span class="avatar-g" id="avatar" aria-hidden="true"><%= (u.nome.trim()[0] || '?').toUpperCase() %></span>
+            <div class="quem">
+                <h1><%= u.nome %></h1>
+                <div class="linha-info"><span><%= u.email %></span><span class="selo <%= s %>"><%= u.status.rotulo %></span><% if (u.trocarSenha) { %><span class="selo pendente">Vai criar nova senha</span><% } %></div>
+            </div>
+        </div>
+
+        <% if (s === 'pendente') { %>
+            <div class="aviso-faixa info"><i class="ri-information-line"></i><span>Este cadastro está aguardando aprovação. Escolha por quanto tempo a pessoa pode usar o serviço e clique em <b>Aprovar</b>.</span></div>
+        <% } else if (s === 'vencido') { %>
+            <div class="aviso-faixa alerta"><i class="ri-time-line"></i><span>A assinatura venceu: a pessoa não consegue entrar e os bots dela foram desligados. Renove abaixo para liberar.</span></div>
+        <% } %>
+
+        <div class="grade">
+            <div class="coluna">
+                <% if (!admin) { %>
+                <!-- ASSINATURA -->
+                <section class="cartao" aria-labelledby="t-assinatura">
+                    <h2 id="t-assinatura">Assinatura</h2>
+                    <p class="sub">Por quanto tempo esta pessoa pode usar o serviço.</p>
+                    <div class="destaque-validade">
+                        <div>
+                            <b><% if (s === 'pendente') { %>Ainda não aprovado<% } else if (!u.expiraEm) { %>Vitalício<% } else { %><%= s === 'vencido' ? 'Venceu em' : 'Até' %> <%= new Date(u.expiraEm).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) %><% } %></b>
+                            <span><% if (u.status.dias != null && u.status.dias > 0) { %><%= u.status.dias === 1 ? 'Falta 1 dia' : 'Faltam ' + u.status.dias + ' dias' %><% } else if (s === 'vencido') { %>Sem acesso até renovar<% } else if (!u.expiraEm && s !== 'pendente') { %>Sem data de vencimento<% } %></span>
+                        </div>
+                    </div>
+
+                    <form id="form-periodo">
+                        <span class="rotulo"><%= s === 'pendente' ? 'Aprovar por' : 'Renovar ou alterar por' %></span>
+                        <div class="periodos">
+                            <% periodos.forEach(p => { %><input type="radio" name="periodo" id="p-<%= p.id %>" value="<%= p.id %>" <%= p.id === (u.periodo || '30') ? 'checked' : '' %>><label for="p-<%= p.id %>"><%= p.rotulo %></label><% }) %>
+                        </div>
+                        <% if (s !== 'pendente') { %>
+                        <label class="check" style="margin-top:12px"><input type="checkbox" id="a-partir-de-hoje" <%= (s === 'vencido') ? 'checked' : '' %>>
+                            <span>Contar a partir de hoje <span class="dica">(sem marcar, soma ao tempo que ainda falta)</span></span></label>
+                        <% } %>
+                        <div class="linha-form"><button class="btn primario" type="submit"><%= s === 'pendente' ? 'Aprovar' : 'Aplicar período' %></button></div>
+                    </form>
+
+                    <hr class="separador">
+                    <form id="form-data" class="linha-form" style="margin-top:0">
+                        <div class="campo"><label for="data-fim">Ou escolha a data de vencimento</label><input type="date" id="data-fim" value="<%= u.expiraEm ? new Date(u.expiraEm).toISOString().slice(0, 10) : '' %>" required></div>
+                        <button class="btn" type="submit">Salvar data</button>
+                    </form>
+                </section>
+                <% } %>
+
+                <!-- SENHA -->
+                <section class="cartao" aria-labelledby="t-senha">
+                    <h2 id="t-senha">Senha</h2>
+                    <p class="sub">Cada ação abaixo encerra as sessões abertas desta pessoa.</p>
+                    <div class="pilha">
+                        <% if (!euMesmo) { %>
+                        <div class="acao-linha">
+                            <p><strong>Exigir nova senha no próximo acesso</strong>A senha vira <b><%= senhaProvisoria %></b>. Ao entrar com ela, a pessoa é levada para criar a própria senha.</p>
+                            <% if (u.trocarSenha) { %>
+                                <button class="btn" type="button" id="btn-cancelar-troca">Cancelar exigência</button>
+                            <% } else { %>
+                                <button class="btn" type="button" id="btn-exigir">Exigir nova senha</button>
+                            <% } %>
+                        </div>
+                        <hr class="separador" style="margin:4px 0">
+                        <% } %>
+                        <div class="acao-linha">
+                            <p><strong>Enviar link para criar nova senha</strong><%= emailConfigurado ? 'Manda para ' + u.email + ' um link que vale por 1 hora.' : 'Configure o envio de e-mails em Configurações para usar.' %></p>
+                            <button class="btn" type="button" id="btn-link" <%= emailConfigurado ? '' : 'disabled' %>>Enviar link</button>
+                        </div>
+                        <hr class="separador" style="margin:4px 0">
+                        <form id="form-senha">
+                            <strong style="display:block">Definir uma senha</strong>
+                            <div class="linha-form" style="margin-top:8px">
+                                <div class="campo"><label for="nova-senha">Nova senha</label><input type="text" id="nova-senha" minlength="8" maxlength="100" autocomplete="off" required></div>
+                                <button class="btn" type="submit">Definir senha</button>
+                            </div>
+                            <% if (!euMesmo) { %><label class="check" style="margin-top:10px"><input type="checkbox" id="exigir-depois" checked><span>Pedir para a pessoa trocar no próximo acesso</span></label><% } %>
+                        </form>
+                    </div>
+                </section>
+            </div>
+
+            <div class="coluna">
+                <!-- ACESSO -->
+                <% if (!admin) { %>
+                <section class="cartao" aria-labelledby="t-acesso">
+                    <h2 id="t-acesso">Acesso</h2>
+                    <div class="acao-linha" style="margin-top:12px">
+                        <% if (u.bloqueado) { %>
+                            <p>A conta está bloqueada: não entra e os bots ficam desligados.</p>
+                            <button class="btn primario" type="button" id="btn-desbloquear">Desbloquear</button>
+                        <% } else { %>
+                            <p>Bloquear impede o acesso na hora e desliga os bots, sem apagar nada.</p>
+                            <button class="btn perigo" type="button" id="btn-bloquear">Bloquear</button>
+                        <% } %>
+                    </div>
+                </section>
+                <% } %>
+
+                <!-- DADOS -->
+                <section class="cartao" aria-labelledby="t-dados">
+                    <h2 id="t-dados">Dados</h2>
+                    <form id="form-dados" class="pilha" style="margin-top:14px">
+                        <div class="campo"><label for="d-nome">Nome</label><input type="text" id="d-nome" value="<%= u.nome %>" required maxlength="100"></div>
+                        <div class="campo"><label for="d-email">E-mail</label><input type="email" id="d-email" value="<%= u.email %>" required <%= admin ? 'readonly' : '' %>></div>
+                        <div class="campo"><label for="d-plano">Plano</label>
+                            <select id="d-plano"><% planos.forEach(p => { %><option value="<%= p %>" <%= p === u.plano ? 'selected' : '' %>><%= p %></option><% }) %></select></div>
+                        <div><button class="btn" type="submit">Salvar dados</button></div>
+                    </form>
+                    <dl class="dados-lista">
+                        <dt>Cadastro</dt><dd><%= new Date(u.criadoEm).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }) %></dd>
+                        <dt>Último acesso</dt><dd><%= u.ultimoLogin ? new Date(u.ultimoLogin).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', dateStyle: 'short', timeStyle: 'short' }) : 'Nunca entrou' %></dd>
+                        <dt>Termos</dt><dd><%= u.termsAccepted ? 'Aceitos no cadastro' : 'Conta criada pelo administrador' %></dd>
+                        <% if (u.signupIp) { %><dt>IP do cadastro</dt><dd><%= u.signupIp %></dd><% } %>
+                    </dl>
+                </section>
+
+                <!-- BOTS -->
+                <section class="cartao" aria-labelledby="t-bots">
+                    <h2 id="t-bots">Bots</h2>
+                    <% if (u.bots.length) { %>
+                        <ul class="bots" style="margin-top:12px">
+                            <% u.bots.forEach(b => { %><li><span><%= b.nome %> <span class="dica"><%= b.plataforma === 'INSTAGRAM' ? 'Instagram' : 'WhatsApp' %></span></span><span class="selo <%= b.status === 'ONLINE' ? 'ativo' : 'admin' %>"><%= b.status === 'ONLINE' ? 'Ligado' : 'Desligado' %></span></li><% }) %>
+                        </ul>
+                    <% } else { %><p class="sub">Nenhum bot criado.</p><% } %>
+                </section>
+
+                <% if (!admin) { %>
+                <!-- EXCLUIR -->
+                <section class="cartao perigo-zona" aria-labelledby="t-excluir">
+                    <h2 id="t-excluir">Excluir usuário</h2>
+                    <div class="acao-linha" style="margin-top:12px">
+                        <p>Apaga a conta, os bots, os fluxos, os contratos e as conversas. Não dá para desfazer.</p>
+                        <button class="btn perigo" type="button" id="btn-excluir">Excluir</button>
+                    </div>
+                </section>
+                <% } %>
+            </div>
+        </div>
+    </main>
+
+    <dialog id="dlg-confirma" aria-labelledby="c-titulo">
+        <form class="dlg" method="dialog" id="form-confirma">
+            <div class="dlg-topo"><h2 id="c-titulo"></h2><button class="fechar" type="button" data-fechar aria-label="Fechar"><i class="ri-close-line"></i></button></div>
+            <p id="c-texto"></p>
+            <div class="campo" id="c-campo" hidden><label for="c-entrada" id="c-rotulo"></label><input type="text" id="c-entrada" autocomplete="off"></div>
+            <div class="dlg-acoes"><button class="btn" type="button" data-fechar>Cancelar</button><button class="btn" type="submit" id="c-ok"></button></div>
+        </form>
+    </dialog>
+
+    <script>
+        const ID = <%- JSON.stringify(u.id) %>;
+        const NOME = <%- JSON.stringify(u.nome).replace(/</g, '\\u003c') %>;
+        const EMAIL = <%- JSON.stringify(u.email).replace(/</g, '\\u003c') %>;
+        const BASE = '/api/admin/contas/' + encodeURIComponent(ID);
+        const $ = (id) => document.getElementById(id);
+        const recarregar = () => setTimeout(() => location.reload(), 700);
+
+        (function () { const C = ['#5f8f7a', '#7f8fa6', '#b07d50', '#8e7cc3', '#4f8f9a', '#a8737f', '#6d8b74', '#5b7db1']; let h = 0; for (const c of NOME) h = (h * 31 + c.codePointAt(0)) >>> 0; $('avatar').style.background = C[h % C.length]; })();
+        document.querySelectorAll('[data-fechar]').forEach(b => b.addEventListener('click', () => b.closest('dialog').close()));
+
+        // Confirmação genérica (com campo opcional para digitar algo)
+        function confirmar({ titulo, texto, botao, perigo, pedir }) {
+            return new Promise(resolver => {
+                const d = $('dlg-confirma');
+                $('c-titulo').textContent = titulo; $('c-texto').textContent = texto;
+                $('c-ok').textContent = botao; $('c-ok').className = 'btn ' + (perigo ? 'perigo-cheio' : 'primario');
+                $('c-campo').hidden = !pedir; $('c-entrada').value = '';
+                if (pedir) $('c-rotulo').textContent = pedir;
+                const form = $('form-confirma');
+                const aoEnviar = (e) => {
+                    e.preventDefault();
+                    if (pedir && $('c-entrada').value.trim().toLowerCase() !== EMAIL.toLowerCase()) { toast('Digite o e-mail exatamente como aparece.', true); return; }
+                    limpar(); d.close(); resolver(true);
+                };
+                const aoFechar = () => { limpar(); resolver(false); };
+                const limpar = () => { form.removeEventListener('submit', aoEnviar); d.removeEventListener('close', aoFechar); };
+                form.addEventListener('submit', aoEnviar); d.addEventListener('close', aoFechar, { once: true });
+                d.showModal();
+                if (pedir) $('c-entrada').focus();
+            });
+        }
+
+        async function executar(url, metodo, corpo, sucesso, recarregarDepois = true) {
+            const r = await api(url, metodo, corpo);
+            if (!r.ok) { toast(r.dados.error || 'Não foi possível concluir.', true); return null; }
+            toast(sucesso); if (recarregarDepois) recarregar();
+            return r.dados;
+        }
+
+        const fPeriodo = $('form-periodo');
+        if (fPeriodo) fPeriodo.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const periodo = (document.querySelector('input[name=periodo]:checked') || {}).value;
+            const pendente = <%- JSON.stringify(s === 'pendente') %>;
+            if (pendente) return executar(BASE + '/aprovar', 'POST', { periodo }, 'Cadastro aprovado.');
+            const hoje = $('a-partir-de-hoje') ? $('a-partir-de-hoje').checked : false;
+            executar(BASE + '/validade', 'POST', { periodo, aPartirDeHoje: hoje }, 'Validade atualizada.');
+        });
+        const fData = $('form-data');
+        if (fData) fData.addEventListener('submit', (e) => { e.preventDefault(); executar(BASE + '/validade', 'POST', { data: $('data-fim').value }, 'Data de vencimento salva.'); });
+
+        $('form-dados').addEventListener('submit', (e) => {
+            e.preventDefault();
+            executar(BASE, 'PUT', { nome: $('d-nome').value, email: $('d-email').value, plano: $('d-plano').value }, 'Dados salvos.');
+        });
+
+        $('form-senha').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const exigir = $('exigir-depois') ? $('exigir-depois').checked : false;
+            await executar(BASE + '/senha', 'POST', { senha: $('nova-senha').value, exigirTroca: exigir }, 'Senha definida.');
+        });
+
+        if ($('btn-exigir')) $('btn-exigir').onclick = async () => {
+            if (await confirmar({ titulo: 'Exigir nova senha?', texto: `${NOME} será desconectado. Para entrar, vai usar a senha <%= senhaProvisoria %> e então criar a própria senha.`, botao: 'Exigir nova senha' }))
+                executar(BASE + '/exigir-troca', 'POST', {}, 'Pronto. A senha provisória é <%= senhaProvisoria %>.');
+        };
+        if ($('btn-cancelar-troca')) $('btn-cancelar-troca').onclick = () => executar(BASE + '/cancelar-troca', 'POST', {}, 'Exigência cancelada.');
+        if ($('btn-link')) $('btn-link').onclick = async () => {
+            $('btn-link').disabled = true;
+            await executar(BASE + '/enviar-link', 'POST', {}, 'Link enviado para ' + EMAIL + '.', false);
+            $('btn-link').disabled = false;
+        };
+        if ($('btn-bloquear')) $('btn-bloquear').onclick = async () => {
+            if (await confirmar({ titulo: 'Bloquear conta?', texto: `${NOME} perde o acesso agora e os bots dele são desligados. Você pode desbloquear depois.`, botao: 'Bloquear', perigo: true }))
+                executar(BASE + '/bloqueio', 'POST', { bloquear: true }, 'Conta bloqueada.');
+        };
+        if ($('btn-desbloquear')) $('btn-desbloquear').onclick = () => executar(BASE + '/bloqueio', 'POST', { bloquear: false }, 'Conta desbloqueada. Ligue os bots no painel quando quiser.');
+        if ($('btn-excluir')) $('btn-excluir').onclick = async () => {
+            if (await confirmar({ titulo: 'Excluir usuário?', texto: `Isso apaga ${NOME} e tudo o que é dele. Não dá para desfazer.`, botao: 'Excluir para sempre', perigo: true, pedir: 'Para confirmar, digite o e-mail: ' + EMAIL })) {
+                const ok = await executar(BASE, 'DELETE', null, 'Usuário excluído.', false);
+                if (ok) setTimeout(() => location.href = '/admin/usuarios', 700);
+            }
+        };
+    </script>
+</body>
+</html>
