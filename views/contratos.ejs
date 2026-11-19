@@ -99,7 +99,7 @@
                     <textarea id="conteudo-<%= c.id %>" style="display:none;"><%= c.conteudo %></textarea>
 
                     <div class="actions">
-                        <button class="btn btn-warning" onclick="abrirModalEditar('<%= c.id %>', '<%= c.nome %>', '<%= c.clienteId %>')">
+                        <button class="btn btn-warning" data-id="<%= c.id %>" data-nome="<%= c.nome %>" data-cliente="<%= c.clienteId %>" onclick="abrirModalEditar(this.dataset.id, this.dataset.nome, this.dataset.cliente)">
                             <i class="fas fa-pencil-alt"></i> Editar
                         </button>
                         

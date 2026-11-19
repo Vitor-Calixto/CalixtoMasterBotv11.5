@@ -69,7 +69,7 @@ async function processarContrato(prisma, templateId, dadosSessao, userNum) {
 
         // 4. Salvando o PDF finalizado
         const nomeFinal = `Contrato_${userNum.split('@')[0]}_${Date.now()}.pdf`;
-        const uploadsDir = path.resolve(__dirname, '..', 'public', 'uploads');
+        const uploadsDir = path.resolve(__dirname, '..', 'storage', 'contratos'); // fora da pasta pública: contém CPF e dados pessoais
         
         // Garante que a pasta uploads existe
         if (!fs.existsSync(uploadsDir)){

@@ -149,7 +149,7 @@ async function desligarBotsDe(usuarioId) {
             try { whatsapp.sessoes.get(b.id).end(undefined); } catch (e) {}
             whatsapp.sessoes.delete(b.id);
         }
-        if (io) io.emit('status', { clienteId: b.id, status: 'OFFLINE' });
+        if (io) io.to(['admins', `usuario:${b.donoId}`]).emit('status', { clienteId: b.id, status: 'OFFLINE' });
     }
     return bots.length;
 }
@@ -311,7 +311,11 @@ async function fazerCadastro(req, res) {
         if (await buscarPorEmail(emailNovo)) return erro('Já existe uma conta com esse e-mail. Entre ou use "Esqueci minha senha".');
 
         const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
-        const admin = ADMIN_EMAILS.includes(emailNovo);
+        let admin = ADMIN_EMAILS.includes(emailNovo);
+        if (admin && await prisma.usuario.count({ where: { role: 'ADMIN' } }) > 0) {
+            // Ninguém cria pelo cadastro público uma conta com e-mail de administrador já em uso
+            return erro('Não é possível criar uma conta com este e-mail.');
+        }
         await prisma.usuario.create({
             data: {
                 nome, email: emailNovo, senha: await bcrypt.hash(String(req.body.senha), 10),

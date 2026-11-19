@@ -25,6 +25,9 @@ const atendimento = require('./atendimento'); // Conversas ao vivo (dashboard)
 // Memória RAM Global: Guarda os Sockets ativos de todos os clientes
 const sessoes = new Map();
 
+// Avisos em tempo real só para o dono do bot e os administradores
+const salasDoBot = (cliente) => ['admins', `usuario:${cliente.donoId}`];
+
 // Trava Temporal: Impede que o bot responda mensagens antigas ao reiniciar
 const uptimeStart = Date.now();
 
@@ -129,7 +132,7 @@ async function iniciarWhatsApp(clienteDado, io) {
                     const code = await sock.requestPairingCode(phoneNumber);
                     const codeFormatado = code?.match(/.{1,4}/g)?.join('-') || code;
                     
-                    if (io) io.emit('pairingCode', { clienteId: cliente.id, code: codeFormatado });
+                    if (io) io.to(salasDoBot(cliente)).emit('pairingCode', { clienteId: cliente.id, code: codeFormatado });
                     console.log(`[PAREAMENTO] 🔑 Código gerado para ${cliente.nome}: ${codeFormatado}`);
                 } catch (erro) { 
                     console.error(`[PAREAMENTO] ❌ Erro ao gerar código:`, erro.message); 
@@ -154,7 +157,7 @@ async function iniciarWhatsApp(clienteDado, io) {
               if (isLoggedOut) {
                   console.log(`[${cliente.nome}] 🚫 Sessão deslogada pelo aparelho.`);
                   await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'OFFLINE' } });
-                  if(io) io.emit('status', { clienteId: cliente.id, status: 'OFFLINE' });
+                  if(io) io.to(salasDoBot(cliente)).emit('status', { clienteId: cliente.id, status: 'OFFLINE' });
                   try { fs.rmSync(pathAuth, { recursive: true, force: true }); } catch (e) {}
                   
                   // SÓ DELETA A SESSÃO AQUI, SE FOR DESLOGAR PRA VALER
@@ -167,7 +170,7 @@ async function iniciarWhatsApp(clienteDado, io) {
           } else if (connection === 'open') {
               sessoes.set(cliente.id, sock); 
               await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'ONLINE' } });
-              if(io) io.emit('status', { clienteId: cliente.id, status: 'ONLINE' });
+              if(io) io.to(salasDoBot(cliente)).emit('status', { clienteId: cliente.id, status: 'ONLINE' });
               console.log(`[${cliente.nome}] ✅ Conexão Estabelecida com sucesso!`);
           }
       });

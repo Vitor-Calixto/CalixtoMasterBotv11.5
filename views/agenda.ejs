@@ -371,7 +371,7 @@
     <!-- 💾 INJEÇÃO DE DADOS SEGURA -->
     <!-- ========================================== -->
     <script id="clientes-data" type="application/json">
-        <%- JSON.stringify(clientes) %>
+        <%- JSON.stringify(clientes).replace(/</g, '\\u003c') %>
     </script>
 
    

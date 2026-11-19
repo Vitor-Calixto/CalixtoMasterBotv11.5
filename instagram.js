@@ -10,9 +10,20 @@ const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
-const VERIFY_TOKEN = "calixto_v12_instagram_secreto"; 
-const IG_APP_ID = "3032517293610838"; 
-const IG_APP_SECRET = "9210e788004eb4730a10b15ff405b708"; 
+const crypto = require('crypto');
+
+// Token que a Meta usa para confirmar o webhook. Defina IG_VERIFY_TOKEN no .env
+// (o valor antigo continua aceito só até você trocar no painel da Meta).
+const VERIFY_TOKEN = process.env.IG_VERIFY_TOKEN || "calixto_v12_instagram_secreto";
+
+// Confere se o evento veio mesmo da Meta: ela assina o corpo com o App Secret do aplicativo.
+function assinaturaValida(req, appSecret) {
+    const assinatura = String(req.get('x-hub-signature-256') || '');
+    if (!appSecret || !req.rawBody || !assinatura.startsWith('sha256=')) return false;
+    const esperado = 'sha256=' + crypto.createHmac('sha256', appSecret).update(req.rawBody).digest('hex');
+    const a = Buffer.from(assinatura), b = Buffer.from(esperado);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 
 // ============================================================================
 // 🔫 2. FUNÇÕES UTILITÁRIAS
@@ -77,6 +88,12 @@ router.post('/webhook', async (req, res) => {
 
                             if (!clienteDb) {
                                 console.log(`⚠️ Nenhum bot no banco possui o Instagram ID: ${recipientId}`);
+                                continue;
+                            }
+
+                            // 🔒 Só aceita eventos assinados pela Meta com o App Secret deste bot
+                            if (!assinaturaValida(req, clienteDb.igAppSecret || process.env.IG_APP_SECRET)) {
+                                console.warn(`🚫 [INSTA] Evento sem assinatura válida da Meta para o bot ${clienteDb.nome}. Ignorado.`);
                                 continue;
                             }
 

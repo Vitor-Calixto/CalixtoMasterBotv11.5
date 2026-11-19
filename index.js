@@ -55,7 +55,10 @@ const PORT = process.env.PORT || 3000;
 // 4. MIDDLEWARES (O encanamento)
 // ============================================================================
 // 🚨 CRÍTICO: Sem essa linha, os Webhooks da Meta chegam vazios (undefined)
-app.use(express.json()); 
+app.use(express.json({
+    // Guarda o corpo original do webhook do Instagram para conferir a assinatura da Meta
+    verify: (req, res, buf) => { if (req.originalUrl.startsWith('/instagram/webhook')) req.rawBody = buf; }
+})); 
 app.use(bodyParser.urlencoded({ extended: true }));
 
 const rotasInstagram = require('./instagram'); // montado mais abaixo, depois da sessão
@@ -133,9 +136,24 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 // --- CONFIGURAÇÃO DE SESSÃO BLINDADA ---
+// Segredo que assina o cookie de login. Vem do .env (SESSION_SECRET); se não existir,
+// é gerado uma vez e guardado no arquivo .session_secret (fora do Git).
+function segredoDaSessao() {
+    if (process.env.SESSION_SECRET && process.env.SESSION_SECRET.length >= 32) return process.env.SESSION_SECRET;
+    const arquivo = path.join(__dirname, '.session_secret');
+    try {
+        const salvo = fs.readFileSync(arquivo, 'utf8').trim();
+        if (salvo.length >= 32) return salvo;
+    } catch (e) {}
+    const novo = require('crypto').randomBytes(48).toString('hex');
+    fs.writeFileSync(arquivo, novo, { mode: 0o600 });
+    console.log('[SEGURANÇA] 🔑 Novo segredo de sessão criado em .session_secret');
+    return novo;
+}
+
 // (guardado em uma variável para o Socket.IO reaproveitar o login nas conversas ao vivo)
 const sessionMiddleware = session({
-    secret: 'segredo_calixto_v19_contracts', 
+    secret: segredoDaSessao(), 
     resave: false,
     saveUninitialized: false,
     cookie: { 
@@ -206,13 +224,22 @@ function exigirDonoDoLembrete(pegarId) {
 async function isAuth(req, res, next) {
     return usuarios.isAuth(req, res, next);
 }
+const EXTENSOES_UPLOAD = {
+    'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp',
+    'audio/mpeg': '.mp3', 'audio/ogg': '.ogg', 'audio/mp4': '.m4a',
+    'application/pdf': '.pdf', 'video/mp4': '.mp4'
+};
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = path.join(__dirname, 'public/uploads');
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         cb(null, dir);
     },
-    filename: (req, file, cb) => cb(null, Date.now() + '-' + file.originalname.replace(/[^a-zA-Z0-9.]/g, "_"))
+    // A extensão vem do tipo verificado, nunca do nome enviado (impede .html/.js disfarçados de imagem)
+    filename: (req, file, cb) => {
+        const base = path.parse(file.originalname).name.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 60) || 'arquivo';
+        cb(null, `${Date.now()}-${require('crypto').randomBytes(6).toString('hex')}-${base}${EXTENSOES_UPLOAD[file.mimetype]}`);
+    }
 });
 
 
@@ -229,7 +256,7 @@ const upload = multer({
             'video/mp4'        // Agora o MP4 será aceito pelo Multer
         ];
 
-        if (allowedMimes.includes(file.mimetype)) {
+        if (allowedMimes.includes(file.mimetype) && EXTENSOES_UPLOAD[file.mimetype]) {
             cb(null, true);
         } else {
             // Mensagem de erro atualizada para incluir Vídeos
@@ -544,7 +571,7 @@ app.post('/api/status', isAuth, exigirDonoDoBot(req => req.body.clienteId), asyn
         
         // 2. Atualiza o status no banco
         await prisma.cliente.update({ where: { id: clienteId }, data: { status: status } });
-        io.emit('status', { clienteId, status });
+        io.to(['admins', `usuario:${cliente.donoId}`]).emit('status', { clienteId, status });
         
         // 3. Separação de Rotas (A Mágica Multi-canal)
         if (status === 'ONLINE') {
@@ -610,6 +637,13 @@ require('./modulos/fluxos')(app, { prisma, isAuth });
 
 // ================= CONVERSAS AO VIVO (acompanhar em tempo real e assumir a conversa) =================
 atendimento.init({ prisma, io, sessionMiddleware });
+// Avisos em tempo real (status do bot, código de pareamento) só chegam ao dono e aos admins
+io.on('connection', (socket) => {
+    const s = socket.request.session;
+    if (!s || !s.userId) return;
+    socket.join(`usuario:${s.userId}`);
+    if (s.role === 'ADMIN') socket.join('admins');
+});
 atendimento.registrarRotas(app, { isAuth: [isAuth, usuarios.exigirPermissao('conversas')], getSock: (clienteId) => whatsapp.sessoes.get(clienteId) });
 
 app.post('/upload', isAuth, upload.single('file'), (req, res) => {

@@ -35,7 +35,7 @@
                     <% contatos.forEach(c => { %>
                         <div style="padding: 8px; border-bottom: 1px solid #111; display: flex; justify-content: space-between; align-items: center;">
                             <span><strong><%= c.nome %></strong> (<%= c.numero %>)</span>
-                            <button onclick="addNumero('<%= c.numero %>')" style="background: var(--primary); border: none; color: #fff; padding: 3px 8px; border-radius: 4px; cursor: pointer;">+ Add</button>
+                            <button data-numero="<%= c.numero %>" onclick="addNumero(this.dataset.numero)" style="background: var(--primary); border: none; color: #fff; padding: 3px 8px; border-radius: 4px; cursor: pointer;">+ Add</button>
                         </div>
                     <% }) %>
                 <% } else { %> <p>Nenhum contato encontrado.</p> <% } %>

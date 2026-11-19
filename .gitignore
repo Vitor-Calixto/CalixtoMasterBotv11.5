@@ -39,3 +39,9 @@ Thumbs.db
 *.dat
 dump.rdb
 system_config.json
+
+# --- Segurança: nunca enviar ao GitHub ---
+.session_secret
+storage/
+public/uploads/*
+!public/uploads/.gitkeep

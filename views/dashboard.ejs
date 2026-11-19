@@ -235,7 +235,7 @@
                     <div class="card-header">
                         <div class="bot-name">
                             <%= c.nome %> 
-                            <i class="ri-pencil-fill edit-icon" onclick="editarBot('<%= c.id %>', '<%= c.nome %>', '<%= c.numero %>')"></i>
+                            <i class="ri-pencil-fill edit-icon" data-id="<%= c.id %>" data-nome="<%= c.nome %>" data-numero="<%= c.numero || '' %>" onclick="editarBot(this.dataset.id, this.dataset.nome, this.dataset.numero)"></i>
                         </div>
                         
                         <div class="header-controls">
