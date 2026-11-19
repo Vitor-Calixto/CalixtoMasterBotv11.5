@@ -27,6 +27,21 @@ const PERIODOS = [
     { id: 'vitalicio', dias: null, rotulo: 'Vitalício' }
 ];
 const DIA = 24 * 60 * 60 * 1000;
+
+// O que cada plano libera por padrão (o admin pode abrir exceções por usuário).
+// Mantém o comportamento anterior: limite de bots e contratos vêm do plano; o resto era liberado para todos.
+const PLANOS_PADRAO = {
+    ESSENTIAL: { maxBots: 2, contratos: false, conversas: true, disparo: true, agenda: true },
+    ADVANCED:  { maxBots: 3, contratos: false, conversas: true, disparo: true, agenda: true },
+    SIGNATURE: { maxBots: 10, contratos: true, conversas: true, disparo: true, agenda: true }
+};
+const PERMISSOES = [
+    { id: 'contratos', rotulo: 'Contratos em PDF', descricao: 'Criar modelos e enviar contratos pelo robô.' },
+    { id: 'conversas', rotulo: 'Conversas ao vivo', descricao: 'Acompanhar e assumir as conversas pelo painel.' },
+    { id: 'disparo', rotulo: 'Disparo em massa', descricao: 'Enviar mensagens para vários contatos de uma vez.' },
+    { id: 'agenda', rotulo: 'Agenda', descricao: 'Ver e gerenciar os agendamentos.' }
+];
+const LIMITE_BOTS_ADMIN = 999;
 const VALIDADE_LINK_RESET = 60 * 60 * 1000; // 1 hora
 
 let prisma = null, io = null, whatsapp = null;
@@ -74,6 +89,35 @@ function statusDe(u) {
     return { codigo: 'ativo', rotulo: 'Ativo', dias };
 }
 
+// Permissões efetivas: padrão do plano + exceções do usuário. Admin pode tudo.
+function permissoesDe(u) {
+    const base = PLANOS_PADRAO[u && u.plano] || PLANOS_PADRAO.ESSENTIAL;
+    if (ehAdmin(u)) {
+        const tudo = { maxBots: LIMITE_BOTS_ADMIN };
+        PERMISSOES.forEach(p => { tudo[p.id] = true; });
+        return tudo;
+    }
+    const exc = (u && u.permissoes && typeof u.permissoes === 'object') ? u.permissoes : {};
+    const efetivas = { ...base };
+    PERMISSOES.forEach(p => { if (typeof exc[p.id] === 'boolean') efetivas[p.id] = exc[p.id]; });
+    if (Number.isInteger(exc.maxBots) && exc.maxBots >= 0) efetivas.maxBots = exc.maxBots;
+    return efetivas;
+}
+
+// Bloqueia uma área se o usuário não tiver a permissão (usar depois do isAuth)
+function exigirPermissao(chave) {
+    return (req, res, next) => {
+        const u = req.session && req.session.usuario;
+        if (u && permissoesDe(u)[chave]) return next();
+        const item = PERMISSOES.find(p => p.id === chave);
+        const msg = `Seu plano não inclui ${item ? item.rotulo : 'este recurso'}. Fale com o suporte para liberar.`;
+        if (req.originalUrl.startsWith('/api/') || req.xhr || (req.get('accept') || '').includes('application/json')) {
+            return res.status(403).json({ success: false, error: msg });
+        }
+        return res.redirect('/dashboard?sem-permissao=' + encodeURIComponent(chave));
+    };
+}
+
 const vencido = (u) => !ehAdmin(u) && !!u.expiraEm && new Date(u.expiraEm) < new Date();
 const dataBR = (d) => new Date(d).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
 
@@ -82,6 +126,8 @@ function paraLista(u) {
         id: u.id, nome: u.nome, email: u.email, plano: u.plano, role: ehAdmin(u) ? 'ADMIN' : u.role,
         ativo: u.ativo, bloqueado: u.bloqueado, expiraEm: u.expiraEm, periodo: u.periodo || null,
         trocarSenha: !!u.trocarSenha, ultimoLogin: u.ultimoLogin || null, criadoEm: u.criadoEm,
+        excecoes: (u.permissoes && typeof u.permissoes === 'object') ? u.permissoes : {},
+        permissoes: permissoesDe(u),
         termsAccepted: u.termsAccepted, signupIp: u.signupIp || null,
         bots: (u.clientes || []).map(c => ({ id: c.id, nome: c.nome, status: c.status, plataforma: c.plataforma })),
         status: statusDe(u)
@@ -165,6 +211,7 @@ async function isAuth(req, res, next) {
     req.session.role = admin ? 'ADMIN' : user.role;
     res.locals.ehAdmin = admin;
     res.locals.assinatura = statusDe(user);
+    res.locals.permissoes = permissoesDe(user);
 
     if (user.trocarSenha && req.path !== '/trocar-senha') {
         if (req.path.startsWith('/api/')) return res.status(403).json({ success: false, error: 'Crie sua nova senha antes de continuar.' });
@@ -367,6 +414,7 @@ function registrarRotas(app) {
     });
 
     // ---------- páginas do administrador ----------
+    app.get('/admin', isAuth, soAdmin, (req, res) => res.redirect('/admin/usuarios'));
     app.get('/admin/usuarios', isAuth, soAdmin, async (req, res) => {
         const lista = await prisma.usuario.findMany({ orderBy: { criadoEm: 'desc' }, include: { clientes: { select: { id: true, nome: true, status: true, plataforma: true } } } });
         res.render('admin-usuarios', { usuarios: lista.map(paraLista), periodos: PERIODOS, planos: PLANOS_VALIDOS, emailConfigurado: email.emailConfigurado(), senhaProvisoria: SENHA_PROVISORIA });
@@ -375,7 +423,7 @@ function registrarRotas(app) {
     app.get('/admin/usuarios/:id', isAuth, soAdmin, async (req, res) => {
         const u = await prisma.usuario.findUnique({ where: { id: String(req.params.id) }, include: { clientes: { select: { id: true, nome: true, status: true, plataforma: true } } } });
         if (!u) return res.redirect('/admin/usuarios');
-        res.render('admin-usuario', { perfil: paraLista(u), euMesmo: u.id === req.session.userId, periodos: PERIODOS, planos: PLANOS_VALIDOS, emailConfigurado: email.emailConfigurado(), senhaProvisoria: SENHA_PROVISORIA });
+        res.render('admin-usuario', { perfil: paraLista(u), euMesmo: u.id === req.session.userId, periodos: PERIODOS, planos: PLANOS_VALIDOS, emailConfigurado: email.emailConfigurado(), senhaProvisoria: SENHA_PROVISORIA, listaPermissoes: PERMISSOES, planosPadrao: PLANOS_PADRAO });
     });
 
     app.get('/admin/configuracoes', isAuth, soAdmin, (req, res) => {
@@ -456,6 +504,25 @@ function registrarRotas(app) {
         const plano = PLANOS_VALIDOS.includes(req.body.plano) ? req.body.plano : u.plano;
         await prisma.usuario.update({ where: { id: u.id }, data: { nome, email: emailNovo, plano } });
         res.json({ success: true });
+    }));
+
+    // Exceções ao plano. Para cada item: true (liberar), false (bloquear) ou null (seguir o plano).
+    app.post(`${A}/:id/permissoes`, isAuth, soAdmin, seguro(async (req, res) => {
+        const u = await carregar(req, res); if (!u) return;
+        if (ehAdmin(u)) return res.status(400).json({ success: false, error: 'O administrador já tem acesso a tudo.' });
+        const b = req.body || {};
+        const exc = {};
+        for (const p of PERMISSOES) {
+            if (b[p.id] === true || b[p.id] === false) exc[p.id] = b[p.id];
+        }
+        if (b.maxBots !== null && b.maxBots !== undefined && b.maxBots !== '') {
+            const n = Number(b.maxBots);
+            if (!Number.isInteger(n) || n < 0 || n > 100) return res.status(400).json({ success: false, error: 'O limite de bots precisa ser um número de 0 a 100.' });
+            exc.maxBots = n;
+        }
+        const plano = PLANOS_VALIDOS.includes(b.plano) ? b.plano : u.plano;
+        await prisma.usuario.update({ where: { id: u.id }, data: { permissoes: Object.keys(exc).length ? exc : null, plano } });
+        res.json({ success: true, permissoes: permissoesDe({ ...u, plano, permissoes: exc }) });
     }));
 
     app.post(`${A}/:id/aprovar`, isAuth, soAdmin, seguro(async (req, res) => {
@@ -592,6 +659,7 @@ function init(deps) {
 
 module.exports = {
     init, registrarRotas, isAuth, soAdmin, ehAdmin, statusDe,
+    permissoesDe, exigirPermissao, PERMISSOES, PLANOS_PADRAO,
     telaLogin, fazerLogin, telaCadastro, fazerCadastro,
     desligarBotsVencidos, calcularValidade, validarSenha,
     SENHA_PROVISORIA, PERIODOS

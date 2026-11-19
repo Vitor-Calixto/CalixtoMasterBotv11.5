@@ -32,6 +32,7 @@ model Usuario {
   versaoSessao    Int       @default(0)     // muda quando a senha/acesso muda: derruba sessões antigas
   ultimoLogin     DateTime?
   periodo         String?                   // último período dado: 30, 60, 90, 120, 365 ou vitalicio
+  permissoes      Json?                     // exceções ao plano definidas pelo admin (ex.: { "contratos": true, "maxBots": 5 })
 
   clientes        Cliente[] 
   fluxosModelo    FluxoModelo[]

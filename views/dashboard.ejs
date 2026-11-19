@@ -184,21 +184,25 @@
         </div>
     
         <div style="display: flex; gap: 15px; align-items: center;">
+            <% if ((typeof permissoes === 'undefined' || permissoes.agenda)) { %>
             <a href="/dashboard/agenda" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
                 <i class="ri-calendar-todo-line"></i> Minha agenda
             </a>
+            <% } %>
     
+            <% if ((typeof permissoes === 'undefined' || permissoes.contratos)) { %>
             <a href="/dashboard/contratos" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
                 <i class="ri-file-text-line"></i> Meus Contratos
             </a>
+            <% } %>
 
             <a href="/dashboard/fluxos" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
                 <i class="ri-flow-chart"></i> Meus Fluxos
             </a>
     
             <% if (locals.ehAdmin) { %>
-            <a href="/admin/usuarios" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
-                <i class="ri-team-line"></i> Usuários
+            <a href="/admin/usuarios" class="admin-link" style="font-size: 13px;">
+                <i class="ri-shield-user-line"></i> Administração
             </a>
             <% } %>
             <a href="/trocar-senha" title="Alterar minha senha" aria-label="Alterar minha senha" style="text-decoration: none; color: #ccc; font-size: 16px; display: flex; align-items: center; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
@@ -210,6 +214,13 @@
         </div>
     </div>
 
+    <div class="aviso-assinatura" id="aviso-permissao" role="status" hidden><i class="ri-lock-line"></i><span>Seu plano não inclui este recurso. Fale com o suporte para liberar.</span></div>
+    <script>
+        if (new URLSearchParams(location.search).has('sem-permissao')) {
+            document.getElementById('aviso-permissao').hidden = false;
+            history.replaceState(null, '', location.pathname);
+        }
+    </script>
     <% const ass = locals.assinatura; %>
     <% if (ass && ass.codigo === 'vencendo') { %>
         <div class="aviso-assinatura" role="status"><i class="ri-time-line"></i>
@@ -277,7 +288,7 @@
                         <div id="help-text-<%= c.id %>" class="help-text">WhatsApp > Aparelhos > Conectar</div>
                     <% } %>
     
-                    <% if (c.plataforma !== 'INSTAGRAM') { %>
+                    <% if (c.plataforma !== 'INSTAGRAM' && (typeof permissoes === 'undefined' || permissoes.conversas)) { %>
                     <button class="btn-conversas" onclick="window.location.href='/dashboard/conversas/<%= c.id %>'">
                         <span class="dot-vivo"></span> <i class="ri-chat-3-line"></i> Conversas ao vivo
                     </button>
@@ -285,9 +296,11 @@
 
                     <!-- Ações do Card -->
                     <div class="card-actions" style="margin-top: 15px;">
+                        <% if ((typeof permissoes === 'undefined' || permissoes.disparo)) { %>
                         <button class="btn-disparo" onclick="window.location.href='/disparo/<%= c.id %>'">
                             <i class="ri-megaphone-line"></i> Disparo
                         </button>
+                        <% } %>
                         <button class="btn-fluxo" onclick="window.location.href='/editor/<%= c.id %>'">
                             <i class="ri-settings-4-line"></i> Editar Fluxo
                         </button>

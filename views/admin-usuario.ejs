@@ -33,6 +33,15 @@
         .dados-lista dt { color: var(--tinta-3); }
         .dados-lista dd { color: var(--tinta); overflow-wrap: anywhere; }
         .perigo-zona { border-color: #f4c7c3; }
+        .perm { display: grid; grid-template-columns: 1fr 190px; gap: 14px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--linha-2); }
+        .perm:last-of-type { border-bottom: 0; }
+        .perm strong { display: block; font-size: 15px; }
+        .perm span { color: var(--tinta-3); font-size: 13.5px; }
+        .perm select, .perm input { padding: 9px 10px; }
+        .perm .efetivo { display: inline-block; margin-top: 3px; font-size: 12.5px; font-weight: 600; }
+        .perm .efetivo.sim { color: var(--floresta); }
+        .perm .efetivo.nao { color: var(--erro); }
+        @media (max-width: 560px) { .perm { grid-template-columns: 1fr; gap: 8px; } }
         .aviso-faixa { border-radius: 12px; padding: 12px 14px; font-size: 14.5px; display: flex; gap: 10px; align-items: flex-start; margin-bottom: 18px; }
         .aviso-faixa.info { background: var(--info-fundo); color: var(--info); }
         .aviso-faixa.alerta { background: var(--alerta-fundo); color: var(--alerta); }
@@ -94,6 +103,37 @@
                 </section>
                 <% } %>
 
+
+                <% if (!admin) { const padrao = planosPadrao[u.plano] || planosPadrao.ESSENTIAL; %>
+                <!-- PERMISSÕES -->
+                <section class="cartao" aria-labelledby="t-permissoes">
+                    <h2 id="t-permissoes">Permissões</h2>
+                    <p class="sub">Por padrão seguem o plano <b><%= u.plano %></b>. Libere ou bloqueie algo só para esta pessoa.</p>
+                    <form id="form-permissoes">
+                        <div class="perm">
+                            <div><strong>Plano</strong><span>Define o padrão de tudo abaixo.</span></div>
+                            <select id="perm-plano" aria-label="Plano"><% planos.forEach(p => { %><option value="<%= p %>" <%= p === u.plano ? 'selected' : '' %>><%= p %></option><% }) %></select>
+                        </div>
+                        <div class="perm">
+                            <div><strong><label for="perm-maxBots">Limite de bots</label></strong><span>Quantos robôs a pessoa pode criar. Hoje: <b><%= u.permissoes.maxBots %></b> (usando <%= u.bots.length %>).</span></div>
+                            <input type="number" id="perm-maxBots" min="0" max="100" value="<%= Number.isInteger(u.excecoes.maxBots) ? u.excecoes.maxBots : '' %>" placeholder="Do plano: <%= padrao.maxBots %>">
+                        </div>
+                        <% listaPermissoes.forEach(p => { const exc = u.excecoes[p.id]; const ef = u.permissoes[p.id]; %>
+                        <div class="perm">
+                            <div><strong><label for="perm-<%= p.id %>"><%= p.rotulo %></label></strong><span><%= p.descricao %></span><br>
+                                <span class="efetivo <%= ef ? 'sim' : 'nao' %>"><%= ef ? 'Liberado agora' : 'Bloqueado agora' %></span></div>
+                            <select id="perm-<%= p.id %>" data-perm="<%= p.id %>">
+                                <option value="" <%= typeof exc !== 'boolean' ? 'selected' : '' %>>Do plano: <%= padrao[p.id] ? 'sim' : 'não' %></option>
+                                <option value="true" <%= exc === true ? 'selected' : '' %>>Liberar</option>
+                                <option value="false" <%= exc === false ? 'selected' : '' %>>Bloquear</option>
+                            </select>
+                        </div>
+                        <% }) %>
+                        <div class="linha-form"><button class="btn primario" type="submit">Salvar permissões</button></div>
+                    </form>
+                </section>
+                <% } %>
+
                 <!-- SENHA -->
                 <section class="cartao" aria-labelledby="t-senha">
                     <h2 id="t-senha">Senha</h2>
@@ -150,8 +190,6 @@
                     <form id="form-dados" class="pilha" style="margin-top:14px">
                         <div class="campo"><label for="d-nome">Nome</label><input type="text" id="d-nome" value="<%= u.nome %>" required maxlength="100"></div>
                         <div class="campo"><label for="d-email">E-mail</label><input type="email" id="d-email" value="<%= u.email %>" required <%= admin ? 'readonly' : '' %>></div>
-                        <div class="campo"><label for="d-plano">Plano</label>
-                            <select id="d-plano"><% planos.forEach(p => { %><option value="<%= p %>" <%= p === u.plano ? 'selected' : '' %>><%= p %></option><% }) %></select></div>
                         <div><button class="btn" type="submit">Salvar dados</button></div>
                     </form>
                     <dl class="dados-lista">
@@ -249,7 +287,15 @@
 
         $('form-dados').addEventListener('submit', (e) => {
             e.preventDefault();
-            executar(BASE, 'PUT', { nome: $('d-nome').value, email: $('d-email').value, plano: $('d-plano').value }, 'Dados salvos.');
+            executar(BASE, 'PUT', { nome: $('d-nome').value, email: $('d-email').value }, 'Dados salvos.');
+        });
+
+        const fPerm = $('form-permissoes');
+        if (fPerm) fPerm.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const corpo = { plano: $('perm-plano').value, maxBots: $('perm-maxBots').value === '' ? null : Number($('perm-maxBots').value) };
+            document.querySelectorAll('[data-perm]').forEach(sel => { corpo[sel.dataset.perm] = sel.value === '' ? null : sel.value === 'true'; });
+            executar(BASE + '/permissoes', 'POST', corpo, 'Permissões salvas.');
         });
 
         $('form-senha').addEventListener('submit', async (e) => {

@@ -242,7 +242,7 @@ app.get('/dashboard', isAuth, async (req, res) => {
         }
         const sysConfig = getSystemConfig();
         const userFresh = await prisma.usuario.findUnique({ where: { id: req.session.userId } });
-        const permissoes = PLANOS[userFresh.plano]?.permissoes || PLANOS['ESSENTIAL'].permissoes;
+        const permissoes = usuarios.permissoesDe(userFresh);
         res.render('dashboard', { 
             clientes: clientes.map(c => ({ ...c, status: c.status || 'OFFLINE' })), 
             usuario: userFresh, permissoes, systemMaintenance: sysConfig.maintenance 
@@ -282,10 +282,10 @@ app.get('/api/clientes/:id/contratos', isAuth, async (req, res) => {
 app.get('/dashboard/contratos', isAuth, async (req, res) => {
     try {
         const user = await prisma.usuario.findUnique({ where: { id: req.session.userId }, include: { clientes: true } });
-        const permissoes = PLANOS[user.plano]?.permissoes || PLANOS['ESSENTIAL'].permissoes;
+        const permissoes = usuarios.permissoesDe(user);
 
-        // Se o plano não permite contratos, chuta de volta
-        if (!permissoes.contratos && user.role !== 'ADMIN') {
+        // Se o plano (ou o admin) não libera contratos, volta para o painel
+        if (!permissoes.contratos) {
             return res.redirect('/dashboard');
         }
 
@@ -304,7 +304,7 @@ app.get('/dashboard/contratos', isAuth, async (req, res) => {
 });
 
 // 3. Rota para CRIAR um novo contrato (POST)
-app.post('/api/contratos', isAuth, async (req, res) => {
+app.post('/api/contratos', isAuth, usuarios.exigirPermissao('contratos'), async (req, res) => {
     try {
         const { nome, conteudo, clienteId } = req.body;
         
@@ -326,7 +326,7 @@ app.post('/api/contratos', isAuth, async (req, res) => {
 });
 
 // 4. Rota para ATUALIZAR um contrato (PUT) - *** ADICIONADO AQUI ***
-app.put('/api/contratos/:id', isAuth, async (req, res) => {
+app.put('/api/contratos/:id', isAuth, usuarios.exigirPermissao('contratos'), async (req, res) => {
     try {
         const { id } = req.params;
         const { nome, conteudo, clienteId } = req.body;
@@ -354,7 +354,7 @@ app.put('/api/contratos/:id', isAuth, async (req, res) => {
 });
 
 // 5. Rota para DELETAR um contrato
-app.delete('/api/contratos/:id', isAuth, async (req, res) => {
+app.delete('/api/contratos/:id', isAuth, usuarios.exigirPermissao('contratos'), async (req, res) => {
     try {
         const contrato = await prisma.contratoTemplate.findUnique({ 
             where: { id: req.params.id },
@@ -406,10 +406,10 @@ app.post('/api/clientes', isAuth, async (req, res) => {
             where: { id: req.session.userId }, 
             include: { clientes: true } 
         });
-        const regras = PLANOS[user.plano] || PLANOS['ESSENTIAL'];
+        const regras = usuarios.permissoesDe(user);
         
-        if (user.role !== 'ADMIN' && user.clientes.length >= regras.maxBots) {
-            return res.status(403).json({ error: 'Limite de bots atingido.' });
+        if (!usuarios.ehAdmin(user) && user.clientes.length >= regras.maxBots) {
+            return res.status(403).json({ error: `Limite de bots atingido (${regras.maxBots}). Fale com o suporte para aumentar.` });
         }
 
         // Pega os dados que o seu novo frontend lindo está enviando
@@ -572,7 +572,7 @@ require('./modulos/fluxos')(app, { prisma, isAuth });
 
 // ================= CONVERSAS AO VIVO (acompanhar em tempo real e assumir a conversa) =================
 atendimento.init({ prisma, io, sessionMiddleware });
-atendimento.registrarRotas(app, { isAuth, getSock: (clienteId) => whatsapp.sessoes.get(clienteId) });
+atendimento.registrarRotas(app, { isAuth: [isAuth, usuarios.exigirPermissao('conversas')], getSock: (clienteId) => whatsapp.sessoes.get(clienteId) });
 
 app.post('/upload', isAuth, upload.single('file'), (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'Sem arquivo' });
@@ -651,7 +651,7 @@ app.get('/privacidade', (req, res) => res.render('privacidade', { usuario: req.s
 
 
 // 📄 1. ROTA PARA ABRIR A TELA DE DISPARO
-app.get('/broadcast', isAuth, async (req, res) => {
+app.get('/broadcast', isAuth, usuarios.exigirPermissao('disparo'), async (req, res) => {
     const idDoRobo = req.query.id; 
     
     if (!idDoRobo) return res.redirect('/dashboard');
@@ -681,7 +681,7 @@ app.get('/broadcast', isAuth, async (req, res) => {
 }); 
 
 // 🚀 2. ROTA PARA EXECUTAR O DISPARO
-app.post('/api/broadcast', isAuth, async (req, res) => {
+app.post('/api/broadcast', isAuth, usuarios.exigirPermissao('disparo'), async (req, res) => {
     const { contatos, mensagem, clienteId } = req.body; 
 
     console.log(`[BROADCAST] 🛰️ Tentando disparo para o robô: ${clienteId}`);
@@ -704,7 +704,7 @@ app.post('/api/broadcast', isAuth, async (req, res) => {
 });
 
 // --- ROTA DE DISPARO CORRIGIDA ---
-app.get('/disparo/:id', isAuth, async (req, res) => {
+app.get('/disparo/:id', isAuth, usuarios.exigirPermissao('disparo'), async (req, res) => {
     try {
         const clienteId = req.params.id;
         
@@ -761,7 +761,7 @@ async function religarRobosAtivos() {
 // ==========================================
 
 // 1. Rota para abrir a página (Carrega robôs e configurações)
-app.get('/dashboard/agenda', isAuth, async (req, res) => {
+app.get('/dashboard/agenda', isAuth, usuarios.exigirPermissao('agenda'), async (req, res) => {
     try {
         // Esta linha é o "soro" que cura o erro 'clientes is not defined'
         const meusRobos = await prisma.cliente.findMany({ 
