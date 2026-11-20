@@ -435,9 +435,21 @@ function registrarRotas(app) {
         res.render('admin-config', {
             config: { host: c.host, porta: c.porta, seguro: c.seguro, usuario: c.usuario, temSenha: !!c.senha, nomeRemetente: c.nomeRemetente, emailRemetente: c.emailRemetente },
             siteUrl: email.lerConfig().siteUrl || `${req.protocol}://${req.get('host')}`,
-            adminEmail: req.session.usuario.email
+            adminEmail: req.session.usuario.email,
+            instagram: dadosInstagram(req)
         });
     });
+
+    // App da Meta da plataforma (Instagram em um clique para todos os clientes)
+    function dadosInstagram(req) {
+        const ig = email.lerConfig().instagram || {};
+        const base = String(process.env.BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+        return {
+            appId: ig.appId || '', temSecret: !!ig.appSecret, verifyToken: ig.verifyToken || '',
+            webhookUrl: `${base}/instagram/webhook`, callbackUrl: `${base}/instagram/auth/callback`,
+            configurado: !!(ig.appId && ig.appSecret)
+        };
+    }
 
     // ---------- API do administrador ----------
     const A = '/api/admin/contas';
@@ -645,6 +657,21 @@ function registrarRotas(app) {
             siteUrl
         });
         res.json({ success: true });
+    }));
+
+    // ---------- configuração do app da Meta (Instagram) ----------
+    app.post('/api/admin/config-instagram', isAuth, soAdmin, seguro(async (req, res) => {
+        const b = req.body || {};
+        const atual = email.lerConfig().instagram || {};
+        const appId = String(b.appId || '').trim();
+        if (!/^\d{6,25}$/.test(appId)) return res.status(400).json({ success: false, error: 'O App ID tem só números (veja em Configurações > Básico no app da Meta).' });
+        const segredoNovo = typeof b.appSecret === 'string' ? b.appSecret.trim() : '';
+        if (segredoNovo && !/^[a-f0-9]{32}$/i.test(segredoNovo)) return res.status(400).json({ success: false, error: 'O App Secret tem 32 letras e números. Copie de novo do painel da Meta.' });
+        const appSecret = segredoNovo || atual.appSecret;
+        if (!appSecret) return res.status(400).json({ success: false, error: 'Cole o App Secret do aplicativo.' });
+        const verifyToken = (b.novoToken || !atual.verifyToken) ? crypto.randomBytes(24).toString('hex') : atual.verifyToken;
+        email.salvarConfig({ instagram: { appId, appSecret, verifyToken } });
+        res.json({ success: true, verifyToken, tokenNovo: verifyToken !== atual.verifyToken });
     }));
 
     app.post('/api/admin/config-email/teste', isAuth, soAdmin, seguro(async (req, res) => {

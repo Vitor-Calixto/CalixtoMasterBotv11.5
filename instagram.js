@@ -12,9 +12,28 @@ const prisma = new PrismaClient();
 
 const crypto = require('crypto');
 
-// Token que a Meta usa para confirmar o webhook. Defina IG_VERIFY_TOKEN no .env
-// (o valor antigo continua aceito só até você trocar no painel da Meta).
-const VERIFY_TOKEN = process.env.IG_VERIFY_TOKEN || "calixto_v12_instagram_secreto";
+const { lerConfig } = require('./modulos/email'); // lê system_config.json
+
+const GRAPH = 'https://graph.facebook.com/v20.0';
+const ESCOPOS = 'instagram_basic,instagram_manage_messages,pages_show_list,pages_read_engagement,pages_manage_metadata,business_management';
+
+// App da Meta da PLATAFORMA (um só para todos os clientes), configurado pelo admin
+// em Administração > Configurações. O .env (IG_APP_ID / IG_APP_SECRET) também vale.
+function appDaPlataforma() {
+    const c = lerConfig().instagram || {};
+    const appId = String(c.appId || process.env.IG_APP_ID || '').trim();
+    const appSecret = String(c.appSecret || process.env.IG_APP_SECRET || '').trim();
+    return { appId, appSecret, configurado: !!(appId && appSecret) };
+}
+
+// Token que a Meta usa para confirmar o webhook (gerado no painel do admin).
+// O valor antigo só é aceito enquanto nenhum outro for definido.
+function tokenVerificacao() {
+    return String((lerConfig().instagram || {}).verifyToken || process.env.IG_VERIFY_TOKEN || 'calixto_v12_instagram_secreto');
+}
+
+const urlBase = (req) => (process.env.BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
+const urlCallback = (req) => `${urlBase(req)}/instagram/auth/callback`;
 
 // Confere se o evento veio mesmo da Meta: ela assina o corpo com o App Secret do aplicativo.
 function assinaturaValida(req, appSecret) {
@@ -58,7 +77,7 @@ router.get('/webhook', (req, res) => {
     let token = req.query['hub.verify_token'];
     let challenge = req.query['hub.challenge'];
     
-    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    if (mode === 'subscribe' && token === tokenVerificacao()) {
         res.status(200).send(challenge);
     } else {
         res.sendStatus(403);
@@ -92,7 +111,7 @@ router.post('/webhook', async (req, res) => {
                             }
 
                             // 🔒 Só aceita eventos assinados pela Meta com o App Secret deste bot
-                            if (!assinaturaValida(req, clienteDb.igAppSecret || process.env.IG_APP_SECRET)) {
+                            if (!assinaturaValida(req, clienteDb.igAppSecret || appDaPlataforma().appSecret)) {
                                 console.warn(`🚫 [INSTA] Evento sem assinatura válida da Meta para o bot ${clienteDb.nome}. Ignorado.`);
                                 continue;
                             }
@@ -129,99 +148,161 @@ router.post('/webhook', async (req, res) => {
 // 4. MÓDULO DE AUTENTICAÇÃO OAUTH
 // ============================================================================
 
-router.get('/setup', (req, res) => {
-    const clienteId = req.query.clienteId;
+// ============================================================================
+// 4. CONEXÃO DA CONTA (OAuth)
+//    - Com o app da plataforma configurado: o cliente só clica em "Conectar".
+//    - Sem ele: modo antigo, em que o cliente informa o App ID/Secret do próprio app.
+//    /setup e /auth/login exigem login e dono do bot (middlewares no index.js).
+// ============================================================================
+
+function paginaAviso(res, titulo, texto, status = 200) {
+    return res.status(status).render('instagram-conectar', { modo: 'aviso', titulo, texto, contas: [], cliente: null });
+}
+
+// Inicia o login na Meta guardando, na sessão, para qual bot é a conexão
+function iniciarOAuth(req, res, clienteId, appId, plataforma) {
+    const state = crypto.randomBytes(24).toString('hex');
+    req.session.igOauth = { state, clienteId: String(clienteId), plataforma, criadoEm: Date.now() };
+    const url = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${encodeURIComponent(appId)}` +
+        `&redirect_uri=${encodeURIComponent(urlCallback(req))}&scope=${ESCOPOS}&response_type=code&state=${state}`;
+    req.session.save(() => res.redirect(url));
+}
+
+router.get('/setup', async (req, res) => {
+    const clienteId = String(req.query.clienteId || '');
     if (!clienteId) return res.redirect('/dashboard');
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-    const callbackUrl = `${baseUrl}/instagram/auth/callback`;
-    res.render('instasetup', { clienteId, callbackUrl, webhookUrl: `${baseUrl}/instagram/webhook`, verifyToken: VERIFY_TOKEN });
+    const app = appDaPlataforma();
+    if (app.configurado) {
+        const cliente = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { id: true, nome: true, instagramUser: true, status: true } });
+        if (!cliente) return res.redirect('/dashboard');
+        return res.render('instagram-conectar', { modo: 'inicio', cliente, contas: [], titulo: null, texto: null });
+    }
+    // Modo antigo: tutorial para o cliente criar o próprio app
+    res.render('instasetup', { clienteId, callbackUrl: urlCallback(req), webhookUrl: `${urlBase(req)}/instagram/webhook`, verifyToken: tokenVerificacao() });
 });
 
+// Conectar com o app da plataforma (um clique)
+router.post('/conectar', (req, res) => {
+    const app = appDaPlataforma();
+    if (!app.configurado) return res.redirect('/instagram/setup?clienteId=' + encodeURIComponent(req.body.clienteId || ''));
+    return iniciarOAuth(req, res, req.body.clienteId, app.appId, true);
+});
+
+// Modo antigo: o cliente informa o próprio App ID/Secret
 router.post('/auth/login', async (req, res) => {
-    const { clienteId, appId, appSecret } = req.body;
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-    const callbackUrl = `${baseUrl}/instagram/auth/callback`;
-
+    const { clienteId } = req.body;
+    const appId = String(req.body.appId || '').trim();
+    const appSecret = String(req.body.appSecret || '').trim();
+    if (!appId || !appSecret) return paginaAviso(res, 'Faltam dados', 'Informe o App ID e o App Secret do seu aplicativo da Meta.', 400);
     try {
-        await prisma.cliente.update({
-            where: { id: clienteId },
-            data: { igAppId: appId.trim(), igAppSecret: appSecret.trim() }
-        });
-
-        const scopes = "instagram_basic,instagram_manage_messages,pages_show_list,pages_read_engagement,pages_manage_metadata,business_management";
-        const urlLogin = `https://www.facebook.com/v20.0/dialog/oauth?client_id=${appId.trim()}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=${scopes}&response_type=code&state=${clienteId}`;
-        res.redirect(urlLogin);
+        await prisma.cliente.update({ where: { id: String(clienteId) }, data: { igAppId: appId, igAppSecret: appSecret } });
+        return iniciarOAuth(req, res, clienteId, appId, false);
     } catch (e) {
-        res.status(500).send("Erro ao configurar App.");
+        console.error('[OAUTH] Falha ao salvar credenciais:', e.message);
+        return paginaAviso(res, 'Não foi possível continuar', 'Tente de novo em instantes.', 500);
     }
 });
 
-router.all('/auth/callback', async (req, res) => {
-    const code = req.query.code;
-    const clienteId = req.query.state; 
-    if (!code) return res.status(400).send("Código não recebido.");
+// Grava a conta escolhida no bot e inscreve a página para receber mensagens
+async function concluirConexao(clienteId, conta, plataforma) {
+    try {
+        await axios.post(`${GRAPH}/${conta.paginaId}/subscribed_apps`, null, {
+            params: { subscribed_fields: 'messages,messaging_postbacks', access_token: conta.token }
+        });
+        console.log(`[OAUTH] ✅ Página ${conta.paginaNome} inscrita para receber mensagens.`);
+    } catch (e) {
+        console.error('[OAUTH] ⚠️ Não foi possível inscrever a página no webhook:', e.response?.data || e.message);
+    }
+    // Uma conta do Instagram só pode estar em um bot
+    await prisma.cliente.updateMany({
+        where: { instagramId: String(conta.igId), NOT: { id: clienteId } },
+        data: { instagramId: null, instagramToken: null, instagramUser: null, status: 'OFFLINE' }
+    });
+    await prisma.cliente.update({
+        where: { id: clienteId },
+        data: {
+            instagramId: String(conta.igId), instagramUser: conta.usuario, instagramToken: conta.token, status: 'ONLINE',
+            ...(plataforma ? { igAppId: null, igAppSecret: null } : {}) // no modo plataforma, vale o segredo do app da plataforma
+        }
+    });
+}
 
-    const baseUrl = process.env.BASE_URL || `${req.protocol}://${req.get('host')}`;
-    const callbackUrl = `${baseUrl}/instagram/auth/callback`;
+router.get('/auth/callback', async (req, res) => {
+    const pendente = req.session && req.session.igOauth;
+    if (req.query.error) {
+        delete req.session.igOauth;
+        return paginaAviso(res, 'Conexão cancelada', 'Você não autorizou o acesso ao Instagram. Pode tentar de novo quando quiser.');
+    }
+    // Confere que a volta da Meta é desta mesma sessão (impede conexões forjadas)
+    if (!pendente || !req.query.state || req.query.state !== pendente.state || Date.now() - pendente.criadoEm > 15 * 60 * 1000) {
+        return paginaAviso(res, 'Link de conexão inválido ou expirado', 'Volte ao painel e clique em "Conectar Instagram" de novo.', 400);
+    }
+    if (!req.session.userId) return res.redirect('/login');
+    const { clienteId, plataforma } = pendente;
+    delete req.session.igOauth;
 
     try {
         const clienteDb = await prisma.cliente.findUnique({ where: { id: clienteId } });
-        const tokenUrl = `https://graph.facebook.com/v20.0/oauth/access_token?client_id=${clienteDb.igAppId}&redirect_uri=${encodeURIComponent(callbackUrl)}&client_secret=${clienteDb.igAppSecret}&code=${code}`;
-        
-        const response = await axios.get(tokenUrl);
-        const userAccessToken = response.data.access_token;
-
-        const resMeta = await axios.get(`https://graph.facebook.com/v20.0/me/accounts?fields=name,access_token,instagram_business_account{id,username}&access_token=${userAccessToken}`);
-        
-        console.log("==================================================");
-        console.log("🔍 [RAIO-X META] Lista de Páginas retornadas:");
-        console.log(JSON.stringify(resMeta.data.data, null, 2));
-        console.log("==================================================");
-
-        const igAccount = resMeta.data.data.find(acc => acc.instagram_business_account);
-
-        if (!igAccount) throw new Error("A página veio, mas sem o Instagram. Veja o terminal!");
-
-        const instagramUser = igAccount.instagram_business_account.username;
-        const instagramBusinessId = igAccount.instagram_business_account.id; 
-        const pageAccessToken = igAccount.access_token; 
-
-        // Inscreve a página no webhook do app para as mensagens do Direct chegarem até aqui
-        try {
-            await axios.post(`https://graph.facebook.com/v20.0/${igAccount.id}/subscribed_apps`, null, {
-                params: { subscribed_fields: 'messages,messaging_postbacks', access_token: pageAccessToken }
-            });
-            console.log(`[OAUTH] ✅ Página ${igAccount.name || igAccount.id} inscrita para receber mensagens.`);
-        } catch (e) {
-            console.error('[OAUTH] ⚠️ Não foi possível inscrever a página no webhook:', e.response?.data || e.message);
+        if (!clienteDb || (clienteDb.donoId !== req.session.userId && req.session.role !== 'ADMIN')) {
+            return paginaAviso(res, 'Acesso negado', 'Este bot não pertence à sua conta.', 403);
         }
+        const app = plataforma ? appDaPlataforma() : { appId: clienteDb.igAppId, appSecret: clienteDb.igAppSecret };
+        if (!app.appId || !app.appSecret) return paginaAviso(res, 'Aplicativo não configurado', 'Fale com o suporte.', 500);
 
-        // CORREÇÃO 3: Remove o Instagram de qualquer outro bot antes de atribuir ao novo
-        await prisma.cliente.updateMany({
-            where: { instagramId: String(instagramBusinessId) },
-            data: { instagramId: null, instagramToken: null, status: 'OFFLINE' }
-        });
+        // 1) código -> token curto
+        const curto = await axios.get(`${GRAPH}/oauth/access_token`, { params: {
+            client_id: app.appId, client_secret: app.appSecret, redirect_uri: urlCallback(req), code: req.query.code } });
+        // 2) token curto -> token de longa duração (sem isso, o robô para de responder em ~1 hora)
+        const longo = await axios.get(`${GRAPH}/oauth/access_token`, { params: {
+            grant_type: 'fb_exchange_token', client_id: app.appId, client_secret: app.appSecret, fb_exchange_token: curto.data.access_token } });
+        // 3) páginas com Instagram profissional (os tokens de página derivados de um token longo não expiram)
+        const paginas = await axios.get(`${GRAPH}/me/accounts`, { params: {
+            fields: 'id,name,access_token,instagram_business_account{id,username}', access_token: longo.data.access_token, limit: 100 } });
 
-        await prisma.cliente.update({
-            where: { id: clienteId },
-            data: {
-                instagramId: String(instagramBusinessId), 
-                instagramUser: instagramUser,
-                instagramToken: pageAccessToken,
-                status: 'ONLINE' 
-            }
-        });
-        
-        res.send(`<script>alert('Conectado!'); window.location.href='/dashboard';</script>`);
+        const contas = (paginas.data.data || []).filter(p => p.instagram_business_account).map(p => ({
+            paginaId: p.id, paginaNome: p.name, token: p.access_token,
+            igId: p.instagram_business_account.id, usuario: p.instagram_business_account.username
+        }));
+
+        if (contas.length === 0) {
+            return paginaAviso(res, 'Nenhum Instagram encontrado',
+                'Não encontramos uma conta do Instagram profissional ligada a uma Página do Facebook que você administra. No app do Instagram, mude a conta para Profissional e ligue-a a uma Página; depois tente de novo.');
+        }
+        if (contas.length === 1) {
+            await concluirConexao(clienteId, contas[0], plataforma);
+            return res.render('instagram-conectar', { modo: 'sucesso', cliente: { nome: clienteDb.nome, instagramUser: contas[0].usuario }, contas: [], titulo: null, texto: null });
+        }
+        // Mais de uma conta: a pessoa escolhe qual usar
+        req.session.igEscolha = { clienteId, plataforma, contas, criadoEm: Date.now() };
+        return req.session.save(() => res.render('instagram-conectar', {
+            modo: 'escolher', cliente: { nome: clienteDb.nome }, titulo: null, texto: null,
+            contas: contas.map((c, i) => ({ indice: i, usuario: c.usuario, pagina: c.paginaNome }))
+        }));
     } catch (error) {
-        const erroMeta = error.response?.data || error.message;
-        console.error("❌ [OAUTH] Falha na conexão (Callback):", erroMeta);
-        res.status(500).send(`
-            <h2>Ops! Erro ao conectar com a Meta:</h2>
-            <pre style="background:#f4f4f4; padding:15px; border-radius:8px; color:red;">${JSON.stringify(erroMeta, null, 2)}</pre>
-            <button onclick="window.location.href='/dashboard'">Voltar ao Dashboard</button>
-        `);
+        console.error('❌ [OAUTH] Falha na conexão:', error.response?.data || error.message);
+        return paginaAviso(res, 'Não foi possível conectar', 'A Meta recusou a conexão. Tente de novo; se continuar, fale com o suporte.', 502);
     }
 });
 
-module.exports = { router, enviarRespostaInstagram };
+router.post('/auth/escolher', async (req, res) => {
+    const pendente = req.session && req.session.igEscolha;
+    if (!req.session.userId || !pendente || Date.now() - pendente.criadoEm > 15 * 60 * 1000) {
+        return paginaAviso(res, 'Escolha expirada', 'Volte ao painel e clique em "Conectar Instagram" de novo.', 400);
+    }
+    const conta = pendente.contas[Number(req.body.indice)];
+    if (!conta) return paginaAviso(res, 'Conta inválida', 'Escolha uma das contas da lista.', 400);
+    const clienteDb = await prisma.cliente.findUnique({ where: { id: pendente.clienteId } });
+    if (!clienteDb || (clienteDb.donoId !== req.session.userId && req.session.role !== 'ADMIN')) {
+        return paginaAviso(res, 'Acesso negado', 'Este bot não pertence à sua conta.', 403);
+    }
+    delete req.session.igEscolha;
+    try {
+        await concluirConexao(pendente.clienteId, conta, pendente.plataforma);
+    } catch (e) {
+        console.error('❌ [OAUTH] Falha ao salvar a conta escolhida:', e.message);
+        return paginaAviso(res, 'Não foi possível conectar', 'Tente de novo em instantes.', 500);
+    }
+    return res.render('instagram-conectar', { modo: 'sucesso', cliente: { nome: clienteDb.nome, instagramUser: conta.usuario }, contas: [], titulo: null, texto: null });
+});
+
+module.exports = { router, enviarRespostaInstagram, appDaPlataforma, tokenVerificacao };

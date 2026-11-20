@@ -27,7 +27,7 @@
 
     <main class="pagina">
         <h1>Configurações</h1>
-        <p class="sub">E-mail que envia os links de "Esqueci minha senha" e os dados de acesso de novos usuários.</p>
+        <p class="sub">E-mail que envia as senhas e o aplicativo da Meta que conecta o Instagram dos clientes.</p>
 
         <div class="grade">
             <section class="cartao" aria-labelledby="t-email">
@@ -79,6 +79,39 @@
                 </ol>
                 <p class="dica" style="margin-top:16px">O Gmail gratuito envia até cerca de 500 e-mails por dia, mais do que o suficiente para senhas.</p>
             </aside>
+
+            <section class="cartao" aria-labelledby="t-ig" style="grid-column:1">
+                <h2 id="t-ig">Instagram (aplicativo da Meta)</h2>
+                <p class="sub">
+                    <% if (instagram.configurado) { %><span class="estado on"><i class="ri-checkbox-circle-fill"></i> Ativo: seus clientes conectam o Instagram com um clique.</span>
+                    <% } else { %><span class="estado off"><i class="ri-error-warning-fill"></i> Ainda não configurado: cada cliente teria que criar o próprio app na Meta.</span><% } %>
+                </p>
+                <form class="form" id="form-ig">
+                    <div class="duas">
+                        <div class="campo"><label for="igAppId">ID do aplicativo (App ID)</label><input type="text" id="igAppId" value="<%= instagram.appId %>" inputmode="numeric" placeholder="1234567890123456" autocomplete="off"></div>
+                        <div class="campo"><label for="igSecret">Chave secreta (App Secret)</label><input type="password" id="igSecret" placeholder="<%= instagram.temSecret ? 'Em branco mantém a salva' : '32 caracteres' %>" autocomplete="new-password"></div>
+                    </div>
+                    <div class="campo"><label>URL de callback (Login do Facebook)</label>
+                        <div class="duas" style="grid-template-columns:1fr auto"><input type="text" readonly value="<%= instagram.callbackUrl %>" id="igCallback"><button class="btn" type="button" data-copiar="igCallback"><i class="ri-file-copy-line"></i> Copiar</button></div></div>
+                    <div class="campo"><label>URL do webhook</label>
+                        <div class="duas" style="grid-template-columns:1fr auto"><input type="text" readonly value="<%= instagram.webhookUrl %>" id="igWebhook"><button class="btn" type="button" data-copiar="igWebhook"><i class="ri-file-copy-line"></i> Copiar</button></div></div>
+                    <div class="campo"><label>Token de verificação do webhook</label>
+                        <div class="duas" style="grid-template-columns:1fr auto"><input type="text" readonly value="<%= instagram.verifyToken || 'Será gerado ao salvar' %>" id="igToken"><button class="btn" type="button" data-copiar="igToken"><i class="ri-file-copy-line"></i> Copiar</button></div>
+                        <label class="check" style="margin-top:8px"><input type="checkbox" id="igNovoToken"><span>Gerar um token novo <span class="dica">(depois atualize-o no painel da Meta)</span></span></label></div>
+                    <div class="acoes"><button class="btn primario" type="submit">Salvar Instagram</button></div>
+                </form>
+            </section>
+
+            <aside class="cartao" aria-labelledby="t-meta">
+                <h2 id="t-meta">Como preparar o app na Meta</h2>
+                <ol class="passos" style="margin-top:14px">
+                    <li>Em <b>developers.facebook.com</b>, abra seu app (tipo Empresa) e copie o <b>App ID</b> e a <b>Chave secreta</b> em Configurações &gt; Básico.</li>
+                    <li>Adicione o produto <b>Login do Facebook</b> e cole a URL de callback em "URIs de redirecionamento do OAuth válidos".</li>
+                    <li>Em <b>Webhooks</b>, escolha Instagram, cole a URL do webhook e o token, e assine o campo <b>messages</b>.</li>
+                    <li>Para clientes de fora usarem, publique o app (modo Ao vivo) e peça acesso avançado a <b>instagram_manage_messages</b> na Análise do app.</li>
+                </ol>
+                <p class="dica" style="margin-top:16px">Enquanto o app estiver em desenvolvimento, só quem tiver uma função no app (administrador ou testador) consegue conectar.</p>
+            </aside>
         </div>
     </main>
 
@@ -111,6 +144,16 @@
             b.disabled = false; b.lastChild.textContent = ' Enviar teste';
             if (!r.ok) return toast(r.dados.error || 'O teste falhou.', true);
             toast('E-mail de teste enviado para ' + r.dados.para + '. Confira a caixa de entrada e o spam.');
+        });
+        document.querySelectorAll('[data-copiar]').forEach(b => b.onclick = () => {
+            copiar($(b.dataset.copiar).value);
+        });
+        $('form-ig').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const r = await api('/api/admin/config-instagram', 'POST', { appId: $('igAppId').value.trim(), appSecret: $('igSecret').value.trim(), novoToken: $('igNovoToken').checked });
+            if (!r.ok) return toast(r.dados.error || 'Não foi possível salvar.', true);
+            toast(r.dados.tokenNovo ? 'Salvo. Token novo gerado: atualize-o no webhook da Meta.' : 'Instagram salvo.');
+            setTimeout(() => location.reload(), 1400);
         });
     </script>
 </body>

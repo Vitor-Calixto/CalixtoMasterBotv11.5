@@ -171,6 +171,8 @@ app.use(flash());
 // O webhook da Meta continua aberto (ela não tem sessão).
 app.use('/instagram/setup', isAuth, exigirDonoDoBot(req => req.query.clienteId));
 app.use('/instagram/auth/login', isAuth, exigirDonoDoBot(req => req.body && req.body.clienteId));
+app.use('/instagram/conectar', isAuth, exigirDonoDoBot(req => req.body && req.body.clienteId));
+app.use('/instagram/auth/escolher', isAuth);
 app.use('/instagram', rotasInstagram.router);
 
 // --- MIDDLEWARE DE MANUTENÇÃO ---

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conectar Instagram - Calixto OmniSystem</title>
+    <%- include('partials/auth-estilo') %>
+    <style>
+        .ig-marca { width: 56px; height: 56px; border-radius: 16px; display: grid; place-items: center; color: #fff; font-size: 30px; margin-bottom: 18px;
+            background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fd5949 45%, #d6249f 60%, #285AEB 90%); }
+        .lista { list-style: none; display: grid; gap: 12px; margin: 4px 0 6px; }
+        .lista li { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; color: var(--tinta-2); }
+        .lista i { color: var(--acao); font-size: 19px; line-height: 1.3; }
+        .conta { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px; border: 1.5px solid var(--linha); border-radius: 12px; background: #fff; cursor: pointer; font: inherit; text-align: left; margin-top: 10px; }
+        .conta:hover { border-color: var(--acao); }
+        .conta b { display: block; color: var(--tinta); }
+        .conta small { color: var(--tinta-3); }
+        .conta i { font-size: 22px; color: #d6249f; }
+        .atual { background: var(--menta); color: var(--floresta); border-radius: 12px; padding: 12px 14px; font-size: 14.5px; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
+    </style>
+</head>
+<body>
+    <header class="topo"><a class="marca" href="/dashboard"><span class="marca-icone" aria-hidden="true"><i class="ri-chat-smile-3-fill"></i></span>Calixto</a></header>
+    <main>
+        <div class="caixa">
+            <% if (modo === 'inicio') { %>
+                <div class="ig-marca" aria-hidden="true"><i class="ri-instagram-line"></i></div>
+                <h1>Conectar Instagram</h1>
+                <p class="sub">O robô do bot <b><%= cliente.nome %></b> vai responder as mensagens do Direct desta conta.</p>
+                <% if (cliente.instagramUser) { %>
+                    <div class="atual"><i class="ri-checkbox-circle-fill"></i> Conectado agora a @<%= cliente.instagramUser %>. Conectar de novo substitui a conta.</div>
+                <% } %>
+                <ul class="lista">
+                    <li><i class="ri-check-line"></i><span>A conta do Instagram precisa ser <b>Profissional</b> (Empresa ou Criador).</span></li>
+                    <li><i class="ri-check-line"></i><span>Ela precisa estar ligada a uma <b>Página do Facebook</b> que você administra.</span></li>
+                    <li><i class="ri-check-line"></i><span>Na próxima tela, entre no Facebook e autorize o acesso às mensagens.</span></li>
+                </ul>
+                <form action="/instagram/conectar" method="POST">
+                    <input type="hidden" name="clienteId" value="<%= cliente.id %>">
+                    <button class="btn" type="submit"><i class="ri-facebook-circle-fill"></i> Conectar com o Facebook</button>
+                </form>
+                <p class="rodape"><a href="/dashboard">Voltar ao painel</a></p>
+
+            <% } else if (modo === 'escolher') { %>
+                <div class="ig-marca" aria-hidden="true"><i class="ri-instagram-line"></i></div>
+                <h1>Qual conta?</h1>
+                <p class="sub">Encontramos mais de um Instagram. Escolha qual o bot <b><%= cliente.nome %></b> vai atender.</p>
+                <form action="/instagram/auth/escolher" method="POST">
+                    <% contas.forEach(c => { %>
+                        <button class="conta" type="submit" name="indice" value="<%= c.indice %>">
+                            <i class="ri-instagram-line"></i><span><b>@<%= c.usuario %></b><small>Página: <%= c.pagina %></small></span>
+                        </button>
+                    <% }) %>
+                </form>
+                <p class="rodape"><a href="/dashboard">Cancelar</a></p>
+
+            <% } else if (modo === 'sucesso') { %>
+                <div class="ig-marca" aria-hidden="true"><i class="ri-instagram-line"></i></div>
+                <h1>Instagram conectado</h1>
+                <p class="sub">O bot <b><%= cliente.nome %></b> já está respondendo as mensagens de <b>@<%= cliente.instagramUser %></b>.</p>
+                <div class="atual"><i class="ri-checkbox-circle-fill"></i> Mande uma mensagem no Direct para testar.</div>
+                <a class="btn" href="/dashboard">Voltar ao painel</a>
+
+            <% } else { %>
+                <h1><%= titulo %></h1>
+                <p class="sub"><%= texto %></p>
+                <a class="btn" href="/dashboard">Voltar ao painel</a>
+            <% } %>
+        </div>
+    </main>
+</body>
+</html>
