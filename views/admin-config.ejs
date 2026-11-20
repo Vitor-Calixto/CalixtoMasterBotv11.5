@@ -19,6 +19,7 @@
         .passos b { color: var(--tinta); }
         .atalho { display: flex; gap: 8px; flex-wrap: wrap; }
         .acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+        .aviso-falta { display: flex; gap: 8px; align-items: flex-start; background: #fff7e6; color: #8a5a00; border: 1px solid #f3d9a4; border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; font-size: 14.5px; }
         .cfg-h3 { font-size: 15px; font-weight: 700; margin-top: 4px; }
         .cfg-h3 .dica { font-weight: 400; }
         @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } .duas { grid-template-columns: 1fr; } }
@@ -89,6 +90,7 @@
                     <% } else if (instagram.configurado) { %><span class="estado on"><i class="ri-checkbox-circle-fill"></i> Ativo pelo Login do Facebook (exige Página). Preencha o Login do Instagram para ficar mais fácil.</span>
                     <% } else { %><span class="estado off"><i class="ri-error-warning-fill"></i> Ainda não configurado: cada cliente teria que criar o próprio app na Meta.</span><% } %>
                 </p>
+                <% if (typeof falta !== 'undefined' && falta) { %><p class="aviso-falta" role="status"><i class="ri-information-line"></i> Para seus clientes conectarem o Instagram pela tela fácil, preencha e salve esta parte.</p><% } %>
                 <form class="form" id="form-ig">
                     <h3 class="cfg-h3">1. Dados do app <span class="dica">(Configurações &gt; Básico)</span></h3>
                     <div class="duas">

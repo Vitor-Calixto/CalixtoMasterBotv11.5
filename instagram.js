@@ -200,8 +200,11 @@ router.get('/setup', async (req, res) => {
         if (!cliente) return res.redirect('/dashboard');
         return res.render('instagram-conectar', { modo: 'inicio', cliente, contas: [], titulo: null, texto: null, jeito: app.modo });
     }
-    // Modo antigo: tutorial para o cliente criar o próprio app
-    res.render('instasetup', { clienteId, callbackUrl: urlCallback(req), webhookUrl: `${urlBase(req)}/instagram/webhook`, verifyToken: tokenVerificacao() });
+    // Ainda sem o app da plataforma: o cliente nunca vê o tutorial antigo (criar o próprio app na Meta).
+    // O admin vai direto para a configuração; o cliente recebe um aviso simples.
+    if (req.session.role === 'ADMIN') return res.redirect('/admin/configuracoes?falta=instagram#t-ig');
+    return paginaAviso(res, 'Conexão do Instagram em preparação',
+        'Estamos finalizando a ligação com o Instagram. Assim que estiver pronta, você conecta aqui com o seu usuário e senha. Fale com o suporte se precisar antes.', 200);
 });
 
 // Conectar com o app da plataforma (um clique)

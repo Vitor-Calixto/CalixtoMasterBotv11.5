@@ -436,7 +436,7 @@ function registrarRotas(app) {
             config: { host: c.host, porta: c.porta, seguro: c.seguro, usuario: c.usuario, temSenha: !!c.senha, nomeRemetente: c.nomeRemetente, emailRemetente: c.emailRemetente },
             siteUrl: email.lerConfig().siteUrl || `${req.protocol}://${req.get('host')}`,
             adminEmail: req.session.usuario.email,
-            instagram: dadosInstagram(req)
+            instagram: dadosInstagram(req), falta: req.query.falta === 'instagram'
         });
     });
 
