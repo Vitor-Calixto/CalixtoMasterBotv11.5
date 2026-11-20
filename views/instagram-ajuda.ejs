@@ -60,11 +60,16 @@
     <header class="topo"><a class="marca" href="/dashboard"><span class="marca-icone" aria-hidden="true"><i class="ri-chat-smile-3-fill"></i></span>Calixto</a></header>
     <main>
         <div class="guia">
+            <% const ig = typeof modo !== 'undefined' && modo === 'instagram'; %>
             <div class="cabeca">
                 <div class="ig-marca" aria-hidden="true"><i class="ri-instagram-line"></i></div>
                 <h1>Como conectar seu Instagram</h1>
             </div>
+            <% if (ig) { %>
+            <p class="intro">Leva uns 2 minutos e só precisa do <b>celular com o Instagram</b>. Não precisa de Página do Facebook. Se sua conta já é profissional e com o acesso às mensagens ligado, pule direto para o passo 3.</p>
+            <% } else { %>
             <p class="intro">Leva uns 5 minutos. Tenha em mãos <b>o celular com o Instagram</b> e <b>o login do Facebook</b> de quem administra o negócio. Se sua conta já é profissional e ligada a uma Página, pule direto para o passo 4.</p>
+            <% } %>
 
             <ol class="passos">
                 <li class="passo">
@@ -79,6 +84,7 @@
                     </div>
                 </li>
 
+                <% if (!ig) { %>
                 <li class="passo">
                     <h2>Tenha uma Página no Facebook</h2>
                     <p>A Meta exige uma Página do Facebook ligada ao Instagram para liberar as mensagens. Ela não precisa ter publicações: basta existir. Se você já administra a Página da sua empresa, pule este passo.</p>
@@ -100,6 +106,7 @@
                     </div>
                 </li>
 
+                <% } %>
                 <li class="passo">
                     <h2>Libere o acesso às mensagens</h2>
                     <p>Este é o passo que mais gente esquece: sem ele, a conta conecta, mas o robô não recebe as mensagens.</p>
@@ -114,9 +121,13 @@
 
                 <li class="passo final">
                     <h2>Conecte no painel</h2>
+                    <% if (ig) { %>
+                    <p>No painel, no bot do Instagram, clique em <b>Conectar</b> e depois em <b>Entrar com o Instagram</b>. Digite o usuário e a senha da conta da empresa na tela do Instagram e toque em <b>Permitir</b>. Pronto: o robô já começa a responder.</p>
+                    <% } else { %>
                     <p>No painel, no bot do Instagram, clique em <b>Conectar</b> e depois em <b>Conectar com o Facebook</b>. Entre com o mesmo Facebook do passo 3 e, quando a Meta perguntar, <b>marque sua Página e sua conta do Instagram</b> e autorize todas as permissões.</p>
+                    <% } %>
                     <% if (clienteId) { %>
-                        <a class="btn" href="/instagram/setup?clienteId=<%= encodeURIComponent(clienteId) %>"><i class="ri-facebook-circle-fill"></i> Conectar agora</a>
+                        <a class="btn" href="/instagram/setup?clienteId=<%= encodeURIComponent(clienteId) %>"><i class="<%= ig ? 'ri-instagram-line' : 'ri-facebook-circle-fill' %>"></i> Conectar agora</a>
                     <% } else { %>
                         <a class="btn" href="/dashboard"><i class="ri-dashboard-line"></i> Ir para o painel</a>
                     <% } %>
@@ -125,29 +136,36 @@
 
             <section class="duvidas" aria-labelledby="t-duvidas">
                 <h2 id="t-duvidas">Deu algum problema?</h2>
+                <% if (ig) { %>
+                <details>
+                    <summary>A tela do Instagram deu erro ou não deixou continuar</summary>
+                    <p>Quase sempre é porque a conta ainda está como pessoal. Mude para conta profissional (passo 1) e tente de novo. Se usa verificação em duas etapas, tenha o celular por perto para confirmar o código.</p>
+                </details>
+                <% } else { %>
                 <details>
                     <summary>Apareceu "Nenhum Instagram encontrado"</summary>
                     <p>A conta ainda está como pessoal, não está ligada à Página, ou a Página ficou desmarcada na tela do Facebook. Confira os passos 1 a 3 e conecte de novo. Na tela da Meta, clique em <b>Editar acesso</b> e marque a Página e o Instagram certos.</p>
                 </details>
+                <% } %>
                 <details>
                     <summary>Conectou, mas o robô não responde</summary>
-                    <p>Confira o passo 4 (Permitir acesso às mensagens). Veja também se o bot aparece como <b>ATIVO</b> no painel e se ele tem um fluxo salvo. Para testar, mande a mensagem de <b>outra conta</b>: mensagens da própria conta não chegam ao robô.</p>
+                    <p>Confira o passo <%= ig ? 2 : 4 %> (Permitir acesso às mensagens). Veja também se o bot aparece como <b>ATIVO</b> no painel e se ele tem um fluxo salvo. Para testar, mande a mensagem de <b>outra conta</b>: mensagens da própria conta não chegam ao robô.</p>
                 </details>
                 <details>
                     <summary>Tenho mais de um Instagram. Qual será usado?</summary>
-                    <p>Se o seu Facebook administrar várias contas, o sistema mostra uma lista para você escolher qual delas o bot vai atender. Cada conta só pode estar em um bot.</p>
+                    <p><%= ig ? 'Vale a conta com que você entrar na tela do Instagram. Para usar outra, conecte de novo e entre com ela.' : 'Se o seu Facebook administrar várias contas, o sistema mostra uma lista para você escolher qual delas o bot vai atender.' %> Cada conta só pode estar em um bot.</p>
                 </details>
                 <details>
                     <summary>Como troco a conta ou desconecto?</summary>
-                    <p>Para trocar, conecte de novo e escolha a outra conta: a anterior é substituída. Para desligar o robô, use <b>Sair</b> no painel. Para remover o acesso de vez, no Facebook vá em Configurações, Integrações comerciais, e remova o aplicativo.</p>
+                    <p>Para trocar, conecte de novo e escolha a outra conta: a anterior é substituída. Para desligar o robô, use <b>Sair</b> no painel. Para remover o acesso de vez, <%= ig ? 'no app do Instagram vá em Configurações, Apps e sites, e remova o aplicativo.' : 'no Facebook vá em Configurações, Integrações comerciais, e remova o aplicativo.' %></p>
                 </details>
                 <details>
                     <summary>Apareceu um erro da Meta dizendo que o app não está disponível</summary>
-                    <p>Fale com o nosso suporte e informe o e-mail do seu Facebook. Liberamos o acesso para a sua conta.</p>
+                    <p>Fale com o nosso suporte e informe <%= ig ? 'o seu @ do Instagram' : 'o e-mail do seu Facebook' %>. Liberamos o acesso para a sua conta.</p>
                 </details>
             </section>
 
-            <div class="seguranca"><i class="ri-shield-check-line" aria-hidden="true"></i><span>Você entra direto no site do Facebook. Nós nunca vemos nem pedimos a sua senha, e o acesso serve só para ler e responder as mensagens do Direct.</span></div>
+            <div class="seguranca"><i class="ri-shield-check-line" aria-hidden="true"></i><span>Você entra direto no site do <%= ig ? 'Instagram' : 'Facebook' %>. Nós nunca vemos nem pedimos a sua senha, e o acesso serve só para ler e responder as mensagens do Direct.</span></div>
         </div>
     </main>
 </body>

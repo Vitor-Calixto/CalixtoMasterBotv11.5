@@ -16,6 +16,10 @@
         .conta b { display: block; color: var(--tinta); }
         .conta small { color: var(--tinta-3); }
         .conta i { font-size: 22px; color: #d6249f; }
+        .btn-ig { background: linear-gradient(90deg, #833ab4, #e1306c 55%, #f77737); }
+        .btn-ig:hover { filter: brightness(1.06); background: linear-gradient(90deg, #833ab4, #e1306c 55%, #f77737); }
+        .seguro { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; color: var(--tinta-3); margin-top: 14px; }
+        .seguro i { color: var(--acao); font-size: 17px; line-height: 1.2; }
         .atual { background: var(--menta); color: var(--floresta); border-radius: 12px; padding: 12px 14px; font-size: 14.5px; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
     </style>
 </head>
@@ -30,6 +34,19 @@
                 <% if (cliente.instagramUser) { %>
                     <div class="atual"><i class="ri-checkbox-circle-fill"></i> Conectado agora a @<%= cliente.instagramUser %>. Conectar de novo substitui a conta.</div>
                 <% } %>
+                <% const peloInstagram = typeof jeito !== 'undefined' && jeito === 'instagram'; %>
+                <% if (peloInstagram) { %>
+                <ul class="lista">
+                    <li><i class="ri-check-line"></i><span>A conta precisa ser <b>profissional</b> (Empresa ou Criador). No app: Configurações, Tipo de conta e ferramentas.</span></li>
+                    <li><i class="ri-check-line"></i><span>Em Configurações, Mensagens, Ferramentas conectadas, ligue <b>Permitir acesso às mensagens</b>.</span></li>
+                    <li><i class="ri-check-line"></i><span>Na próxima tela, entre com o <b>usuário e a senha do Instagram</b> e toque em Permitir. Não precisa de Página do Facebook.</span></li>
+                </ul>
+                <form action="/instagram/conectar" method="POST">
+                    <input type="hidden" name="clienteId" value="<%= cliente.id %>">
+                    <button class="btn btn-ig" type="submit"><i class="ri-instagram-line"></i> Entrar com o Instagram</button>
+                </form>
+                <p class="seguro"><i class="ri-shield-check-line" aria-hidden="true"></i> Você digita a senha no site do próprio Instagram. Ela nunca passa por aqui.</p>
+                <% } else { %>
                 <ul class="lista">
                     <li><i class="ri-check-line"></i><span>A conta do Instagram precisa ser <b>Profissional</b> (Empresa ou Criador).</span></li>
                     <li><i class="ri-check-line"></i><span>Ela precisa estar ligada a uma <b>Página do Facebook</b> que você administra.</span></li>
@@ -39,6 +56,7 @@
                     <input type="hidden" name="clienteId" value="<%= cliente.id %>">
                     <button class="btn" type="submit"><i class="ri-facebook-circle-fill"></i> Conectar com o Facebook</button>
                 </form>
+                <% } %>
                 <p class="rodape">Sua conta ainda não está assim? <a href="/instagram/ajuda?clienteId=<%= encodeURIComponent(cliente.id) %>">Veja o passo a passo</a></p>
                 <p class="rodape" style="margin-top:8px"><a href="/dashboard">Voltar ao painel</a></p>
 

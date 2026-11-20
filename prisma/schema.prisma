@@ -57,6 +57,8 @@ model Cliente {
   instagramId    String?  @unique // ID único da Meta (ex: 264199...)
   instagramUser  String?          // @username (ex: calixto.dev)
   instagramToken String?          // Access Token de acesso ao Direct
+  instagramModo  String?          // "INSTAGRAM" = Login do Instagram (token renovado a cada 60 dias); vazio = via Página do Facebook
+  instagramTokenExpira DateTime?  // quando o token do Login do Instagram vence (o sistema renova antes)
 
   tempoLembrete1       Int      @default(24)
   tempoLembrete2       Int      @default(0)

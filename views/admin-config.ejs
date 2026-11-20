@@ -19,6 +19,8 @@
         .passos b { color: var(--tinta); }
         .atalho { display: flex; gap: 8px; flex-wrap: wrap; }
         .acoes { display: flex; gap: 10px; flex-wrap: wrap; }
+        .cfg-h3 { font-size: 15px; font-weight: 700; margin-top: 4px; }
+        .cfg-h3 .dica { font-weight: 400; }
         @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } .duas { grid-template-columns: 1fr; } }
     </style>
 </head>
@@ -83,15 +85,24 @@
             <section class="cartao" aria-labelledby="t-ig" style="grid-column:1">
                 <h2 id="t-ig">Instagram (aplicativo da Meta)</h2>
                 <p class="sub">
-                    <% if (instagram.configurado) { %><span class="estado on"><i class="ri-checkbox-circle-fill"></i> Ativo: seus clientes conectam o Instagram com um clique.</span>
+                    <% if (instagram.configurado && instagram.loginInstagram) { %><span class="estado on"><i class="ri-checkbox-circle-fill"></i> Ativo: o cliente entra com o usuário e a senha do Instagram, sem Página do Facebook.</span>
+                    <% } else if (instagram.configurado) { %><span class="estado on"><i class="ri-checkbox-circle-fill"></i> Ativo pelo Login do Facebook (exige Página). Preencha o Login do Instagram para ficar mais fácil.</span>
                     <% } else { %><span class="estado off"><i class="ri-error-warning-fill"></i> Ainda não configurado: cada cliente teria que criar o próprio app na Meta.</span><% } %>
                 </p>
                 <form class="form" id="form-ig">
+                    <h3 class="cfg-h3">1. Dados do app <span class="dica">(Configurações &gt; Básico)</span></h3>
                     <div class="duas">
-                        <div class="campo"><label for="igAppId">ID do aplicativo (App ID)</label><input type="text" id="igAppId" value="<%= instagram.appId %>" inputmode="numeric" placeholder="1234567890123456" autocomplete="off"></div>
-                        <div class="campo"><label for="igSecret">Chave secreta (App Secret)</label><input type="password" id="igSecret" placeholder="<%= instagram.temSecret ? 'Em branco mantém a salva' : '32 caracteres' %>" autocomplete="new-password"></div>
+                        <div class="campo"><label for="metaAppId">ID do aplicativo (App ID)</label><input type="text" id="metaAppId" value="<%= instagram.appId %>" inputmode="numeric" placeholder="1234567890123456" autocomplete="off"></div>
+                        <div class="campo"><label for="metaSecret">Chave secreta do aplicativo</label><input type="password" id="metaSecret" placeholder="<%= instagram.temSecret ? 'Em branco mantém a salva' : '32 caracteres' %>" autocomplete="new-password"></div>
                     </div>
-                    <div class="campo"><label>URL de callback (Login do Facebook)</label>
+                    <h3 class="cfg-h3">2. Login do Instagram <span class="dica">(Instagram &gt; Configuração da API com login do Instagram)</span></h3>
+                    <div class="duas">
+                        <div class="campo"><label for="loginIgId">ID do app do Instagram</label><input type="text" id="loginIgId" value="<%= instagram.igAppId %>" inputmode="numeric" placeholder="Recomendado" autocomplete="off"></div>
+                        <div class="campo"><label for="loginIgSecret">Chave secreta do app do Instagram</label><input type="password" id="loginIgSecret" placeholder="<%= instagram.temIgSecret ? 'Em branco mantém a salva' : '32 caracteres' %>" autocomplete="new-password"></div>
+                    </div>
+                    <p class="dica" style="margin-top:-6px">Deixe em branco para usar o Login do Facebook (o cliente precisa ter uma Página ligada ao Instagram).</p>
+                    <h3 class="cfg-h3">3. Endereços para colar na Meta</h3>
+                    <div class="campo"><label>URL de redirecionamento (callback)</label>
                         <div class="duas" style="grid-template-columns:1fr auto"><input type="text" readonly value="<%= instagram.callbackUrl %>" id="igCallback"><button class="btn" type="button" data-copiar="igCallback"><i class="ri-file-copy-line"></i> Copiar</button></div></div>
                     <div class="campo"><label>URL do webhook</label>
                         <div class="duas" style="grid-template-columns:1fr auto"><input type="text" readonly value="<%= instagram.webhookUrl %>" id="igWebhook"><button class="btn" type="button" data-copiar="igWebhook"><i class="ri-file-copy-line"></i> Copiar</button></div></div>
@@ -105,12 +116,13 @@
             <aside class="cartao" aria-labelledby="t-meta">
                 <h2 id="t-meta">Como preparar o app na Meta</h2>
                 <ol class="passos" style="margin-top:14px">
-                    <li>Em <b>developers.facebook.com</b>, abra seu app (tipo Empresa) e copie o <b>App ID</b> e a <b>Chave secreta</b> em Configurações &gt; Básico.</li>
-                    <li>Adicione o produto <b>Login do Facebook</b> e cole a URL de callback em "URIs de redirecionamento do OAuth válidos".</li>
-                    <li>Em <b>Webhooks</b>, escolha Instagram, cole a URL do webhook e o token, e assine o campo <b>messages</b>.</li>
-                    <li>Para clientes de fora usarem, publique o app (modo Ao vivo) e peça acesso avançado a <b>instagram_manage_messages</b> na Análise do app.</li>
+                    <li>Em <b>developers.facebook.com</b>, abra seu app (tipo Empresa). Em <b>Configurações &gt; Básico</b>, copie o <b>ID do aplicativo</b> e a <b>Chave secreta</b> (passo 1 ao lado).</li>
+                    <li>Adicione o produto <b>Instagram</b> e abra <b>Configuração da API com login do Instagram</b>. Copie o <b>ID</b> e a <b>chave secreta do app do Instagram</b> (passo 2).</li>
+                    <li>Ainda ali, em <b>Configurar login comercial do Instagram</b>, cole a <b>URL de redirecionamento</b>.</li>
+                    <li>Em <b>Configurar webhooks</b>, cole a URL do webhook e o token, e assine o campo <b>messages</b>.</li>
+                    <li>Para clientes de fora usarem: publique o app (modo Ao vivo), faça a verificação da empresa e peça acesso avançado a <b>instagram_business_manage_messages</b> na Análise do app.</li>
                 </ol>
-                <p class="dica" style="margin-top:16px">Enquanto o app estiver em desenvolvimento, só quem tiver uma função no app (administrador ou testador) consegue conectar.</p>
+                <p class="dica" style="margin-top:16px">Enquanto o app estiver em desenvolvimento, só contas adicionadas como testadoras do Instagram no app conseguem conectar.</p>
             </aside>
         </div>
     </main>
@@ -150,7 +162,9 @@
         });
         $('form-ig').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const r = await api('/api/admin/config-instagram', 'POST', { appId: $('igAppId').value.trim(), appSecret: $('igSecret').value.trim(), novoToken: $('igNovoToken').checked });
+            const r = await api('/api/admin/config-instagram', 'POST', {
+                appId: $('metaAppId').value.trim(), appSecret: $('metaSecret').value.trim(),
+                igAppId: $('loginIgId').value.trim(), igAppSecret: $('loginIgSecret').value.trim(), novoToken: $('igNovoToken').checked });
             if (!r.ok) return toast(r.dados.error || 'Não foi possível salvar.', true);
             toast(r.dados.tokenNovo ? 'Salvo. Token novo gerado: atualize-o no webhook da Meta.' : 'Instagram salvo.');
             setTimeout(() => location.reload(), 1400);

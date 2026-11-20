@@ -162,18 +162,8 @@ async function enviarMensagemOmni(sock, remoteJid, texto, origem, igToken) {
         
     } else if (origem === 'INSTAGRAM') {
         try {
-            // CORREÇÃO: O domínio correto ao usar Page Access Token é graph.facebook.com
-            await axios.post(`https://graph.facebook.com/v20.0/me/messages`, {
-                recipient: { id: remoteJid },
-                message: { text: texto }
-            }, {
-                headers: { 
-                    'Authorization': `Bearer ${igToken}`, 
-                    'Content-Type': 'application/json' 
-                }
-            });
+            await require('./instagram-api').enviarTexto(igToken, remoteJid, texto);
             console.log(`[ENGINE] 🟣 Resposta enviada no Instagram para: ${remoteJid}`);
-            
         } catch (e) { 
             console.error("❌ Erro ao enviar IG:", e?.response?.data || e.message); 
         }

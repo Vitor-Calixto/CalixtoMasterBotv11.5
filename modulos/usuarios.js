@@ -446,8 +446,10 @@ function registrarRotas(app) {
         const base = String(process.env.BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/+$/, '');
         return {
             appId: ig.appId || '', temSecret: !!ig.appSecret, verifyToken: ig.verifyToken || '',
+            igAppId: ig.igAppId || '', temIgSecret: !!ig.igAppSecret,
             webhookUrl: `${base}/instagram/webhook`, callbackUrl: `${base}/instagram/auth/callback`,
-            configurado: !!(ig.appId && ig.appSecret)
+            configurado: !!(ig.appId && ig.appSecret),
+            loginInstagram: !!(ig.igAppId && ig.igAppSecret)
         };
     }
 
@@ -669,8 +671,18 @@ function registrarRotas(app) {
         if (segredoNovo && !/^[a-f0-9]{32}$/i.test(segredoNovo)) return res.status(400).json({ success: false, error: 'O App Secret tem 32 letras e números. Copie de novo do painel da Meta.' });
         const appSecret = segredoNovo || atual.appSecret;
         if (!appSecret) return res.status(400).json({ success: false, error: 'Cole o App Secret do aplicativo.' });
+        // Login do Instagram (opcional, recomendado): ID e chave do "Instagram" dentro do mesmo app
+        const igAppId = String(b.igAppId || '').trim();
+        let igAppSecret = '';
+        if (igAppId) {
+            if (!/^\d{6,25}$/.test(igAppId)) return res.status(400).json({ success: false, error: 'O ID do app do Instagram tem só números (veja em Instagram > Configuração da API com login do Instagram).' });
+            const igNovo = typeof b.igAppSecret === 'string' ? b.igAppSecret.trim() : '';
+            if (igNovo && !/^[a-f0-9]{32}$/i.test(igNovo)) return res.status(400).json({ success: false, error: 'A chave secreta do app do Instagram tem 32 letras e números. Copie de novo do painel da Meta.' });
+            igAppSecret = igNovo || (atual.igAppId ? atual.igAppSecret : '') || '';
+            if (!igAppSecret) return res.status(400).json({ success: false, error: 'Cole a chave secreta do app do Instagram.' });
+        }
         const verifyToken = (b.novoToken || !atual.verifyToken) ? crypto.randomBytes(24).toString('hex') : atual.verifyToken;
-        email.salvarConfig({ instagram: { appId, appSecret, verifyToken } });
+        email.salvarConfig({ instagram: { appId, appSecret, verifyToken, igAppId, igAppSecret } });
         res.json({ success: true, verifyToken, tokenNovo: verifyToken !== atual.verifyToken });
     }));
 
