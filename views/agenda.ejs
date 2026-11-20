@@ -4,645 +4,798 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agenda - Calixto OmniSystem</title>
-    
-    <!-- Fontes e Ícones -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        (function () {
+            var tema = 'claro';
+            try { tema = localStorage.getItem('agenda-tema') || 'claro'; } catch (e) {}
+            document.documentElement.setAttribute('data-tema', tema === 'escuro' ? 'escuro' : 'claro');
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css" rel="stylesheet">
-    
-    <!-- Dependências Externas -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales-all.global.min.js'></script>
-    
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.11/locales/pt-br.global.min.js"></script>
     <style>
-        /* --- 🎨 TEMA DARK NEON (Padrão CalixtoOS) --- */
-        :root {
-            --bg-color: #050505;
-            --card-bg: #0f0f0f;
-            --border-color: #222;
-            --primary-blue: #0066ff;
-            --primary-hover: #0052cc;
-            --text-main: #ffffff;
-            --text-muted: #888;
-            --danger: #ff3333;
-            --success: #00e054;
-            --warning: #ff9900;
+        :root, [data-tema="claro"] {
+            --fundo: #ffffff; --lateral: #f6f8f7; --superficie: #ffffff; --suave: #eef2f0; --linha: #dde3e0; --linha-forte: #c5cec9;
+            --tinta: #1b2420; --tinta-2: #46534d; --tinta-3: #77847e;
+            --acao: #128c6b; --acao-hover: #0e7458; --acao-suave: #dff3ea; --acao-tinta: #0b5a45;
+            --erro: #c5221f; --sombra: 0 1px 3px rgba(20, 30, 25, .12), 0 6px 18px rgba(20, 30, 25, .1);
+            --fora-expediente: #f4f6f5; --listra: rgba(70, 83, 77, .14);
         }
+        [data-tema="escuro"] {
+            --fundo: #141816; --lateral: #101311; --superficie: #1d2220; --suave: #262c29; --linha: #2e3532; --linha-forte: #3d4642;
+            --tinta: #e7ece9; --tinta-2: #b4bdb8; --tinta-3: #86918b;
+            --acao: #3ccf9f; --acao-hover: #5ad9af; --acao-suave: #173a2f; --acao-tinta: #9eeacf;
+            --erro: #f28b82; --sombra: 0 2px 6px rgba(0, 0, 0, .5), 0 10px 24px rgba(0, 0, 0, .35);
+            --fora-expediente: #181c1a; --listra: rgba(255, 255, 255, .08);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; }
+        [hidden] { display: none !important; }
+        body { background: var(--fundo); color: var(--tinta); font: 14px/1.45 'Instrument Sans', system-ui, sans-serif; -webkit-font-smoothing: antialiased; overflow: hidden; }
+        button, input, select { font: inherit; color: inherit; }
+        :focus-visible { outline: 2px solid var(--acao); outline-offset: 2px; border-radius: 6px; }
+        .icone-btn { width: 40px; height: 40px; border-radius: 50%; border: 0; background: transparent; color: var(--tinta-2); display: inline-grid; place-items: center; font-size: 20px; cursor: pointer; flex: none; text-decoration: none; }
+        .icone-btn:hover { background: var(--suave); color: var(--tinta); }
 
-        /* RESET BÁSICO */
-        body { 
-            background-color: var(--bg-color); 
-            color: var(--text-main); 
-            font-family: 'Inter', sans-serif; 
-            margin: 0; 
-            padding: 40px; 
-            height: 100vh;
-            box-sizing: border-box;
-            display: flex;
-            flex-direction: column;
-        }
+        /* ---------- barra superior ---------- */
+        .barra { height: 64px; display: flex; align-items: center; gap: 6px; padding: 0 12px; border-bottom: 1px solid var(--linha); background: var(--fundo); position: relative; z-index: 20; }
+        .marca { display: flex; align-items: center; gap: 10px; padding: 0 14px 0 4px; min-width: 196px; }
+        .marca-icone { width: 34px; height: 34px; border-radius: 10px; background: var(--acao); color: #fff; display: grid; place-items: center; font-size: 19px; }
+        [data-tema="escuro"] .marca-icone { color: #0d1f18; }
+        .marca b { font: 700 21px 'Bricolage Grotesque', sans-serif; letter-spacing: -.3px; }
+        .btn-hoje { height: 36px; padding: 0 16px; border: 1px solid var(--linha-forte); border-radius: 999px; background: transparent; font-weight: 600; cursor: pointer; margin-right: 6px; }
+        .btn-hoje:hover { background: var(--suave); }
+        .titulo { font: 400 22px 'Instrument Sans', sans-serif; margin-left: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .titulo::first-letter { text-transform: uppercase; }
+        .espaco { flex: 1; }
+        .visoes { display: flex; border: 1px solid var(--linha-forte); border-radius: 999px; overflow: hidden; margin-right: 6px; }
+        .visoes button { border: 0; background: transparent; height: 36px; padding: 0 14px; font-weight: 600; color: var(--tinta-2); cursor: pointer; }
+        .visoes button + button { border-left: 1px solid var(--linha-forte); }
+        .visoes button:hover { background: var(--suave); }
+        .visoes button[aria-pressed="true"] { background: var(--acao-suave); color: var(--acao-tinta); }
 
-        /* --- 🏷️ BANNER DE MANUTENÇÃO --- */
-        .maintenance-banner { 
-            background: #ff3333; 
-            color: #fff; 
-            text-align: center; 
-            padding: 5px; 
-            font-size: 12px; 
-            font-weight: bold; 
-            position: fixed; 
-            top: 0; 
-            left: 0; 
-            width: 100%; 
-            z-index: 9999; 
-        }
-        .mt-banner { margin-top: 30px; }
+        /* ---------- estrutura ---------- */
+        .corpo { display: flex; height: calc(100% - 64px); }
+        .lateral { width: 256px; flex: none; padding: 12px 12px 24px; overflow-y: auto; background: var(--fundo); }
+        .principal { flex: 1; min-width: 0; padding: 0 12px 12px 0; display: flex; flex-direction: column; }
+        #calendario { flex: 1; min-height: 0; background: var(--superficie); border-radius: 18px; border: 1px solid var(--linha); overflow: hidden; }
 
-        /* --- 🏛️ HEADER SUPERIOR (Menu de Navegação - INTÁCTO) --- */
-        .header { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            margin-bottom: 40px; 
-        }
-        
-        .logo { 
-            font-size: 20px; 
-            font-weight: 700; 
-            color: #fff; 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-        }
-        
-        .plan-badge { 
-            font-size: 11px; 
-            background: #1a1a1a; 
-            border: 1px solid #333; 
-            padding: 3px 10px; 
-            border-radius: 4px; 
-            color: #666; 
-            margin-left: 10px; 
-            text-transform: uppercase; 
-            letter-spacing: 1px; 
-        }
+        .criar { display: inline-flex; align-items: center; gap: 12px; height: 54px; padding: 0 22px 0 16px; border: 0; border-radius: 16px; background: var(--superficie); box-shadow: var(--sombra); font-weight: 600; font-size: 15px; cursor: pointer; margin: 4px 0 18px; }
+        .criar:hover { background: var(--acao-suave); }
+        .criar i { font-size: 26px; color: var(--acao); }
 
-        .btn-logout { 
-            color: #666; 
-            text-decoration: none; 
-            font-size: 13px; 
-            font-weight: 500; 
-            margin-right: 20px; 
-            transition: 0.2s;
-        }
-        .btn-logout:hover { color: #fff; }
+        .mini { padding: 0 4px 6px; user-select: none; }
+        .mini-topo { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+        .mini-topo b { font-weight: 600; padding-left: 6px; }
+        .mini-topo b::first-letter { text-transform: uppercase; }
+        .mini-topo .icone-btn { width: 28px; height: 28px; font-size: 18px; }
+        .mini-grade { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; }
+        .mini-grade span { font-size: 11px; color: var(--tinta-3); font-weight: 600; padding: 4px 0; }
+        .mini-grade button { aspect-ratio: 1; border: 0; background: transparent; border-radius: 50%; font-size: 12px; cursor: pointer; color: var(--tinta); margin: 1px; }
+        .mini-grade button:hover { background: var(--suave); }
+        .mini-grade button.fora { color: var(--tinta-3); }
+        .mini-grade button.na-faixa { background: var(--acao-suave); color: var(--acao-tinta); }
+        .mini-grade button.hoje { background: var(--acao); color: #fff; font-weight: 700; }
+        [data-tema="escuro"] .mini-grade button.hoje { color: #0d1f18; }
 
-        /* --- 🗂️ ABAS DE SELEÇÃO DE BOT --- */
-        .bot-tabs { 
-            display: flex; 
-            gap: 10px; 
-            margin-bottom: 25px; 
-            border-bottom: 1px solid var(--border-color); 
-            padding-bottom: 15px; 
-            overflow-x: auto; 
-        }
-        
-        .tab-btn { 
-            background: var(--card-bg); 
-            color: var(--text-muted); 
-            border: 1px solid var(--border-color); 
-            padding: 10px 20px; 
-            border-radius: 6px; 
-            cursor: pointer; 
-            font-weight: 600; 
-            display: flex; 
-            align-items: center; 
-            gap: 8px; 
-            transition: all 0.2s; 
-            white-space: nowrap; 
-        }
-        
-        .tab-btn:hover { 
-            background: #1a1a1a; 
-            color: #fff; 
-            border-color: #333;
-        }
-        
-        .tab-btn.active { 
-            background: rgba(0, 102, 255, 0.1); 
-            border-color: var(--primary-blue); 
-            color: var(--primary-blue); 
-        }
+        .secao { margin-top: 18px; }
+        .secao-titulo { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 6px; font-weight: 600; color: var(--tinta-2); }
+        .robos { list-style: none; display: grid; gap: 2px; }
+        .robo { display: flex; align-items: flex-start; gap: 10px; padding: 7px 6px; border-radius: 10px; }
+        .robo:hover { background: var(--suave); }
+        .robo input { appearance: none; width: 18px; height: 18px; border-radius: 4px; border: 2px solid var(--cor); margin-top: 1px; flex: none; cursor: pointer; display: grid; place-items: center; }
+        .robo input:checked { background: var(--cor); }
+        .robo input:checked::after { content: ''; width: 9px; height: 5px; border: 2px solid #fff; border-top: 0; border-right: 0; transform: rotate(-45deg) translate(1px, -1px); }
+        .robo label { flex: 1; min-width: 0; cursor: pointer; }
+        .robo label b { display: block; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .robo label small { color: var(--tinta-3); font-size: 12px; display: block; }
+        .robo .icone-btn { width: 30px; height: 30px; font-size: 17px; opacity: 0; }
+        .robo:hover .icone-btn, .robo .icone-btn:focus-visible { opacity: 1; }
+        .atalhos { margin-top: 22px; padding: 12px; border-radius: 12px; background: var(--lateral); color: var(--tinta-3); font-size: 12.5px; }
+        .atalhos kbd { font: 600 11.5px 'Instrument Sans', sans-serif; padding: 1px 6px; border-radius: 5px; border: 1px solid var(--linha-forte); color: var(--tinta-2); background: var(--superficie); }
 
-        /* --- ⚙️ CARD DE CONFIGURAÇÕES --- */
-        .config-card { 
-            background: var(--card-bg); 
-            border: 1px solid var(--border-color); 
-            border-radius: 8px; 
-            padding: 20px; 
-            margin-bottom: 25px; 
-        }
-        
-        .form-row { 
-            display: flex; 
-            gap: 20px; 
-            align-items: flex-end; 
-            flex-wrap: wrap; 
-        }
-        
-        .form-group { 
-            flex: 1; 
-            min-width: 200px; 
-        }
-        
-        label { 
-            display: block; 
-            margin-bottom: 8px; 
-            font-size: 11px; 
-            color: #aaa; 
-            text-transform: uppercase; 
-            font-weight: 600; 
-        }
-        
-        input, select { 
-            width: 100%; 
-            background: #000; 
-            border: 1px solid var(--border-color); 
-            color: white; 
-            padding: 10px; 
-            border-radius: 6px; 
-            outline: none; 
-            box-sizing: border-box;
-            transition: 0.2s;
-        }
-        
-        input:focus, select:focus { 
-            border-color: var(--primary-blue); 
-        }
+        /* ---------- FullCalendar no estilo Google ---------- */
+        .fc { --fc-border-color: var(--linha); --fc-page-bg-color: var(--superficie); --fc-neutral-bg-color: var(--fora-expediente); --fc-today-bg-color: transparent;
+              --fc-now-indicator-color: #ea4335; --fc-non-business-color: var(--fora-expediente); --fc-highlight-color: var(--acao-suave); --fc-list-event-hover-bg-color: var(--suave); height: 100%; }
+        .fc .fc-scrollgrid { border: 0; }
+        .fc-theme-standard td, .fc-theme-standard th { border-color: var(--linha); }
+        .fc .fc-col-header-cell { border-left-color: transparent; border-right-color: transparent; padding: 8px 0 6px; }
+        .fc .fc-col-header-cell-cushion { color: var(--tinta-2); text-decoration: none; display: flex; flex-direction: column; align-items: center; gap: 2px; font-weight: 600; font-size: 11px; letter-spacing: .3px; }
+        .fc .fc-col-header-cell-cushion .num { font: 400 24px 'Instrument Sans', sans-serif; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: var(--tinta); letter-spacing: 0; }
+        .fc .fc-day-today .fc-col-header-cell-cushion { color: var(--acao); }
+        .fc .fc-day-today .fc-col-header-cell-cushion .num { background: var(--acao); color: #fff; }
+        [data-tema="escuro"] .fc .fc-day-today .fc-col-header-cell-cushion .num { color: #0d1f18; }
+        .fc .fc-timegrid-slot { height: 26px; border-bottom: 0; }
+        .fc .fc-timegrid-slot-minor { border-top-style: none; }
+        .fc .fc-timegrid-slot-label-cushion { font-size: 11px; color: var(--tinta-3); padding-right: 8px; }
+        .fc .fc-timegrid-slot-label { vertical-align: top; transform: translateY(-8px); border: 0; }
+        .fc .fc-timegrid-axis { border: 0; }
+        .fc-direction-ltr .fc-timegrid-col-events { margin: 0 8px 0 2px; }
+        .fc-event { border-radius: 6px; border: 0; padding: 1px 2px; cursor: pointer; box-shadow: none; }
+        .fc-timegrid-event .fc-event-main { padding: 2px 5px; }
+        .fc-timegrid-event .fc-event-time { font-size: 11.5px; }
+        .fc-timegrid-event .fc-event-title { font-weight: 600; font-size: 12.5px; }
+        .fc-timegrid-event-harness-inset .fc-timegrid-event { box-shadow: 0 0 0 1px var(--superficie); }
+        .fc-event.bloqueio { background: repeating-linear-gradient(-45deg, var(--suave), var(--suave) 6px, var(--listra) 6px, var(--listra) 12px) !important; color: var(--tinta-2) !important; }
+        .fc-event.bloqueio .fc-event-main, .fc-event.bloqueio .fc-event-main * { color: var(--tinta-2) !important; }
+        .fc-daygrid-event.bloqueio .fc-daygrid-event-dot { border-color: var(--tinta-3) !important; }
+        .fc-event.passado { opacity: .7; }
+        .fc .fc-daygrid-day-top { justify-content: center; }
+        .fc .fc-daygrid-day-number { font-size: 12px; font-weight: 600; color: var(--tinta-2); text-decoration: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; margin-top: 4px; padding: 0; }
+        .fc .fc-day-today .fc-daygrid-day-number { background: var(--acao); color: #fff; }
+        .fc .fc-daygrid-event { margin-top: 1px; font-size: 12px; }
+        .fc .fc-daygrid-dot-event .fc-event-title { font-weight: 500; }
+        .fc .fc-daygrid-dot-event:hover { background: var(--suave); }
+        .fc .fc-daygrid-more-link { color: var(--tinta-2); font-weight: 600; }
+        .fc .fc-list { border: 0; }
+        .fc .fc-list-day-cushion { background: var(--fundo); }
+        .fc .fc-list-day-text, .fc .fc-list-day-side-text { color: var(--tinta); text-decoration: none; font-weight: 600; }
+        .fc .fc-list-event td { border-color: var(--linha); }
+        .fc .fc-list-empty { background: var(--superficie); color: var(--tinta-3); }
+        .fc .fc-popover { background: var(--superficie); border: 0; box-shadow: var(--sombra); border-radius: 14px; }
+        .fc .fc-popover-header { background: transparent; }
+        .fc .fc-highlight { border-radius: 6px; }
 
-        .btn-salvar { 
-            background-color: var(--primary-blue); 
-            color: #fff; 
-            border: none; 
-            padding: 10px 20px; 
-            border-radius: 6px; 
-            font-weight: 600; 
-            cursor: pointer; 
-            display: flex; 
-            align-items: center; 
-            gap: 8px; 
-            font-size: 13px; 
-            transition: 0.2s; 
-            height: 38px;
-        }
-        
-        .btn-salvar:hover { 
-            background-color: var(--primary-hover); 
-        }
+        /* ---------- janelas ---------- */
+        dialog { margin: auto; border: 0; border-radius: 22px; background: var(--superficie); color: var(--tinta); box-shadow: var(--sombra); padding: 0; width: min(460px, calc(100vw - 32px)); }
+        dialog::backdrop { background: rgba(10, 20, 15, .32); }
+        .dlg-topo { display: flex; justify-content: flex-end; gap: 2px; padding: 8px 8px 0; }
+        .dlg-corpo { padding: 4px 24px 22px; }
+        .dlg-rodape { display: flex; justify-content: flex-end; gap: 8px; padding: 0 20px 20px; align-items: center; }
+        .titulo-input { width: 100%; border: 0; border-bottom: 2px solid var(--linha); background: transparent; font-size: 22px; padding: 6px 2px 8px; margin-bottom: 14px; }
+        .titulo-input:focus { outline: none; border-color: var(--acao); }
+        .abas { display: flex; gap: 6px; margin-bottom: 16px; }
+        .abas button { border: 0; background: transparent; padding: 7px 12px; border-radius: 8px; font-weight: 600; color: var(--tinta-2); cursor: pointer; }
+        .abas button[aria-pressed="true"] { background: var(--acao-suave); color: var(--acao-tinta); }
+        .linha-campo { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 12px; }
+        .linha-campo > i { font-size: 20px; color: var(--tinta-3); margin-top: 8px; width: 20px; flex: none; }
+        .linha-campo .campos { flex: 1; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .entrada { height: 38px; padding: 0 10px; border: 1px solid transparent; border-radius: 8px; background: var(--suave); min-width: 0; }
+        .entrada:focus { outline: none; border-color: var(--acao); background: var(--superficie); }
+        .entrada.cheia { width: 100%; }
+        .dica { font-size: 12.5px; color: var(--tinta-3); width: 100%; }
+        .btn { height: 38px; padding: 0 20px; border-radius: 999px; border: 0; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+        .btn.primario { background: var(--acao); color: #fff; }
+        [data-tema="escuro"] .btn.primario { color: #0d1f18; }
+        .btn.primario:hover { background: var(--acao-hover); }
+        .btn.texto { background: transparent; color: var(--acao); }
+        .btn.texto:hover { background: var(--acao-suave); }
+        .btn.perigo { background: transparent; color: var(--erro); }
+        .btn.perigo:hover { background: rgba(197, 34, 31, .08); }
+        .btn:disabled { opacity: .55; cursor: wait; }
+        .erro-msg { color: var(--erro); font-size: 13.5px; margin-right: auto; }
 
-        /* --- 📅 FULLCALENDAR (Estilo Google Agenda Dark Mode) --- */
-        #calendar-container { 
-            background: #121212; 
-            border: 1px solid var(--border-color); 
-            border-radius: 8px; 
-            padding: 20px; 
-            flex: 1; 
-            min-height: 500px; 
-        }
-        
-        /* Linhas da grade mais sutis */
-        .fc-theme-standard td, .fc-theme-standard th { 
-            border-color: #2a2a2a !important; 
-        }
-        
-        /* Cabeçalho dos dias da semana (Estilo Limpo) */
-        .fc-col-header-cell { 
-            background-color: transparent !important; 
-            color: #888; 
-            padding: 12px 0; 
-            font-weight: 500; 
-            border-bottom: 1px solid #333 !important;
-        }
+        .det-titulo { display: flex; gap: 14px; align-items: flex-start; margin-bottom: 14px; }
+        .det-titulo .quadro { width: 16px; height: 16px; border-radius: 5px; margin-top: 8px; flex: none; }
+        .det-titulo h2 { font: 400 22px 'Instrument Sans', sans-serif; line-height: 1.3; }
+        .det-titulo p { color: var(--tinta-2); }
+        .det-linha { display: flex; gap: 14px; align-items: center; padding: 6px 0; color: var(--tinta-2); }
+        .det-linha i { font-size: 19px; width: 16px; color: var(--tinta-3); text-align: center; }
+        .det-linha a { color: var(--acao); font-weight: 600; text-decoration: none; }
+        .det-linha a:hover { text-decoration: underline; }
+        .det-acoes { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
 
-        /* Número do dia no cabeçalho */
-        .fc .fc-col-header-cell-cushion {
-            display: inline-block;
-            padding: 4px 8px;
-            text-decoration: none !important;
-            color: #e0e0e0;
-        }
-        
-        /* Bolinha Azul no Dia Atual (Exato estilo Google Agenda) */
-        .fc-day-today .fc-col-header-cell-cushion {
-            background-color: var(--primary-blue);
-            color: #fff;
-            border-radius: 50%;
-            font-weight: bold;
-        }
-        
-        /* Fundo do dia atual (Sutil) */
-        .fc-day-today { 
-            background-color: rgba(0, 102, 255, 0.03) !important; 
-        }
-        
-        /* Estilo dos botões de navegação (Hoje, <, >) */
-        .fc .fc-button-primary { 
-            background-color: #1a1a1a; 
-            border-color: var(--border-color); 
-            color: #fff; 
-        }
-        
-        .fc .fc-button-primary:hover { 
-            background-color: #222; 
-            border-color: #444; 
-        }
-        
-        .fc .fc-button-primary:not(:disabled).fc-button-active { 
-            background-color: var(--primary-blue); 
-            color: #fff; 
-            border-color: var(--primary-blue); 
-        }
+        /* configurações: painel lateral */
+        #dlg-evento { width: min(540px, calc(100vw - 32px)); }
+        #dlg-config { width: min(520px, 100vw); height: 100vh; max-height: 100vh; margin: 0 0 0 auto; border-radius: 22px 0 0 22px; }
+        #dlg-config .dlg-corpo { overflow-y: auto; height: calc(100% - 128px); }
+        .cfg-titulo { font: 700 22px 'Bricolage Grotesque', sans-serif; padding: 18px 24px 4px; display: flex; justify-content: space-between; align-items: center; }
+        .cfg-bot { margin: 4px 0 18px; }
+        .cfg-secao { font: 700 15px 'Bricolage Grotesque', sans-serif; margin: 20px 0 10px; }
+        .dia-linha { display: grid; grid-template-columns: 44px 76px 1fr; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--linha); }
+        .dia-linha .horas { display: flex; gap: 8px; align-items: center; color: var(--tinta-3); }
+        .dia-linha .horas input { width: 124px; }
+        .dia-linha.fechado .horas { display: none; }
+        .dia-linha .fechado-txt { display: none; color: var(--tinta-3); }
+        .dia-linha.fechado .fechado-txt { display: block; grid-column: 3; grid-row: 1; }
+        .chave { position: relative; width: 38px; height: 22px; flex: none; }
+        .chave input { opacity: 0; width: 100%; height: 100%; position: absolute; cursor: pointer; z-index: 1; margin: 0; }
+        .chave span { position: absolute; inset: 0; background: var(--linha-forte); border-radius: 999px; transition: background .15s; }
+        .chave span::after { content: ''; position: absolute; left: 3px; top: 3px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .15s; }
+        .chave input:checked + span { background: var(--acao); }
+        .chave input:checked + span::after { transform: translateX(16px); }
+        .chave input:focus-visible + span { outline: 2px solid var(--acao); outline-offset: 2px; }
+        .duas { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .campo label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 5px; color: var(--tinta-2); }
+        .campo .entrada { width: 100%; }
 
-        /* 🚫 Bloqueio Visual (Fora do Horário Comercial - DESTAQUE MÁXIMO) */
-        .fc-non-business {
-            background-color: #0a0a0a !important; /* Fundo bem escuro */
-            background-image: repeating-linear-gradient(
-                135deg,
-                #0a0a0a,
-                #0a0a0a 6px,
-                #111111 6px,
-                #111111 12px
-            ) !important; /* Listras diagonais elegantes */
-            opacity: 1 !important; /* Retira transparência para destacar */
-        }
+        .toast { position: fixed; left: 24px; bottom: 24px; background: #1f2421; color: #fff; padding: 12px 18px; border-radius: 10px; box-shadow: var(--sombra); z-index: 50; max-width: min(440px, calc(100vw - 48px)); display: flex; gap: 14px; align-items: center; }
+        .toast.erro { background: #8c1d18; }
+        .toast[hidden] { display: none; }
 
-        /* Área editável (Horário de trabalho) */
-        .fc-timegrid-col-frame {
-            background-color: #161616; 
+        .vazio { margin: 12vh auto; text-align: center; max-width: 380px; color: var(--tinta-2); }
+        .vazio i { font-size: 44px; color: var(--acao); }
+        .vazio h1 { font: 800 26px 'Bricolage Grotesque', sans-serif; margin: 10px 0 6px; color: var(--tinta); }
+
+        .so-celular { display: none; }
+        @media (max-width: 900px) {
+            .marca { min-width: 0; padding-right: 4px; }
+            .marca b, .atalhos { display: none; }
+            .titulo { font-size: 17px; margin-left: 4px; }
+            .so-celular { display: inline-grid; }
+            .lateral { position: fixed; left: 0; top: 64px; bottom: 0; z-index: 30; box-shadow: var(--sombra); transform: translateX(-105%); transition: transform .2s ease; }
+            body.menu-aberto .lateral { transform: none; }
+            .principal { padding: 0; }
+            #calendario { border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0; }
+            .visoes button { padding: 0 10px; }
+            .criar-flutuante { position: fixed; right: 18px; bottom: 18px; z-index: 25; width: 56px; height: 56px; border-radius: 16px; border: 0; background: var(--acao); color: #fff; font-size: 28px; box-shadow: var(--sombra); display: grid; place-items: center; }
         }
+        .visoes-menu { display: none; }
+        @media (max-width: 600px) {
+            .barra { gap: 2px; padding: 0 6px; }
+            .btn-hoje { padding: 0 12px; margin-right: 0; }
+            .barra .marca, .barra .visoes, #btn-tema { display: none; }
+            .barra .nav-seta { width: 34px; }
+            .titulo { flex: 1; min-width: 0; }
+            .espaco { display: none; }
+            .visoes-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 4px 0 16px; }
+            .visoes-menu button { height: 38px; border-radius: 10px; border: 1px solid var(--linha-forte); background: transparent; font-weight: 600; color: var(--tinta-2); cursor: pointer; }
+            .visoes-menu button[aria-pressed="true"] { background: var(--acao-suave); color: var(--acao-tinta); border-color: transparent; }
+        }
+        @media (min-width: 901px) { .criar-flutuante { display: none; } }
+        @media (prefers-reduced-motion: reduce) { .lateral, .chave span, .chave span::after { transition: none; } }
     </style>
 </head>
 <body>
-
-    <!-- ⚠️ Banner de Manutenção -->
-    <% if (typeof systemMaintenance !== 'undefined' && systemMaintenance) { %>
-        <div class="maintenance-banner">
-            ⚠️ MODO MANUTENÇÃO ATIVO - CLIENTES ESTÃO BLOQUEADOS
+<% if (!bots.length) { %>
+    <header class="barra"><a class="icone-btn" href="/dashboard" title="Voltar ao painel" aria-label="Voltar ao painel"><i class="ri-arrow-left-line"></i></a><div class="marca"><span class="marca-icone"><i class="ri-calendar-2-line"></i></span><b>Agenda</b></div></header>
+    <div class="vazio"><i class="ri-calendar-event-line" aria-hidden="true"></i><h1>Sua agenda está vazia</h1><p>Crie um robô no painel. Os horários que ele marcar no WhatsApp aparecem aqui.</p><p style="margin-top:18px"><a class="btn primario" href="/dashboard">Ir para o painel</a></p></div>
+<% } else { %>
+    <header class="barra">
+        <button class="icone-btn so-celular" id="btn-menu" type="button" aria-label="Mostrar robôs e calendário" aria-expanded="false"><i class="ri-menu-line"></i></button>
+        <a class="icone-btn" href="/dashboard" title="Voltar ao painel" aria-label="Voltar ao painel"><i class="ri-arrow-left-line"></i></a>
+        <div class="marca"><span class="marca-icone" aria-hidden="true"><i class="ri-calendar-2-line"></i></span><b>Agenda</b></div>
+        <button class="btn-hoje" id="btn-hoje" type="button" title="Hoje (T)">Hoje</button>
+        <button class="icone-btn nav-seta" id="btn-ant" type="button" aria-label="Anterior" title="Anterior (K)"><i class="ri-arrow-left-s-line"></i></button>
+        <button class="icone-btn nav-seta" id="btn-prox" type="button" aria-label="Próximo" title="Próximo (J)"><i class="ri-arrow-right-s-line"></i></button>
+        <h1 class="titulo" id="titulo" aria-live="polite"></h1>
+        <div class="espaco"></div>
+        <div class="visoes" role="group" aria-label="Visualização">
+            <button type="button" data-visao="timeGridDay" title="Dia (D)">Dia</button>
+            <button type="button" data-visao="timeGridWeek" title="Semana (W)">Semana</button>
+            <button type="button" data-visao="dayGridMonth" title="Mês (M)">Mês</button>
+            <button type="button" data-visao="listWeek" title="Lista (A)">Lista</button>
         </div>
-    <% } %>
+        <button class="icone-btn" id="btn-tema" type="button" aria-label="Alternar tema claro e escuro" title="Tema claro/escuro"><i class="ri-moon-line"></i></button>
+        <button class="icone-btn" id="btn-config" type="button" aria-label="Horário de atendimento e avisos" title="Horário de atendimento e avisos"><i class="ri-settings-3-line"></i></button>
+    </header>
 
-    <!-- 🏛️ Header Principal (Menu) -->
-    <div class="header <%= (typeof systemMaintenance !== 'undefined' && systemMaintenance) ? 'mt-banner' : '' %>">
-        <div class="logo">
-            <i class="ri-dashboard-3-line"></i> Calixto OmniSystem 
-            <% if (usuario) { %> <span class="plan-badge"><%= usuario.plano %></span> <% } %>
-        </div>
-    
-        <div style="display: flex; gap: 15px; align-items: center;">
-            
-            <a href="/dashboard" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
-                <i class="ri-home-line"></i> Dashboard
-            </a>
-
-            <a href="/dashboard/contratos" style="text-decoration: none; color: #ccc; font-size: 13px; display: flex; align-items: center; gap: 5px; transition: 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#ccc'">
-                <i class="ri-file-text-line"></i> Meus Contratos
-            </a>
-    
-            <span style="color: #333;">|</span>
-            <a href="/logout" class="btn-logout">Sair</a>
-        </div>
+    <div class="corpo">
+        <aside class="lateral" id="lateral" aria-label="Calendário e robôs">
+            <button class="criar" id="btn-criar" type="button" title="Criar (C)"><i class="ri-add-line" aria-hidden="true"></i> Criar</button>
+            <div class="visoes-menu" role="group" aria-label="Visualização">
+                <button type="button" data-visao="timeGridDay">Dia</button>
+                <button type="button" data-visao="timeGridWeek">Semana</button>
+                <button type="button" data-visao="dayGridMonth">Mês</button>
+                <button type="button" data-visao="listWeek">Lista</button>
+                <button type="button" id="btn-tema-2" style="grid-column: span 2"><i class="ri-contrast-2-line"></i> Tema claro/escuro</button>
+            </div>
+            <div class="mini" id="mini" aria-label="Escolher data"></div>
+            <section class="secao">
+                <div class="secao-titulo"><span>Meus robôs</span></div>
+                <ul class="robos" id="lista-robos"></ul>
+            </section>
+            <div class="atalhos">Atalhos: <kbd>C</kbd> criar, <kbd>T</kbd> hoje, <kbd>D</kbd> <kbd>W</kbd> <kbd>M</kbd> <kbd>A</kbd> visualização, <kbd>J</kbd> <kbd>K</kbd> avançar e voltar.</div>
+        </aside>
+        <main class="principal"><div id="calendario"></div></main>
     </div>
+    <button class="criar-flutuante" id="btn-criar-2" type="button" aria-label="Criar agendamento"><i class="ri-add-line"></i></button>
 
-    <!-- 🚫 Tela Vazia (Caso o usuário não tenha robôs) -->
-    <% if (clientes.length === 0) { %>
-        <div style="text-align: center; color: #444; padding: 60px; border: 1px dashed var(--border-color); border-radius: 8px;">
-            <i class="ri-robot-line" style="font-size: 40px; margin-bottom: 10px;"></i><br>
-            Você não possui nenhum robô cadastrado.
-        </div>
-    <% } else { %>
-
-        <!-- 🗂️ Abas de Seleção de Bot -->
-        <div class="bot-tabs" id="bot-tabs-container">
-            <% clientes.forEach((c, index) => { %>
-                <button class="tab-btn <%= index === 0 ? 'active' : '' %>" id="tab-<%= c.id %>" onclick="selecionarBot('<%= c.id %>')">
-                    <i class="ri-robot-line"></i> <%= c.nome %>
-                </button>
-            <% }) %>
-        </div>
-
-        <!-- ⚙️ Formulário de Configuração -->
-        <div class="config-card">
-            <form id="form-settings" onsubmit="salvarConfiguracoes(event)">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label><i class="ri-whatsapp-line"></i> Notificar Gestor</label>
-                        <input type="text" id="config-numero" placeholder="Ex: 5511999999999">
-                    </div>
-                    <div class="form-group">
-                        <label><i class="ri-notification-3-line"></i> 1º Lembrete (Horas antes)</label>
-                        <input type="number" id="config-t1" placeholder="Ex: 24">
-                    </div>
-                    <div class="form-group">
-                        <label><i class="ri-notification-3-line"></i> 2º Lembrete (Horas antes)</label>
-                        <input type="number" id="config-t2" placeholder="0 para desativar">
-                    </div>
-                    <div class="form-group">
-                        <label><i class="ri-time-line"></i> Horário Restrito?</label>
-                        <select id="config-horario">
-                            <option value="true">Sim (Apenas horário comercial)</option>
-                            <option value="false">Não (Livre 24h)</option>
-                        </select>
-                    </div>
-                    <div class="form-group" style="flex: 0;">
-                        <button type="submit" class="btn-salvar" id="btn-salvar">
-                            <i class="ri-save-line"></i> Salvar
-                        </button>
+    <!-- Criar / editar -->
+    <dialog id="dlg-evento" aria-labelledby="ev-nome">
+        <form method="dialog" id="form-evento">
+            <div class="dlg-topo"><button class="icone-btn" type="button" data-fechar aria-label="Fechar"><i class="ri-close-line"></i></button></div>
+            <div class="dlg-corpo">
+                <input class="titulo-input" id="ev-nome" autocomplete="off" maxlength="80" placeholder="Nome do cliente">
+                <div class="abas" id="ev-abas" role="group" aria-label="Tipo">
+                    <button type="button" data-tipo="agendamento" aria-pressed="true">Agendamento</button>
+                    <button type="button" data-tipo="bloqueio" aria-pressed="false">Bloquear horário</button>
+                </div>
+                <div class="linha-campo"><i class="ri-time-line" aria-hidden="true"></i>
+                    <div class="campos">
+                        <input class="entrada" type="date" id="ev-data" aria-label="Data" required>
+                        <input class="entrada" type="time" id="ev-inicio" aria-label="Início" step="300" required>
+                        <span aria-hidden="true">até</span>
+                        <input class="entrada" type="date" id="ev-data-fim" aria-label="Data final" hidden>
+                        <input class="entrada" type="time" id="ev-fim" aria-label="Fim" step="300" required>
                     </div>
                 </div>
-            </form>
+                <div class="linha-campo"><i class="ri-robot-2-line" aria-hidden="true"></i>
+                    <div class="campos"><select class="entrada cheia" id="ev-bot" aria-label="Robô"></select></div>
+                </div>
+                <div class="linha-campo" data-so="agendamento"><i class="ri-whatsapp-line" aria-hidden="true"></i>
+                    <div class="campos"><input class="entrada cheia" id="ev-whats" inputmode="tel" autocomplete="off" placeholder="WhatsApp com DDD, ex: 21 99999-0000" aria-label="WhatsApp"><span class="dica">O lembrete automático vai para este número.</span></div>
+                </div>
+                <div class="linha-campo" data-so="bloqueio" hidden><i class="ri-forbid-line" aria-hidden="true"></i>
+                    <div class="campos"><span class="dica">Ninguém consegue marcar nesse período pelo WhatsApp. Use para almoço, folga ou feriado.</span>
+                        <label class="dica" style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" id="ev-varios-dias"> Vários dias</label></div>
+                </div>
+            </div>
+            <div class="dlg-rodape">
+                <span class="erro-msg" id="ev-erro" role="alert"></span>
+                <button class="btn texto" type="button" data-fechar>Cancelar</button>
+                <button class="btn primario" type="submit" id="ev-salvar">Salvar</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- Detalhes -->
+    <dialog id="dlg-detalhe" aria-labelledby="det-nome">
+        <div class="dlg-topo">
+            <button class="icone-btn" type="button" id="det-editar" aria-label="Editar" title="Editar"><i class="ri-pencil-line"></i></button>
+            <button class="icone-btn" type="button" id="det-excluir" aria-label="Excluir" title="Excluir"><i class="ri-delete-bin-6-line"></i></button>
+            <button class="icone-btn" type="button" data-fechar aria-label="Fechar"><i class="ri-close-line"></i></button>
         </div>
+        <div class="dlg-corpo">
+            <div class="det-titulo"><span class="quadro" id="det-cor"></span><div><h2 id="det-nome" tabindex="-1" autofocus style="outline:none"></h2><p id="det-quando"></p></div></div>
+            <div id="det-linhas"></div>
+            <div class="det-acoes" id="det-acoes"></div>
+            <p class="erro-msg" id="det-erro" role="alert" style="margin-top:10px"></p>
+        </div>
+    </dialog>
 
-        <!-- 📅 Container do FullCalendar -->
-        <div id="calendar-container"></div>
+    <!-- Configurações -->
+    <dialog id="dlg-config" aria-labelledby="cfg-h">
+        <form id="form-config" style="height:100%">
+            <div class="cfg-titulo"><span id="cfg-h">Horário de atendimento</span><button class="icone-btn" type="button" data-fechar aria-label="Fechar"><i class="ri-close-line"></i></button></div>
+            <div class="dlg-corpo">
+                <div class="campo cfg-bot"><label for="cfg-bot">Robô</label><select class="entrada" id="cfg-bot"></select></div>
+                <p class="dica">O robô só oferece horários dentro destes dias e horas, pulando o que já está marcado ou bloqueado.</p>
+                <div id="cfg-dias" style="margin-top:8px"></div>
+                <div class="duas" style="margin-top:16px">
+                    <div class="campo"><label for="cfg-duracao">Cada atendimento dura</label><select class="entrada" id="cfg-duracao"></select></div>
+                    <div class="campo"><label for="cfg-antecedencia">Marcar com antecedência de</label>
+                        <select class="entrada" id="cfg-antecedencia">
+                            <option value="0">Sem mínimo</option><option value="30">30 minutos</option><option value="60">1 hora</option><option value="120">2 horas</option>
+                            <option value="240">4 horas</option><option value="720">12 horas</option><option value="1440">1 dia</option><option value="2880">2 dias</option>
+                        </select></div>
+                </div>
+                <div class="duas" style="margin-top:12px">
+                    <div class="campo"><label for="cfg-frente">Abrir a agenda para os próximos</label>
+                        <select class="entrada" id="cfg-frente"><option value="7">7 dias</option><option value="14">14 dias</option><option value="30">30 dias</option><option value="60">60 dias</option><option value="90">90 dias</option></select></div>
+                    <div class="campo"><label>Intervalo (almoço)</label>
+                        <div style="display:flex;gap:8px;align-items:center;height:38px">
+                            <span class="chave"><input type="checkbox" id="cfg-almoco" aria-label="Ter intervalo"><span></span></span>
+                            <input class="entrada" type="time" id="cfg-almoco-ini" aria-label="Início do intervalo" style="width:96px">
+                            <input class="entrada" type="time" id="cfg-almoco-fim" aria-label="Fim do intervalo" style="width:96px">
+                        </div></div>
+                </div>
 
-    <% } %>
+                <h3 class="cfg-secao">Avisos</h3>
+                <div class="campo"><label for="cfg-gestor">WhatsApp que recebe os novos agendamentos</label><input class="entrada" id="cfg-gestor" inputmode="tel" placeholder="21 99999-0000"></div>
+                <div class="duas" style="margin-top:12px">
+                    <div class="campo"><label for="cfg-t1">Lembrete ao cliente (horas antes)</label><input class="entrada" type="number" id="cfg-t1" min="1" max="168"></div>
+                    <div class="campo"><label for="cfg-t2">Segundo lembrete (0 desliga)</label><input class="entrada" type="number" id="cfg-t2" min="0" max="168"></div>
+                </div>
+            </div>
+            <div class="dlg-rodape" style="padding-top:16px;border-top:1px solid var(--linha)">
+                <span class="erro-msg" id="cfg-erro" role="alert"></span>
+                <button class="btn texto" type="button" data-fechar>Cancelar</button>
+                <button class="btn primario" type="submit" id="cfg-salvar">Salvar</button>
+            </div>
+        </form>
+    </dialog>
 
-    <!-- ========================================== -->
-    <!-- 💾 INJEÇÃO DE DADOS SEGURA -->
-    <!-- ========================================== -->
-    <script id="clientes-data" type="application/json">
-        <%- JSON.stringify(clientes).replace(/</g, '\\u003c') %>
-    </script>
+    <div class="toast" id="toast" role="status" hidden><span id="toast-txt"></span></div>
 
-   
+    <script id="dados-bots" type="application/json"><%- JSON.stringify(bots).replace(/</g, '\\u003c') %></script>
+    <script id="dados-duracoes" type="application/json"><%- JSON.stringify(duracoes) %></script>
     <script>
-        // ==========================================
-        // 💾 1. VARIÁVEIS GLOBAIS E CACHE
-        // ==========================================
-        const rawData = document.getElementById('clientes-data').textContent;
-        const clientesFromServer = JSON.parse(rawData);
-        
-        const botsData = {};
-        
-        clientesFromServer.forEach(c => {
-            botsData[c.id] = {
-                numeroDono: (c.numeroNotificacao || "").replace("@s.whatsapp.net", ""),
-                tempoLembrete1: c.tempoLembrete1 ?? 24,
-                tempoLembrete2: c.tempoLembrete2 ?? 0,
-                usarHorarioComercial: Boolean(c.usarHorarioComercial)
-            };
-        });
+    (function () {
+        const BOTS = JSON.parse(document.getElementById('dados-bots').textContent);
+        const DURACOES = JSON.parse(document.getElementById('dados-duracoes').textContent);
+        const porId = Object.fromEntries(BOTS.map(b => [b.id, b]));
+        const $ = (id) => document.getElementById(id);
+        const SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        const doisDig = (n) => String(n).padStart(2, '0');
+        const dataInput = (d) => `${d.getFullYear()}-${doisDig(d.getMonth() + 1)}-${doisDig(d.getDate())}`;
+        const horaInput = (d) => `${doisDig(d.getHours())}:${doisDig(d.getMinutes())}`;
+        const juntar = (dia, hora) => new Date(`${dia}T${hora}:00`);
+        const ler = (k, padrao) => { try { const v = localStorage.getItem(k); return v === null ? padrao : JSON.parse(v); } catch (e) { return padrao; } };
+        const gravar = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
 
-        let currentBotId = clientesFromServer.length > 0 ? String(clientesFromServer[0].id) : "";
-        let todosEventos = [];
-        let calendar;
+        async function api(url, metodo = 'GET', corpo) {
+            try {
+                const r = await fetch(url, { method: metodo, headers: corpo ? { 'Content-Type': 'application/json' } : {}, body: corpo ? JSON.stringify(corpo) : undefined });
+                const tipo = r.headers.get('content-type') || '';
+                const dados = tipo.includes('json') ? await r.json() : await r.text();
+                return { ok: r.ok, status: r.status, dados };
+            } catch (e) { return { ok: false, status: 0, dados: { error: 'Sem conexão. Tente de novo.' } }; }
+        }
+        let toastTimer;
+        function toast(msg, erro) {
+            const t = $('toast'); $('toast-txt').textContent = msg; t.classList.toggle('erro', !!erro); t.hidden = false;
+            clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, erro ? 6000 : 3500);
+        }
 
-        // ==========================================
-        // 🚀 2. INICIALIZAÇÃO DA PÁGINA E CALENDÁRIO
-        // ==========================================
-        document.addEventListener('DOMContentLoaded', function() {
-            if (!currentBotId) return;
+        // ---------- robôs visíveis ----------
+        const salvos = ler('agenda-robos-ocultos', []);
+        const ocultos = new Set(salvos.filter(id => porId[id]));
+        function desenharRobos() {
+            const ul = $('lista-robos'); ul.innerHTML = '';
+            BOTS.forEach(b => {
+                const li = document.createElement('li'); li.className = 'robo'; li.style.setProperty('--cor', b.cor);
+                const id = 'robo-' + b.id;
+                li.innerHTML = `<input type="checkbox" id="${id}" ${ocultos.has(b.id) ? '' : 'checked'}><label for="${id}"><b></b><small></small></label><button class="icone-btn" type="button" aria-label="Horário de atendimento"><i class="ri-settings-3-line"></i></button>`;
+                li.querySelector('b').textContent = b.nome;
+                li.querySelector('small').textContent = b.resumo;
+                li.querySelector('input').onchange = (e) => {
+                    if (e.target.checked) ocultos.delete(b.id); else ocultos.add(b.id);
+                    gravar('agenda-robos-ocultos', [...ocultos]);
+                    calendario.setOption('businessHours', horarioComercial());
+                    calendario.refetchEvents();
+                };
+                li.querySelector('button').onclick = () => abrirConfig(b.id);
+                ul.appendChild(li);
+            });
+        }
+        const visiveis = () => BOTS.filter(b => !ocultos.has(b.id));
 
-            var calendarEl = document.getElementById('calendar-container');
-
-            calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'timeGridWeek',
-                locale: 'pt-br',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                },
-                allDaySlot: false,
-                slotMinTime: '00:00:00',
-                slotMaxTime: '24:00:00',
-                contentHeight: 'auto',
-                slotDuration: '00:30:00',
-                
-                selectable: true,      
-                selectMirror: true,    
-                editable: true,        
-
-                select: function(info) {
-                    abrirModalCriacao(info.start);
-                },
-
-                eventClick: function(info) {
-                    const props = info.event.extendedProps;
-                    const eventId = info.event.id;
-
-                    const temCpf = props.cpf && props.cpf !== 'S/N' && props.cpf !== 'BLOQUEIO';
-                    const cpfPaciente = temCpf ? props.cpf : 'Não informado';
-                    const dataFormatada = info.event.start.toLocaleString('pt-BR', {
-                        day: '2-digit', month: '2-digit', year: 'numeric',
-                        hour: '2-digit', minute: '2-digit'
-                    }).replace(', ', ' às ');
-
-                    Swal.fire({
-                        html: `
-                            <div style="text-align: left;">
-                                <h3 style="color: #fff; border-bottom: 1px solid #333; padding-bottom: 15px; margin-top: 0;">
-                                    <i class="ri-calendar-check-line" style="color: var(--primary-blue); vertical-align: middle;"></i> Detalhes
-                                </h3>
-                                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 15px; color: #ccc;">
-                                    <span><i class="ri-user-3-line"></i> <b>Paciente:</b> ${props.nome}</span>
-                                    <span><i class="ri-id-card-line"></i> <b>CPF:</b> ${cpfPaciente}</span>
-                                    <span><i class="ri-whatsapp-line" style="color: #00e054;"></i> <b>WhatsApp:</b> ${props.numero}</span>
-                                    <span><i class="ri-time-line" style="color: var(--primary-blue);"></i> <b>Data:</b> ${dataFormatada}</span>
-                                </div>
-                            </div>
-                        `,
-                        background: '#141414',
-                        showCancelButton: true,
-                        showConfirmButton: true,
-                        confirmButtonText: '<i class="ri-delete-bin-line"></i> Apagar',
-                        confirmButtonColor: '#ff3333',
-                        cancelButtonText: 'Fechar',
-                        cancelButtonColor: '#333'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            apagarAgendamento(eventId);
-                        }
-                    });
+        function horarioComercial() {
+            const lista = [];
+            (visiveis().length ? visiveis() : BOTS).forEach(b => {
+                const h = b.horario;
+                for (let d = 0; d < 7; d++) {
+                    const x = h.dias[d];
+                    if (!x || !x.ativo) continue;
+                    const fim = x.fim === '24:00' ? '24:00' : x.fim;
+                    if (h.almoco.ativo && h.almoco.inicio > x.inicio && h.almoco.fim < fim) {
+                        lista.push({ daysOfWeek: [d], startTime: x.inicio, endTime: h.almoco.inicio }, { daysOfWeek: [d], startTime: h.almoco.fim, endTime: fim });
+                    } else lista.push({ daysOfWeek: [d], startTime: x.inicio, endTime: fim });
                 }
             });
+            return lista.length ? lista : false;
+        }
+        function primeiraHora() {
+            let menor = '23:00';
+            BOTS.forEach(b => { for (let d = 0; d < 7; d++) { const x = b.horario.dias[d]; if (x.ativo && x.inicio < menor) menor = x.inicio; } });
+            const h = Math.max(0, Number(menor.slice(0, 2)) - 1);
+            return `${doisDig(h)}:00:00`;
+        }
 
-            calendar.render();
-            atualizarFormularioConfig(currentBotId);
-            buscarEventosDoServidor();
+        // ---------- calendário ----------
+        const celular = window.matchMedia('(max-width: 600px)').matches;
+        const calendario = new FullCalendar.Calendar($('calendario'), {
+            locale: 'pt-br', headerToolbar: false, height: '100%',
+            initialView: ler('agenda-visao', celular ? 'timeGridDay' : 'timeGridWeek'),
+            nowIndicator: true, allDaySlot: false, slotDuration: '00:30:00', snapDuration: '00:15:00',
+            slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+            eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
+            scrollTime: primeiraHora(), scrollTimeReset: false,
+            selectable: true, selectMirror: true, editable: true, eventDurationEditable: true, dayMaxEvents: 3,
+            businessHours: horarioComercial(),
+            dayHeaderContent: (arg) => {
+                if (arg.view.type === 'dayGridMonth') return { html: `<span>${arg.text.replace('.', '').toUpperCase()}</span>` };
+                if (arg.view.type.startsWith('list')) return undefined;
+                return { html: `<span>${SEMANA[arg.date.getDay()].toUpperCase()}</span><span class="num">${arg.date.getDate()}</span>` };
+            },
+            events: async (info, ok, falha) => {
+                const r = await api(`/api/agenda/eventos?inicio=${encodeURIComponent(info.startStr)}&fim=${encodeURIComponent(info.endStr)}`);
+                if (!r.ok) { toast((r.dados && r.dados.error) || 'Não foi possível carregar a agenda.', true); return falha(new Error('falha')); }
+                const agora = Date.now();
+                ok(r.dados.filter(e => !ocultos.has(e.botId)).map(e => {
+                    const bot = porId[e.botId] || { cor: '#616161', nome: '' };
+                    const classes = [];
+                    if (e.tipo === 'bloqueio') classes.push('bloqueio');
+                    if (new Date(e.end) < agora) classes.push('passado');
+                    return { id: e.id, title: e.title, start: e.start, end: e.end, backgroundColor: bot.cor, borderColor: bot.cor, textColor: '#fff', classNames: classes, extendedProps: { ...e, bot } };
+                }));
+            },
+            datesSet: (arg) => { atualizarTitulo(); desenharMini(); gravar('agenda-visao', arg.view.type); marcarVisao(arg.view.type); },
+            select: (info) => {
+                const mes = info.view.type === 'dayGridMonth';
+                let ini = info.start, fim = info.end;
+                if (mes) {
+                    const bot = visiveis()[0] || BOTS[0];
+                    const x = bot.horario.dias[ini.getDay()];
+                    const [h, m] = (x && x.ativo ? x.inicio : '09:00').split(':').map(Number);
+                    ini = new Date(ini); ini.setHours(h, m, 0, 0);
+                    fim = new Date(+ini + bot.horario.duracao * 60000);
+                } else if (+fim - +ini <= 30 * 60000) {
+                    const bot = visiveis()[0] || BOTS[0];
+                    fim = new Date(+ini + bot.horario.duracao * 60000);
+                }
+                calendario.unselect();
+                abrirCriacao(ini, fim);
+            },
+            eventClick: (info) => { info.jsEvent.preventDefault(); abrirDetalhe(info.event); },
+            eventDrop: (info) => mover(info),
+            eventResize: (info) => mover(info),
         });
 
-        // ==========================================
-        // 🛠️ FUNÇÕES DE APOIO (ADICIONAR E APAGAR)
-        // ==========================================
-        async function abrirModalCriacao(dataSelecionada) {
-            const { value: formValues } = await Swal.fire({
-                title: 'Novo Agendamento',
-                background: '#141414',
-                color: '#fff',
-                html: `
-                    <div style="display: flex; flex-direction: column; gap: 10px; text-align: left;">
-                        <label style="font-size: 11px; color: #888; font-weight: bold;">NOME DO PACIENTE</label>
-                        <input id="swal-nome" class="swal2-input" style="margin:0; width: 90%; font-size: 14px;" placeholder="Ex: João da Silva">
-                        
-                        <label style="font-size: 11px; color: #888; font-weight: bold; margin-top: 10px;">WHATSAPP (COM DDD)</label>
-                        <input id="swal-whats" type="number" class="swal2-input" style="margin:0; width: 90%; font-size: 14px;" placeholder="Ex: 11999999999">
-                        
-                        <label style="font-size: 11px; color: #888; font-weight: bold; margin-top: 10px;">DATA E HORA SELECIONADA</label>
-                        <input class="swal2-input" style="margin:0; width: 90%; font-size: 14px; background: #222; color: #aaa;" value="${dataSelecionada.toLocaleString('pt-BR')}" disabled>
-                    </div>
-                `,
-                focusConfirm: false,
-                showCancelButton: true,
-                cancelButtonText: 'Cancelar',
-                cancelButtonColor: '#333',
-                confirmButtonText: 'Agendar',
-                confirmButtonColor: '#0066ff',
-                preConfirm: () => {
-                    return {
-                        nome: document.getElementById('swal-nome').value,
-                        whatsapp: document.getElementById('swal-whats').value,
-                        data: dataSelecionada
-                    }
-                }
-            });
+        function atualizarTitulo() {
+            const v = calendario.view;
+            let t = v.title;
+            if (v.type === 'timeGridDay') t = calendario.getDate().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            $('titulo').textContent = t;
+            document.title = `${t.charAt(0).toUpperCase() + t.slice(1)} - Agenda`;
+        }
+        function marcarVisao(tipo) { document.querySelectorAll('[data-visao]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.visao === tipo))); }
 
-            if (formValues) {
-                if (!formValues.nome || !formValues.whatsapp) {
-                    Swal.fire({title: 'Erro', text: 'Preencha Nome e WhatsApp!', icon: 'error', background: '#141414', color: '#fff'});
-                    return;
-                }
-                salvarNovoAgendamento(formValues);
+        // ---------- mini calendário ----------
+        let miniMes = null;
+        function desenharMini() {
+            const atual = calendario.getDate();
+            if (!miniMes || desenharMini.seguir) miniMes = new Date(atual.getFullYear(), atual.getMonth(), 1);
+            desenharMini.seguir = true;
+            const v = calendario.view, hoje = dataInput(new Date());
+            const ini = new Date(miniMes); ini.setDate(1 - ini.getDay());
+            const caixa = $('mini');
+            const titulo = miniMes.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+            caixa.innerHTML = `<div class="mini-topo"><b>${titulo}</b><span><button class="icone-btn" type="button" data-mini="-1" aria-label="Mês anterior"><i class="ri-arrow-left-s-line"></i></button><button class="icone-btn" type="button" data-mini="1" aria-label="Próximo mês"><i class="ri-arrow-right-s-line"></i></button></span></div>`;
+            const grade = document.createElement('div'); grade.className = 'mini-grade';
+            ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].forEach(l => { const s = document.createElement('span'); s.textContent = l; grade.appendChild(s); });
+            for (let i = 0; i < 42; i++) {
+                const d = new Date(ini); d.setDate(ini.getDate() + i);
+                const b = document.createElement('button'); b.type = 'button'; b.textContent = d.getDate();
+                b.setAttribute('aria-label', d.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }));
+                if (d.getMonth() !== miniMes.getMonth()) b.classList.add('fora');
+                if (v.type !== 'dayGridMonth' && d >= v.activeStart && d < v.activeEnd) b.classList.add('na-faixa');
+                if (dataInput(d) === hoje) b.classList.add('hoje');
+                b.onclick = () => { calendario.gotoDate(d); if (v.type === 'dayGridMonth') calendario.changeView('timeGridDay', d); fecharMenu(); };
+                grade.appendChild(b);
             }
+            caixa.appendChild(grade);
+            caixa.querySelectorAll('[data-mini]').forEach(b => b.onclick = () => { miniMes.setMonth(miniMes.getMonth() + Number(b.dataset.mini)); desenharMini.seguir = false; desenharMini(); });
         }
 
-        async function salvarNovoAgendamento(dados) {
-            try {
-                const res = await fetch('/api/agendamentos/manual', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ...dados, clienteId: currentBotId })
-                });
+        // ---------- criar e editar ----------
+        const dlgEvento = $('dlg-evento');
+        let tipoAtual = 'agendamento', editando = null, fimTocado = false;
+        $('ev-bot').innerHTML = BOTS.map(b => `<option value="${b.id}"></option>`).join('');
+        [...$('ev-bot').options].forEach((o, i) => { o.textContent = BOTS[i].nome; });
 
-                if (res.ok) {
-                    Swal.fire({ title: 'Agendado!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#111', color: '#fff' });
-                    buscarEventosDoServidor();
-                } else {
-                    throw new Error();
-                }
-            } catch (e) {
-                Swal.fire({title: 'Erro', text: 'Falha ao salvar agendamento.', icon: 'error', background: '#141414', color: '#fff'});
+        function escolherTipo(tipo) {
+            tipoAtual = tipo;
+            document.querySelectorAll('#ev-abas button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.tipo === tipo)));
+            document.querySelectorAll('[data-so]').forEach(el => { el.hidden = el.dataset.so !== tipo; });
+            $('ev-nome').placeholder = tipo === 'bloqueio' ? 'Motivo, ex: Almoço, Folga' : 'Nome do cliente';
+            if (tipo !== 'bloqueio') { $('ev-varios-dias').checked = false; $('ev-data-fim').hidden = true; }
+        }
+        document.querySelectorAll('#ev-abas button').forEach(b => b.onclick = () => { if (!editando) escolherTipo(b.dataset.tipo); });
+        $('ev-varios-dias').onchange = (e) => { $('ev-data-fim').hidden = !e.target.checked; if (e.target.checked && !$('ev-data-fim').value) $('ev-data-fim').value = $('ev-data').value; };
+        $('ev-inicio').addEventListener('change', () => {
+            if (fimTocado || !$('ev-inicio').value) return;
+            const bot = porId[$('ev-bot').value];
+            $('ev-fim').value = horaInput(new Date(+juntar($('ev-data').value, $('ev-inicio').value) + bot.horario.duracao * 60000));
+        });
+        $('ev-fim').addEventListener('input', () => { fimTocado = true; });
+
+        function abrirCriacao(ini, fim, botId) {
+            editando = null; fimTocado = false;
+            $('form-evento').reset(); $('ev-erro').textContent = '';
+            escolherTipo('agendamento');
+            document.querySelectorAll('#ev-abas button').forEach(b => { b.disabled = false; });
+            $('ev-bot').disabled = false;
+            $('ev-bot').value = botId || (visiveis()[0] || BOTS[0]).id;
+            $('ev-data').value = dataInput(ini); $('ev-inicio').value = horaInput(ini);
+            $('ev-data-fim').value = dataInput(fim); $('ev-fim').value = horaInput(fim);
+            if (dataInput(fim) !== dataInput(ini)) { escolherTipo('bloqueio'); $('ev-varios-dias').checked = true; $('ev-data-fim').hidden = false; }
+            dlgEvento.showModal(); $('ev-nome').focus();
+        }
+        function proximoHorario() {
+            const d = new Date(); d.setMinutes(d.getMinutes() < 30 ? 30 : 60, 0, 0);
+            const bot = visiveis()[0] || BOTS[0];
+            return [d, new Date(+d + bot.horario.duracao * 60000)];
+        }
+        function abrirEdicao(ev) {
+            const p = ev.extendedProps;
+            editando = ev; fimTocado = true;
+            $('ev-erro').textContent = '';
+            escolherTipo(p.tipo);
+            document.querySelectorAll('#ev-abas button').forEach(b => { b.disabled = b.dataset.tipo !== p.tipo; });
+            $('ev-bot').value = p.botId; $('ev-bot').disabled = true;
+            $('ev-nome').value = p.tipo === 'bloqueio' ? ev.title : p.nome;
+            $('ev-whats').value = p.numero || '';
+            $('ev-data').value = dataInput(ev.start); $('ev-inicio').value = horaInput(ev.start);
+            const fim = ev.end || new Date(+ev.start + 30 * 60000);
+            $('ev-data-fim').value = dataInput(fim); $('ev-fim').value = horaInput(fim);
+            const varios = dataInput(fim) !== dataInput(ev.start);
+            $('ev-varios-dias').checked = varios; $('ev-data-fim').hidden = !varios;
+            dlgEvento.showModal(); $('ev-nome').focus();
+        }
+
+        $('form-evento').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await salvarEvento(false);
+        });
+        async function salvarEvento(forcar) {
+            const erro = $('ev-erro'); erro.textContent = '';
+            const dia = $('ev-data').value, ini = $('ev-inicio').value, fimH = $('ev-fim').value;
+            const diaFim = tipoAtual === 'bloqueio' && $('ev-varios-dias').checked ? $('ev-data-fim').value : dia;
+            if (!dia || !ini || !fimH || !diaFim) { erro.textContent = 'Preencha a data e os horários.'; return; }
+            const inicio = juntar(dia, ini), fim = juntar(diaFim, fimH);
+            if (+fim <= +inicio) { erro.textContent = 'O fim precisa ser depois do início.'; return; }
+            const nome = $('ev-nome').value.trim();
+            const corpo = { inicio: inicio.toISOString(), fim: fim.toISOString(), forcar };
+            let url, metodo;
+            if (tipoAtual === 'agendamento') {
+                if (!nome) { erro.textContent = 'Digite o nome do cliente.'; $('ev-nome').focus(); return; }
+                Object.assign(corpo, { nome, whatsapp: $('ev-whats').value });
+            } else corpo.motivo = nome || 'Indisponível';
+            if (editando) { url = `/api/agenda/eventos/${editando.id}`; metodo = 'PUT'; }
+            else { url = tipoAtual === 'agendamento' ? '/api/agenda/eventos' : '/api/agenda/bloqueios'; metodo = 'POST'; corpo.clienteId = $('ev-bot').value; }
+            const b = $('ev-salvar'); b.disabled = true;
+            const r = await api(url, metodo, corpo);
+            b.disabled = false;
+            if (r.status === 409 && r.dados.conflito) {
+                erro.innerHTML = '';
+                erro.append('Já existe algo nesse horário. ');
+                const sim = document.createElement('button'); sim.type = 'button'; sim.className = 'btn texto'; sim.style.height = '28px'; sim.style.padding = '0 10px'; sim.textContent = 'Marcar mesmo assim';
+                sim.onclick = () => salvarEvento(true); erro.appendChild(sim);
+                return;
             }
+            if (!r.ok) { erro.textContent = r.dados.error || 'Não foi possível salvar.'; return; }
+            dlgEvento.close();
+            toast(editando ? 'Alterações salvas.' : tipoAtual === 'agendamento' ? 'Agendamento criado.' : 'Horário bloqueado.');
+            calendario.refetchEvents();
         }
 
-        async function apagarAgendamento(id) {
-            try {
-                if (!id) {
-                    Swal.fire({title: 'Erro', text: 'ID do agendamento não encontrado.', icon: 'error', background: '#141414', color: '#fff'});
-                    return;
-                }
-                const res = await fetch(`/api/agendamentos/${id}`, { method: 'DELETE' });
-                if (res.ok) {
-                    Swal.fire({ title: 'Apagado!', icon: 'success', toast: true, position: 'top-end', timer: 3000, showConfirmButton: false, background: '#111', color: '#fff' });
-                    buscarEventosDoServidor();
-                } else {
-                    throw new Error();
-                }
-            } catch (e) {
-                Swal.fire({title: 'Erro', text: 'Falha ao excluir agendamento.', icon: 'error', background: '#141414', color: '#fff'});
+        async function mover(info) {
+            const ev = info.event;
+            let r = await api(`/api/agenda/eventos/${ev.id}`, 'PUT', { inicio: ev.start.toISOString(), fim: (ev.end || new Date(+ev.start + 30 * 60000)).toISOString() });
+            if (r.status === 409 && r.dados.conflito) {
+                if (window.confirm('Já existe algo nesse horário. Mover mesmo assim?')) r = await api(`/api/agenda/eventos/${ev.id}`, 'PUT', { inicio: ev.start.toISOString(), fim: (ev.end || new Date(+ev.start + 30 * 60000)).toISOString(), forcar: true });
+                else { info.revert(); return; }
             }
+            if (!r.ok) { info.revert(); toast(r.dados.error || 'Não foi possível mover.', true); return; }
+            toast(ev.extendedProps.tipo === 'bloqueio' ? 'Bloqueio atualizado.' : 'Agendamento movido. O lembrete será enviado no novo horário.');
+            calendario.refetchEvents();
         }
 
-        // ==========================================
-        // 🔄 3. LÓGICA DE TROCA DE ABAS (BOTS)
-        // ==========================================
-        function selecionarBot(id) {
-            currentBotId = id;
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.getElementById('tab-' + id).classList.add('active');
-            atualizarFormularioConfig(id);
-            filtrarEAtualizarCalendario();
+        // ---------- detalhes ----------
+        const dlgDetalhe = $('dlg-detalhe');
+        let detalheAtual = null;
+        function quandoTexto(ini, fim) {
+            const dia = ini.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+            const mesmoDia = dataInput(ini) === dataInput(fim);
+            if (mesmoDia) return `${dia.charAt(0).toUpperCase() + dia.slice(1)}, ${horaInput(ini)} até ${horaInput(fim)}`;
+            return `De ${ini.toLocaleDateString('pt-BR')} ${horaInput(ini)} até ${fim.toLocaleDateString('pt-BR')} ${horaInput(fim)}`;
         }
-
-        function atualizarFormularioConfig(id) {
-            const data = botsData[id];
-            document.getElementById('config-numero').value = data.numeroDono;
-            document.getElementById('config-t1').value = data.tempoLembrete1;
-            document.getElementById('config-t2').value = data.tempoLembrete2;
-            document.getElementById('config-horario').value = data.usarHorarioComercial;
+        function linha(icone, conteudo) {
+            const div = document.createElement('div'); div.className = 'det-linha';
+            const i = document.createElement('i'); i.className = icone; i.setAttribute('aria-hidden', 'true');
+            div.append(i); if (typeof conteudo === 'string') { const s = document.createElement('span'); s.textContent = conteudo; div.append(s); } else div.append(conteudo);
+            return div;
         }
-
-        async function buscarEventosDoServidor() {
-            try {
-                const res = await fetch('/api/agendamentos/usuario');
-                todosEventos = await res.json();
-                filtrarEAtualizarCalendario();
-            } catch (e) {
-                console.error("Erro ao buscar agendamentos da API", e);
-            }
-        }
-
-        async function salvarConfiguracoes(e) {
-            e.preventDefault(); 
-            const btn = document.getElementById('btn-salvar');
-            btn.innerHTML = 'Salvando...'; 
-            btn.disabled = true;
-
-            const payload = {
-                numeroDono: document.getElementById('config-numero').value,
-                tempoLembrete1: document.getElementById('config-t1').value,
-                tempoLembrete2: document.getElementById('config-t2').value,
-                usarHorarioComercial: document.getElementById('config-horario').value === 'true'
-            };
-
-            try {
-                const res = await fetch(`/api/clientes/${currentBotId}/config-notificacao`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (res.ok) {
-                    botsData[currentBotId] = payload;
-                    Swal.fire({ title: 'Sucesso!', text: 'Configurações salvas.', icon: 'success', toast: true, position: 'top-end', showConfirmButton: false, timer: 3000, background: '#111', color: '#fff' });
-                    filtrarEAtualizarCalendario();
-                } else {
-                    throw new Error();
-                }
-            } catch (error) {
-                Swal.fire({ title: 'Erro', text: 'Falha ao salvar configurações.', icon: 'error', background: '#111', color: '#fff' });
-            } finally {
-                btn.innerHTML = '<i class="ri-save-line"></i> Salvar'; 
-                btn.disabled = false;
-            }
-        }
-
-        function filtrarEAtualizarCalendario() {
-            if(!calendar) return;
-            
-            const configBot = botsData[currentBotId];
-            const isHorarioRestrito = configBot.usarHorarioComercial;
-
-            if (isHorarioRestrito) {
-                calendar.setOption('businessHours', {
-                    daysOfWeek: [ 1, 2, 3, 4, 5, 6 ], 
-                    startTime: '08:00',
-                    endTime: '18:00',
-                });
-                calendar.setOption('selectConstraint', 'businessHours');
-                calendar.setOption('eventConstraint', 'businessHours');
+        function abrirDetalhe(ev) {
+            detalheAtual = ev;
+            const p = ev.extendedProps, fim = ev.end || new Date(+ev.start + 30 * 60000);
+            $('det-cor').style.background = p.tipo === 'bloqueio' ? 'var(--tinta-3)' : p.bot.cor;
+            $('det-nome').textContent = ev.title;
+            $('det-quando').textContent = quandoTexto(ev.start, fim);
+            $('det-erro').textContent = '';
+            const linhas = $('det-linhas'); linhas.innerHTML = '';
+            linhas.append(linha('ri-robot-2-line', p.bot.nome));
+            const acoes = $('det-acoes'); acoes.innerHTML = '';
+            if (p.tipo === 'bloqueio') {
+                linhas.append(linha('ri-forbid-line', 'O robô não oferece horários nesse período.'));
             } else {
-                calendar.setOption('businessHours', false);
-                calendar.setOption('selectConstraint', null);
-                calendar.setOption('eventConstraint', null);
+                if (p.numero) {
+                    const a = document.createElement('a'); a.href = 'https://wa.me/' + p.numero; a.target = '_blank'; a.rel = 'noopener';
+                    a.textContent = '+' + p.numero.replace(/^(\d{2})(\d{2})(\d{4,5})(\d{4})$/, '$1 $2 $3-$4');
+                    linhas.append(linha('ri-whatsapp-line', a));
+                }
+                if (p.cpf) linhas.append(linha('ri-profile-line', 'CPF ' + p.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')));
+                const st = { PENDENTE: 'Lembrete ainda não enviado', LEMBRETE_1: 'Primeiro lembrete enviado', ENVIADO: 'Lembrete enviado' }[p.status] || p.status;
+                linhas.append(linha('ri-notification-3-line', st));
+                linhas.append(linha('ri-information-line', p.manual ? 'Marcado por você no painel' : 'Marcado pelo robô'));
+                if (ev.start > new Date() && p.numero) {
+                    const b = document.createElement('button'); b.type = 'button'; b.className = 'btn texto'; b.innerHTML = '<i class="ri-send-plane-line"></i> Enviar lembrete agora';
+                    b.onclick = async () => {
+                        b.disabled = true;
+                        const r = await api(`/api/testar-lembrete/${ev.id}`);
+                        b.disabled = false;
+                        const txt = typeof r.dados === 'string' ? r.dados.replace(/^[^\wÀ-ú]+/, '') : (r.dados.error || '');
+                        if (r.ok) toast('Lembrete enviado no WhatsApp.'); else $('det-erro').textContent = txt || 'Não foi possível enviar.';
+                    };
+                    acoes.append(b);
+                }
             }
-
-            const eventosFiltrados = todosEventos.filter(ev => ev.extendedProps.clienteId === currentBotId);
-            calendar.removeAllEvents();
-            calendar.addEventSource(eventosFiltrados);
+            excluirArmado = false; $('det-excluir').title = 'Excluir';
+            dlgDetalhe.showModal();
         }
+        let excluirArmado = false;
+        $('det-excluir').onclick = async () => {
+            if (!excluirArmado) { excluirArmado = true; $('det-erro').textContent = 'Clique na lixeira de novo para excluir.'; return; }
+            const r = await api(`/api/agendamentos/${detalheAtual.id}`, 'DELETE');
+            if (!r.ok) { $('det-erro').textContent = (r.dados && r.dados.error) || 'Não foi possível excluir.'; return; }
+            dlgDetalhe.close(); toast('Excluído.'); calendario.refetchEvents();
+        };
+        $('det-editar').onclick = () => { dlgDetalhe.close(); abrirEdicao(detalheAtual); };
+
+        // ---------- configurações ----------
+        const dlgConfig = $('dlg-config');
+        const NOMES_DIAS = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+        $('cfg-bot').innerHTML = BOTS.map(b => `<option value="${b.id}"></option>`).join('');
+        [...$('cfg-bot').options].forEach((o, i) => { o.textContent = BOTS[i].nome; });
+        $('cfg-duracao').innerHTML = DURACOES.map(d => `<option value="${d}">${d < 60 ? d + ' minutos' : d === 60 ? '1 hora' : (d / 60).toString().replace('.', ',') + ' horas'}</option>`).join('');
+        function preencherConfig(id) {
+            const b = porId[id], h = b.horario;
+            const caixa = $('cfg-dias'); caixa.innerHTML = '';
+            [1, 2, 3, 4, 5, 6, 0].forEach(d => {
+                const x = h.dias[d];
+                const row = document.createElement('div'); row.className = 'dia-linha' + (x.ativo ? '' : ' fechado'); row.dataset.dia = d;
+                row.innerHTML = `<span class="chave"><input type="checkbox" ${x.ativo ? 'checked' : ''} aria-label="Aberto na ${NOMES_DIAS[d]}"><span></span></span><b>${NOMES_DIAS[d].slice(0, 3)}</b>
+                    <div class="horas"><input class="entrada" type="time" value="${x.inicio}" aria-label="Abre na ${NOMES_DIAS[d]}"> até <input class="entrada" type="time" value="${x.fim === '24:00' ? '23:59' : x.fim}" aria-label="Fecha na ${NOMES_DIAS[d]}"></div>
+                    <span class="fechado-txt">Fechado</span>`;
+                row.querySelector('input[type=checkbox]').onchange = (e) => row.classList.toggle('fechado', !e.target.checked);
+                caixa.appendChild(row);
+            });
+            $('cfg-duracao').value = h.duracao;
+            $('cfg-antecedencia').value = [...$('cfg-antecedencia').options].some(o => +o.value === h.antecedencia) ? h.antecedencia : 60;
+            if (![...$('cfg-frente').options].some(o => +o.value === h.diasAFrente)) $('cfg-frente').insertAdjacentHTML('beforeend', `<option value="${h.diasAFrente}">${h.diasAFrente} dias</option>`);
+            $('cfg-frente').value = h.diasAFrente;
+            $('cfg-almoco').checked = h.almoco.ativo; $('cfg-almoco-ini').value = h.almoco.inicio; $('cfg-almoco-fim').value = h.almoco.fim;
+            $('cfg-gestor').value = b.numeroNotificacao || '';
+            $('cfg-t1').value = b.tempoLembrete1 || 24; $('cfg-t2').value = b.tempoLembrete2 || 0;
+            $('cfg-erro').textContent = '';
+        }
+        function abrirConfig(id) { $('cfg-bot').value = id || (visiveis()[0] || BOTS[0]).id; preencherConfig($('cfg-bot').value); fecharMenu(); dlgConfig.showModal(); }
+        $('cfg-bot').onchange = () => preencherConfig($('cfg-bot').value);
+        $('form-config').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const id = $('cfg-bot').value, erro = $('cfg-erro'); erro.textContent = '';
+            const dias = {};
+            document.querySelectorAll('#cfg-dias .dia-linha').forEach(row => {
+                const [ini, fim] = row.querySelectorAll('input[type=time]');
+                dias[row.dataset.dia] = { ativo: row.querySelector('input[type=checkbox]').checked, inicio: ini.value || '08:00', fim: fim.value === '23:59' ? '24:00' : (fim.value || '18:00') };
+            });
+            const horario = { dias, duracao: Number($('cfg-duracao').value), antecedencia: Number($('cfg-antecedencia').value), diasAFrente: Number($('cfg-frente').value),
+                almoco: { ativo: $('cfg-almoco').checked, inicio: $('cfg-almoco-ini').value || '12:00', fim: $('cfg-almoco-fim').value || '13:00' } };
+            const b = $('cfg-salvar'); b.disabled = true;
+            const r1 = await api(`/api/agenda/horario/${id}`, 'POST', { horario });
+            if (!r1.ok) { b.disabled = false; erro.textContent = r1.dados.error || 'Não foi possível salvar.'; return; }
+            const r2 = await api(`/api/agenda/avisos/${id}`, 'POST', { numeroDono: $('cfg-gestor').value, tempoLembrete1: $('cfg-t1').value, tempoLembrete2: $('cfg-t2').value });
+            b.disabled = false;
+            if (!r2.ok) { erro.textContent = r2.dados.error || 'Não foi possível salvar os avisos.'; return; }
+            Object.assign(porId[id], { horario: r1.dados.horario, resumo: r1.dados.resumo, numeroNotificacao: $('cfg-gestor').value.replace(/\D/g, ''), tempoLembrete1: Number($('cfg-t1').value), tempoLembrete2: Number($('cfg-t2').value) });
+            desenharRobos();
+            calendario.setOption('businessHours', horarioComercial());
+            dlgConfig.close(); toast('Horário de atendimento salvo. O robô já usa os novos horários.');
+        });
+
+        // ---------- barra, menu e atalhos ----------
+        document.querySelectorAll('[data-fechar]').forEach(b => b.onclick = () => b.closest('dialog').close());
+        document.querySelectorAll('dialog').forEach(d => d.addEventListener('click', (e) => { if (e.target === d) d.close(); }));
+        document.querySelectorAll('[data-visao]').forEach(b => b.onclick = () => { calendario.changeView(b.dataset.visao); fecharMenu(); });
+        $('btn-hoje').onclick = () => calendario.today();
+        $('btn-ant').onclick = () => calendario.prev();
+        $('btn-prox').onclick = () => calendario.next();
+        const criarAgora = () => { const [i, f] = proximoHorario(); abrirCriacao(i, f); };
+        $('btn-criar').onclick = () => { fecharMenu(); criarAgora(); };
+        $('btn-criar-2').onclick = criarAgora;
+        $('btn-config').onclick = () => abrirConfig();
+        function aplicarIconeTema() { $('btn-tema').innerHTML = document.documentElement.getAttribute('data-tema') === 'escuro' ? '<i class="ri-sun-line"></i>' : '<i class="ri-moon-line"></i>'; }
+        $('btn-tema-2').onclick = () => $('btn-tema').click();
+        $('btn-tema').onclick = () => {
+            const novo = document.documentElement.getAttribute('data-tema') === 'escuro' ? 'claro' : 'escuro';
+            document.documentElement.setAttribute('data-tema', novo);
+            try { localStorage.setItem('agenda-tema', novo); } catch (e) {}
+            aplicarIconeTema();
+        };
+        aplicarIconeTema();
+        function fecharMenu() { document.body.classList.remove('menu-aberto'); $('btn-menu').setAttribute('aria-expanded', 'false'); }
+        $('btn-menu').onclick = () => { const aberto = document.body.classList.toggle('menu-aberto'); $('btn-menu').setAttribute('aria-expanded', String(aberto)); };
+        document.addEventListener('keydown', (e) => {
+            if (e.ctrlKey || e.metaKey || e.altKey || document.querySelector('dialog[open]')) return;
+            if (/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName)) return;
+            const acoes = { t: () => calendario.today(), j: () => calendario.next(), k: () => calendario.prev(), d: () => calendario.changeView('timeGridDay'),
+                w: () => calendario.changeView('timeGridWeek'), m: () => calendario.changeView('dayGridMonth'), a: () => calendario.changeView('listWeek'), c: criarAgora };
+            const f = acoes[e.key.toLowerCase()]; if (f) { e.preventDefault(); f(); }
+        });
+        // Atualiza sozinho a cada 2 minutos (novos agendamentos feitos pelo robô)
+        setInterval(() => { if (!document.hidden && !document.querySelector('dialog[open]')) calendario.refetchEvents(); }, 120000);
+
+        calendario.render();
+        desenharRobos();
+        atualizarTitulo(); desenharMini(); marcarVisao(calendario.view.type);
+    })();
     </script>
-
-
+<% } %>
 </body>
 </html>

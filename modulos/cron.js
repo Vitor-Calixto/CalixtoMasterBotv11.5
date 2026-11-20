@@ -125,8 +125,8 @@ function iniciarMonitorDeLembretes(prisma, sessoes) {
                     }
 
                     // Formatação Visual para o Cliente
-                    const dataF = item.dataAgendada.toLocaleDateString('pt-BR');
-                    const horaF = item.dataAgendada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    const dataF = item.dataAgendada.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+                    const horaF = item.dataAgendada.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
 
                     const textoMensagem = `🔔 *LEMBRETE DE CONSULTA*\n\n` +
                         `Olá, *${item.nome}*! Passando para lembrar que sua consulta está agendada para ${mensagemTempo}.\n\n` +

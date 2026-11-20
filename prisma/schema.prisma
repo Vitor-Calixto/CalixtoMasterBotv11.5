@@ -61,6 +61,7 @@ model Cliente {
   tempoLembrete1       Int      @default(24)
   tempoLembrete2       Int      @default(0)
   usarHorarioComercial Boolean  @default(true)
+  horarioAtendimento   Json?    // dias/horas de atendimento, duração e intervalo (modulos/agenda.js)
 
   donoId    String?  
   dono      Usuario? @relation(fields: [donoId], references: [id])
@@ -131,6 +132,7 @@ model Lembrete {
   cpf             String?
   nome            String?
   dataAgendada    DateTime 
+  fim             DateTime?   // só para bloqueios de um período (ex.: tarde inteira)
   status          String   @default("PENDENTE") 
   lembreteEnviado Boolean  @default(false)      
   clienteId       String

@@ -637,6 +637,13 @@ usuarios.registrarRotas(app);
 // ================= BIBLIOTECA DE FLUXOS (modelos, importar/exportar/enviar) =================
 require('./modulos/fluxos')(app, { prisma, isAuth });
 
+// ================= AGENDA (painel estilo Google Agenda + link de agendamento para o contato) =================
+require('./modulos/agenda').init({ segredo: segredoDaSessao() });
+require('./modulos/agenda-rotas').registrarRotas(app, {
+    prisma, isAuth, exigirPermissao: usuarios.exigirPermissao, exigirDonoDoBot, exigirDonoDoLembrete,
+    whatsapp, engine: require('./modulos/engine'), sessions: require('./modulos/sessions')
+});
+
 // ================= CONVERSAS AO VIVO (acompanhar em tempo real e assumir a conversa) =================
 atendimento.init({ prisma, io, sessionMiddleware });
 // Avisos em tempo real (status do bot, código de pareamento) só chegam ao dono e aos admins
@@ -838,23 +845,7 @@ async function religarRobosAtivos() {
 // 🚀 GESTÃO DA AGENDA 
 // ==========================================
 
-// 1. Rota para abrir a página (Carrega robôs e configurações)
-app.get('/dashboard/agenda', isAuth, usuarios.exigirPermissao('agenda'), async (req, res) => {
-    try {
-        // Esta linha é o "soro" que cura o erro 'clientes is not defined'
-        const meusRobos = await prisma.cliente.findMany({ 
-            where: { donoId: req.session.userId } 
-        });
-
-        res.render('agenda', { 
-            usuario: req.session.usuario,
-            clientes: meusRobos, // Agora a página recebe os dados
-            systemMaintenance: getSystemConfig().maintenance 
-        });
-    } catch (e) {
-        res.status(500).send("Erro ao carregar agenda.");
-    }
-});
+// 1. A página da agenda e as novas rotas ficam em modulos/agenda-rotas.js
 // 2. Rota para salvar configurações da agenda (Notificação, Lembretes e Horário)
 app.post('/api/clientes/:id/config-notificacao', isAuth, exigirDonoDoBot(req => req.params.id), async (req, res) => {
     try {
@@ -988,8 +979,8 @@ app.get('/api/testar-lembrete/:id', isAuth, exigirDonoDoLembrete(req => req.para
         }
 
         // 3. Monta a mensagem (Exatamente como no CRON)
-        const dataF = agendamento.dataAgendada.toLocaleDateString('pt-BR');
-        const horaF = agendamento.dataAgendada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const dataF = agendamento.dataAgendada.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+        const horaF = agendamento.dataAgendada.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
 
         const textoMensagem = `🔔 *TESTE DE LEMBRETE MANUAL*\n\n` +
             `Olá, *${agendamento.nome || 'Cliente'}*! Este é um teste de funcionamento.\n\n` +

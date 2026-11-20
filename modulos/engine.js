@@ -8,6 +8,7 @@
 const axios = require('axios'); // 🚀 NOVO: Necessário para atirar no Instagram
 const sessions = require('./sessions');
 const contratos = require('./contratos'); 
+const agenda = require('./agenda');
 const path = require('path');
 const fs = require('fs');
 
@@ -24,13 +25,14 @@ const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 // ============================================================================
 
 /**
- * Limpa agendamentos que já passaram de 2 horas para não inflar o banco.
+ * Apaga agendamentos com mais de 90 dias para não inflar o banco
+ * (os recentes ficam para aparecer no histórico da agenda).
  */
 async function limparAgendamentosAntigos(prisma, clienteId) {
     try {
-        const margem = new Date(new Date().getTime() - (120 * 60 * 1000)); 
+        const margem = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
         await prisma.lembrete.deleteMany({ 
-            where: { clienteId: clienteId, dataAgendada: { lt: margem } } 
+            where: { clienteId: clienteId, dataAgendada: { lt: margem }, OR: [{ fim: null }, { fim: { lt: margem } }] } 
         });
     } catch (e) { console.error("[CRON] Erro na faxina:", e.message); }
 }
@@ -396,7 +398,7 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
                 else if (variavel === 'cpf_consulta' && cpfValido) {
                     const cpfB = textoLimpo; 
                     const agends = await prisma.lembrete.findMany({ 
-                        where: { cpf: cpfB, clienteId }, orderBy: { dataAgendada: 'asc' } 
+ where: { cpf: cpfB, clienteId, dataAgendada: { gte: new Date() } }, orderBy: { dataAgendada: 'asc' } 
                     });
                     
                     if (agends.length === 0) {
@@ -408,7 +410,7 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
                         let lista = `📅 *SEUS AGENDAMENTOS (CPF: ${cpfB}):*\n\n`;
                         const idsParaCancelar = [];
                         agends.forEach((item, i) => {
-                            lista += `${getEmojiNumber(i+1)} 🕒 *${item.dataAgendada.toLocaleString('pt-BR')}*\n`;
+                            lista += `${getEmojiNumber(i+1)} 🕒 *${item.dataAgendada.toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}*\n`;
                             idsParaCancelar.push(item.id);
                         });
                         lista += "\n👉 Digite o número correspondente para **CANCELAR** ou envie *0* para sair do menu.";
@@ -419,198 +421,16 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
                 
 
                 // ==========================================
-                // 📅 Gatilho: Consultar Horários Disponíveis
+                // 📅 Agenda: escolher dia e horário (menus numerados ou data digitada)
                 // ==========================================
-                else if (variavel === 'ver_disponibilidade') {
-                    try {
-                        const textoData = textoMsg.trim();
-                        
-                        // Valida se o cliente digitou algo parecido com data (Ex: 15/04 ou 15/04/2026)
-                        const regexDataCurta = /^(\d{2}\/\d{2})(?:\/\d{4})?$/; 
-                        
-                        if (!regexDataCurta.test(textoData)) {
-                            await enviarMensagemOmni(sock, remoteJid, "❌ *Formato Inválido!*\n\nPara ver a agenda, digite apenas a data desejada.\nExemplo: *15/04*", origem, igToken);
-                            return; // Prende o cliente aqui até ele mandar a data certa
-                        }
-
-                        // Converte o texto para um objeto Date do JavaScript (Colocamos 12:00 fixo para evitar bug de fuso horário na conversão do dia)
-                        let dataConsulta = tratarDataAmigavel(`${textoData} 12:00`);
-                        
-                        if (!dataConsulta || isNaN(dataConsulta.getTime())) {
-                            await enviarMensagemOmni(sock, remoteJid, "❌ *Data Inválida!* Essa data não existe no calendário. Tente novamente.", origem, igToken);
-                            return;
-                        }
-
-                        // Se tiver horário restrito, já barra se a pessoa tentar consultar num Domingo
-                        if (cliente.usarHorarioComercial && dataConsulta.getDay() === 0) {
-                            await enviarMensagemOmni(sock, remoteJid, "🏢 *Fechado!*\n\nNós não temos atendimento aos Domingos. Por favor, digite a data de um dia útil.", origem, igToken);
-                            return;
-                        }
-
-                        // 1. Define o intervalo (Das 00:00 às 23:59 do dia solicitado)
-                        const inicioDia = new Date(dataConsulta); inicioDia.setHours(0,0,0,0);
-                        const fimDia = new Date(dataConsulta); fimDia.setHours(23,59,59,999);
-
-                        // 2. Busca no banco todos os agendamentos daquele dia específico
-                        const ocupados = await prisma.lembrete.findMany({
-                            where: { clienteId: clienteId, dataAgendada: { gte: inicioDia, lte: fimDia } },
-                            select: { dataAgendada: true }
-                        });
-
-                        // Extrai apenas as strings de hora (Ex: "14:00", "15:30") dos horários ocupados
-                        const horariosOcupados = ocupados.map(ag => 
-                            ag.dataAgendada.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-                        );
-
-                        // 3. Monta a grade teórica de horários da clínica (De 30 em 30 min)
-                        const gradeVirtual = [];
-                        const horaInicio = cliente.usarHorarioComercial ? 8 : 0;  // 08h ou Meia-noite
-                        const horaFim = cliente.usarHorarioComercial ? 17 : 23;   // 17h ou 23h (ultimo agendamento)
-
-                        for (let h = horaInicio; h <= horaFim; h++) {
-                            let hStr = h.toString().padStart(2, '0');
-                            gradeVirtual.push(`${hStr}:00`);
-                            gradeVirtual.push(`${hStr}:30`); // Remove essa linha se sua clínica atende de 1 em 1 hora
-                        }
-
-                        // 4. A Mágica: Filtra a grade removendo os horários que já estão no banco
-                        const horariosLivres = gradeVirtual.filter(hora => !horariosOcupados.includes(hora));
-
-                        // Se a lista de livres ficar vazia, o dia lotou!
-                        if (horariosLivres.length === 0) {
-                            await enviarMensagemOmni(sock, remoteJid, `❌ *Agenda Lotada!*\n\nNão temos mais nenhum horário livre para o dia *${textoData}*.\n\nPor favor, digite outra data para consultar.`, origem, igToken);
-                            return;
-                        }
-
-                        // 5. Monta a mensagem final bonitinha para o WhatsApp
-                        let msgDisponivel = `📅 *Horários Livres para ${textoData}:*\n\n`;
-                        
-                        // Quebra em linhas com um check verde
-                        msgDisponivel += horariosLivres.map(h => `✅ ${h}`).join('\n');
-                        
-                        msgDisponivel += `\n\n👉 *Deseja agendar?* Siga as instruções da próxima mensagem!`;
-
-                        // Envia a lista e avança o fluxo para o próximo nó (onde você pode colocar a pergunta de data_agendamento)
-                        await enviarMensagemOmni(sock, remoteJid, msgDisponivel, origem, igToken);
-                        proximoId = getNextNodeId(noAtual);
-
-                    } catch (e) {
-                        console.error("[CONSULTA_DISP] Erro:", e.message);
-                        await enviarMensagemOmni(sock, remoteJid, "⚠️ Erro ao consultar a agenda. Tente novamente.", origem, igToken);
-                        return;
-                    }
+                else if (VARS_AGENDA.includes(variavel)) {
+                    const resultado = await tratarRespostaAgenda({
+                        sock, remoteJid, userNum, cliente, prisma, origem, igToken, pushName,
+                        nodeId: estadoAtualId, variavel, dados: dadosSessao
+                    }, textoLimpo);
+                    if (resultado !== 'avancar') return;
+                    proximoId = getNextNodeId(noAtual);
                 }
-                else if (variavel === 'data_agendamento') {
-                    try {
-                        const textoData = textoMsg.trim();
-                        
-                        // 🔒 TRAVA DE FORMATO
-                        const regexData = /^\d{2}\/\d{2}\s\d{2}:\d{2}$/;
-                        if (!regexData.test(textoData)) {
-                            // Informa o horário de funcionamento já na dica de erro
-                            await enviarMensagemOmni(sock, remoteJid, "❌ *Formato Inválido!*\n\nPor favor, digite exatamente no formato de data e hora.\nExemplo: *14/03 15:00*\n\n💡 *Dica:* Nosso horário de atendimento é de *Seg a Sáb, das 08h às 18h*.", origem, igToken);
-                            return; 
-                        }
-
-                        let dataC = tratarDataAmigavel(textoData);
-                        
-                        if (!dataC || isNaN(dataC.getTime())) {
-                            await enviarMensagemOmni(sock, remoteJid, "❌ *Data Inexistente!*\n\nEssa data não é válida no calendário. Tente novamente.\nExemplo: *31/03 14:00*", origem, igToken);
-                            return; 
-                        }
-                        
-                        dataC.setSeconds(0);
-                        
-                        // 🏢 Regra de Horário Comercial
-                        if (cliente.usarHorarioComercial === true) {
-                            const diaSemana = dataC.getDay(); 
-                            const hora = dataC.getHours();
-                            if (diaSemana === 0 || hora < 8 || hora >= 18) {
-                                await enviarMensagemOmni(sock, remoteJid, "🏢 *Fora do Expediente!*\n\nAtendemos exclusivamente de *Segunda a Sábado, das 08:00 às 18:00*.\n\nEnvie outro horário que esteja dentro do funcionamento, por favor. 😊", origem, igToken);
-                                return;
-                            }
-                        }
-                        
-                        // 🚫 Conflito de Horário (Double Booking) + MOSTRAR AGENDA COMPLETA DO DIA
-                        const horarioOcupado = await prisma.lembrete.findFirst({ 
-                            where: { clienteId: clienteId, dataAgendada: dataC } 
-                        });
-                        
-                        if (horarioOcupado) {
-                            // Puxa a agenda do dia para orientar o paciente
-                            const inicioDia = new Date(dataC); inicioDia.setHours(0,0,0,0);
-                            const fimDia = new Date(dataC); fimDia.setHours(23,59,59,999);
-                            
-                            const ocupadosDia = await prisma.lembrete.findMany({
-                                where: { clienteId: clienteId, dataAgendada: { gte: inicioDia, lte: fimDia } },
-                                orderBy: { dataAgendada: 'asc' }
-                            });
-
-                            let msgAgenda = `❌ *Horário Indisponível!*\n\nEste horário já foi reservado. Para te ajudar, veja os horários que já estão ocupados no dia *${dataC.toLocaleDateString('pt-BR')}*:\n\n`;
-                            
-                            ocupadosDia.forEach(ag => {
-                                msgAgenda += `🚫 ${ag.dataAgendada.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})} - Ocupado\n`;
-                            });
-
-                            msgAgenda += `\n✅ Os demais horários entre *08h e 18h* estão livres e disponíveis para você!\n\n👉 Por favor, envie uma nova data e hora.`;
-
-                            await enviarMensagemOmni(sock, remoteJid, msgAgenda, origem, igToken);
-                            return;
-                        }
-
-                        // Gravação no Banco
-                        const nomeF = dadosSessao.nome_cliente || dadosSessao.nome || pushName || "Cliente";
-                        let cleanN = dadosSessao.telefone_lembrete ? String(dadosSessao.telefone_lembrete).replace(/\D/g, '') : userNum.split('@')[0].replace(/\D/g, '');
-                        if (cleanN.length === 10 || cleanN.length === 11) cleanN = '55' + cleanN;
-
-                        await prisma.lembrete.create({ 
-                            data: { numero: cleanN, nome: nomeF, cpf: dadosSessao.cpf_cliente || dadosSessao.cpf || "S/N", mensagem: `Confirmado: ${nomeF}`, dataAgendada: dataC, clienteId: clienteId } 
-                        });
-
-                        const dataPt = dataC.toLocaleDateString('pt-BR');
-                        const horaPt = dataC.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-
-                        // Confirmação IMEDIATA
-                        await enviarMensagemOmni(sock, remoteJid, `✅ *AGENDAMENTO CONFIRMADO!*\n\nSua consulta ficou para o dia *${dataPt}* às *${horaPt}*. Te enviaremos um lembrete. Até lá! 👋`, origem, igToken);
-
-                        proximoId = getNextNodeId(noAtual);
-
-                        // Notifica o gestor EM SEGUNDO PLANO
-                        if (cliente.numeroNotificacao && sock) {
-                            let numG = String(cliente.numeroNotificacao).replace(/\D/g, '');
-                            if (numG.length === 10 || numG.length === 11) numG = '55' + numG;
-
-                            let jidGestor1 = numG + '@s.whatsapp.net';
-                            let jidGestor2 = null;
-
-                            if (numG.startsWith('55') && numG.length === 13) {
-                                jidGestor2 = numG.slice(0, 4) + numG.slice(5) + '@s.whatsapp.net';
-                            } else if (numG.startsWith('55') && numG.length === 12) {
-                                jidGestor2 = numG.slice(0, 4) + '9' + numG.slice(4) + '@s.whatsapp.net';
-                            }
-
-                            let jidFinalGestor = jidGestor1;
-
-                            try {
-                                const [resG1] = await sock.onWhatsApp(jidGestor1);
-                                if (resG1 && resG1.exists) jidFinalGestor = resG1.jid;
-                                else if (jidGestor2) {
-                                    const [resG2] = await sock.onWhatsApp(jidGestor2);
-                                    if (resG2 && resG2.exists) jidFinalGestor = resG2.jid;
-                                }
-                            } catch (e) {}
-
-                            const msgGestor = `🚀 *NOVO AGENDAMENTO (${origem})*\n\n👤 *Paciente:* ${nomeF}\n📅 *Data:* ${dataPt}\n🕒 *Horário:* ${horaPt}\n📱 *Contato:* ${cleanN}`;
-                            
-                            sock.sendMessage(jidFinalGestor, { text: msgGestor }).catch(e => console.error("❌ Falha ao avisar gestor:", e.message));
-                        }
-
-                    } catch (e) {
-                        console.error("[AGENDAMENTO] Erro na criação:", e.message);
-                        await enviarMensagemOmni(sock, remoteJid, "⚠️ Ocorreu um erro no sistema. Tente novamente.", origem, igToken);
-                        return;
-                    }
-                } 
                 else {
                     proximoId = getNextNodeId(noAtual);
                 }
@@ -691,6 +511,181 @@ async function traduzirVariaveis(texto, userNum) {
  * e avança automaticamente para o próximo nó se for uma ação direta.
  */
 // 🚀 Assinatura atualizada com origem e igToken
+
+// ============================================================================
+// 📅 AGENDA NA CONVERSA
+// O cliente escolhe o dia e o horário respondendo com números, digita a data
+// ("25/11 14:30", "amanhã 9h") ou abre o calendário visual pelo link.
+// ============================================================================
+const VARS_AGENDA = ['data_agendamento', 'ver_disponibilidade'];
+
+function urlDoSiteAgenda() {
+    try { return String(require('./email').lerConfig().siteUrl || process.env.BASE_URL || '').trim().replace(/\/+$/, ''); }
+    catch (e) { return String(process.env.BASE_URL || '').replace(/\/+$/, ''); }
+}
+
+function linkDaAgenda(ctx) {
+    const base = urlDoSiteAgenda();
+    if (!base) return null;
+    try {
+        return `${base}/agendar/${agenda.criarToken({ c: ctx.cliente.id, u: ctx.userNum, j: ctx.remoteJid, o: ctx.origem, q: ctx.nodeId })}`;
+    } catch (e) { return null; }
+}
+
+const salvarEstadoAgenda = (ctx, estado) => sessions.salvarDadosUsuario(ctx.userNum, 'agenda_estado', estado ? JSON.stringify(estado) : null);
+
+async function mostrarDiasAgenda(ctx, prefixo = '') {
+    const dias = await agenda.proximosDias(ctx.prisma, ctx.cliente, { quantidade: 7 });
+    if (!dias.length) {
+        await salvarEstadoAgenda(ctx, null);
+        await enviarMensagemOmni(ctx.sock, ctx.remoteJid, `${prefixo}😕 *Agenda cheia por enquanto.*\n\nNão há horários livres nos próximos dias. Tente de novo mais tarde ou fale com a gente por aqui.`, ctx.origem, ctx.igToken);
+        return;
+    }
+    const reservar = ctx.variavel === 'data_agendamento';
+    const exemplo = `${agenda.dataCurta(dias[0].livres[0])} ${agenda.hora(dias[0].livres[0])}`;
+    let msg = `${prefixo}📅 *Escolha o melhor dia:*\n\n`;
+    msg += dias.map((d, i) => `${getEmojiNumber(i + 1)} ${d.rotulo}  _(${d.livres.length} ${d.livres.length === 1 ? 'horário' : 'horários'})_`).join('\n');
+    msg += `\n\nResponda com o *número* do dia.`;
+    msg += reservar ? `\n✍️ Ou digite a data e a hora, ex: *${exemplo}*` : `\n✍️ Ou digite a data, ex: *${agenda.dataCurta(dias[0].livres[0])}*`;
+    if (reservar) {
+        const link = linkDaAgenda(ctx);
+        if (link) msg += `\n\n🗓️ *Prefere ver no calendário?* Toque no link e escolha:\n${link}`;
+    }
+    await salvarEstadoAgenda(ctx, { etapa: 'dias', dias: dias.map(d => d.chave) });
+    await enviarMensagemOmni(ctx.sock, ctx.remoteJid, msg, ctx.origem, ctx.igToken);
+}
+
+function blocoDeHorarios(livres, numerado) {
+    const grupos = [['☀️ *Manhã*', []], ['🌤️ *Tarde*', []], ['🌙 *Noite*', []]];
+    livres.forEach((d, i) => {
+        const h = agenda.partes(d).h;
+        grupos[h < 12 ? 0 : h < 18 ? 1 : 2][1].push(numerado ? `*${i + 1})* ${agenda.hora(d)}` : agenda.hora(d));
+    });
+    return grupos.filter(g => g[1].length).map(([titulo, itens]) => {
+        const linhas = [];
+        const porLinha = numerado ? 3 : 4;
+        for (let i = 0; i < itens.length; i += porLinha) linhas.push(itens.slice(i, i + porLinha).join('     '));
+        return `${titulo}\n${linhas.join('\n')}`;
+    }).join('\n\n');
+}
+
+async function mostrarHorasAgenda(ctx, chave, livres, prefixo = '') {
+    const numerado = ctx.variavel === 'data_agendamento';
+    let msg = `${prefixo}🕒 *${agenda.rotuloDia(chave)}*: horários livres\n\n${blocoDeHorarios(livres, numerado)}`;
+    if (numerado) {
+        msg += `\n\nResponda com o *número* do horário.\n0️⃣ Voltar para os dias`;
+        await salvarEstadoAgenda(ctx, { etapa: 'horas', chave, horas: livres.map(d => d.toISOString()) });
+    }
+    await enviarMensagemOmni(ctx.sock, ctx.remoteJid, msg, ctx.origem, ctx.igToken);
+}
+
+// Chamado quando o robô faz a pergunta de agenda
+async function abrirAgendaNaConversa(ctx) {
+    try {
+        if (ctx.variavel === 'data_agendamento' && ctx.dados.agenda_dia) {
+            const chave = ctx.dados.agenda_dia;
+            await sessions.salvarDadosUsuario(ctx.userNum, 'agenda_dia', null);
+            const livres = await agenda.livresNoDia(ctx.prisma, ctx.cliente, chave);
+            if (livres.length) return await mostrarHorasAgenda(ctx, chave, livres);
+        }
+        await mostrarDiasAgenda(ctx);
+    } catch (e) {
+        console.error('[AGENDA] Erro ao mostrar a agenda:', e.message);
+    }
+}
+
+async function confirmarReservaAgenda(ctx, data) {
+    const d = ctx.dados || {};
+    const nome = d.nome_cliente || d.nome || ctx.pushName || 'Cliente';
+    const numero = d.telefone_lembrete || String(ctx.userNum).split('@')[0];
+    const r = await agenda.reservar(ctx.prisma, ctx.cliente, { data, nome, numero, cpf: d.cpf_cliente || d.cpf || d.cpf_usuario });
+    if (!r.ok) {
+        const cfg = agenda.configDe(ctx.cliente);
+        const motivos = {
+            ocupado: '❌ *Esse horário já está reservado.*',
+            fechado: `🏢 *Fora do horário de atendimento.*\nAtendemos: ${agenda.resumoHorario(ctx.cliente)}.`,
+            passado: '⏰ *Esse horário já passou ou está muito em cima da hora.*',
+            longe: `📆 *A agenda está aberta só para os próximos ${cfg.diasAFrente} dias.*`,
+            invalido: '❌ *Não entendi essa data.*'
+        };
+        const prefixo = (motivos[r.motivo] || motivos.invalido) + '\n\n';
+        const chave = agenda.chaveDe(data);
+        const livres = r.motivo === 'longe' ? [] : await agenda.livresNoDia(ctx.prisma, ctx.cliente, chave);
+        if (livres.length) await mostrarHorasAgenda({ ...ctx, variavel: 'data_agendamento' }, chave, livres, prefixo + 'Veja o que ainda está livre nesse dia:\n\n');
+        else await mostrarDiasAgenda({ ...ctx, variavel: 'data_agendamento' }, prefixo);
+        return 'parar';
+    }
+    await salvarEstadoAgenda(ctx, null);
+    await sessions.salvarDadosUsuario(ctx.userNum, 'data_agendamento', `${agenda.dataCurta(data)} ${agenda.hora(data)}`);
+    await enviarMensagemOmni(ctx.sock, ctx.remoteJid, `✅ *Agendamento confirmado!*\n\n📅 ${agenda.textoCompleto(data)}\n\nVamos te mandar um lembrete antes. Até lá! 👋`, ctx.origem, ctx.igToken);
+    agenda.avisarGestor(ctx.sock, ctx.cliente, `🚀 *NOVO AGENDAMENTO (${ctx.origem})*\n\n👤 *Cliente:* ${r.lembrete.nome}\n📅 *Data:* ${agenda.dataBR(data)}\n🕒 *Horário:* ${agenda.hora(data)}\n📱 *Contato:* ${r.lembrete.numero}`);
+    return 'avancar';
+}
+
+// Chamado quando o cliente responde à pergunta de agenda. Retorna 'avancar' ou 'parar'.
+async function tratarRespostaAgenda(ctx, texto) {
+    const enviar = (msg) => enviarMensagemOmni(ctx.sock, ctx.remoteJid, msg, ctx.origem, ctx.igToken);
+    try {
+        let estado = null;
+        try { estado = ctx.dados.agenda_estado ? JSON.parse(ctx.dados.agenda_estado) : null; } catch (e) {}
+        const reservar = ctx.variavel === 'data_agendamento';
+        const txt = String(texto || '').trim();
+
+        const abrirDia = async (chave) => {
+            const livres = await agenda.livresNoDia(ctx.prisma, ctx.cliente, chave);
+            if (!livres.length) {
+                await mostrarDiasAgenda(ctx, `😕 Não há horários livres em *${agenda.rotuloDia(chave)}*.\n\n`);
+                return 'parar';
+            }
+            await mostrarHorasAgenda(ctx, chave, livres);
+            if (reservar) return 'parar';
+            // Só consulta: guarda o dia para a próxima pergunta (data_agendamento) já abrir nele
+            await salvarEstadoAgenda(ctx, null);
+            await sessions.salvarDadosUsuario(ctx.userNum, 'agenda_dia', chave);
+            return 'avancar';
+        };
+
+        // 1) Data digitada
+        const lido = agenda.interpretarTexto(txt);
+        if (lido && lido.invalido) {
+            await enviar('❌ *Essa data não existe no calendário.* Confira e envie de novo, ex: *25/11 14:30*');
+            return 'parar';
+        }
+        if (lido) {
+            if (lido.data && reservar) return await confirmarReservaAgenda(ctx, lido.data);
+            return await abrirDia(lido.chave);
+        }
+
+        // 2) Número de uma lista
+        if (/^\d{1,2}$/.test(txt) && estado) {
+            const n = Number(txt);
+            if (estado.etapa === 'horas') {
+                if (n === 0) { await mostrarDiasAgenda(ctx); return 'parar'; }
+                const iso = estado.horas[n - 1];
+                if (!iso) { await enviar(`❌ Escolha um número de 1 a ${estado.horas.length}, ou *0* para voltar aos dias.`); return 'parar'; }
+                return await confirmarReservaAgenda(ctx, new Date(iso));
+            }
+            if (estado.etapa === 'dias') {
+                const chave = estado.dias[n - 1];
+                if (!chave) { await enviar(`❌ Escolha um número de 1 a ${estado.dias.length}.`); return 'parar'; }
+                return await abrirDia(chave);
+            }
+        }
+
+        // 3) Não entendeu: repete o passo atual
+        if (estado && estado.etapa === 'horas') {
+            await enviar('🤔 Não entendi. Responda com o *número* do horário, ou *0* para voltar aos dias.');
+        } else {
+            await mostrarDiasAgenda(ctx, '🤔 Não entendi. ');
+        }
+        return 'parar';
+    } catch (e) {
+        console.error('[AGENDA] Erro ao tratar resposta:', e.message);
+        await enviar('⚠️ Tivemos um problema ao consultar a agenda. Tente de novo em instantes.');
+        return 'parar';
+    }
+}
+
 async function executarNo(nodeId, fluxoDataCompleto, sock, remoteJid, userNum, clienteId, prisma, pushName, origem = 'WHATSAPP', igToken = null) {
     try {
         const node = fluxoDataCompleto?.drawflow?.Home?.data?.[nodeId];
@@ -721,6 +716,15 @@ async function executarNo(nodeId, fluxoDataCompleto, sock, remoteJid, userNum, c
                 await delay(calcularTempo(txt));
                 // 🚀 Disparo Omni
                 await enviarMensagemOmni(sock, remoteJid, txt, origem, igToken);
+            }
+
+            // Pergunta de agenda: mostra os dias livres logo em seguida
+            if (node.name === 'pergunta' && VARS_AGENDA.includes(node.data?.variable)) {
+                const clienteAg = await prisma.cliente.findUnique({ where: { id: clienteId } });
+                if (clienteAg) await abrirAgendaNaConversa({
+                    sock, remoteJid, userNum, cliente: clienteAg, prisma, origem, igToken, pushName,
+                    nodeId, variavel: node.data.variable, dados: (await sessions.getDadosUsuario(userNum)) || {}
+                });
             }
 
             // Mensagem simples avança sozinha. Pergunta e Menu esperam resposta.
@@ -946,5 +950,6 @@ async function executarTimeout(userNum, clienteId, remoteJid, nodeId, prisma, so
 module.exports = { 
     processarMensagem, 
     executarNo, 
-    executarTimeout 
+    executarTimeout,
+    enviarMensagemOmni
 };
