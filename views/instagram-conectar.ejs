@@ -39,7 +39,8 @@
                     <input type="hidden" name="clienteId" value="<%= cliente.id %>">
                     <button class="btn" type="submit"><i class="ri-facebook-circle-fill"></i> Conectar com o Facebook</button>
                 </form>
-                <p class="rodape"><a href="/dashboard">Voltar ao painel</a></p>
+                <p class="rodape">Sua conta ainda não está assim? <a href="/instagram/ajuda?clienteId=<%= encodeURIComponent(cliente.id) %>">Veja o passo a passo</a></p>
+                <p class="rodape" style="margin-top:8px"><a href="/dashboard">Voltar ao painel</a></p>
 
             <% } else if (modo === 'escolher') { %>
                 <div class="ig-marca" aria-hidden="true"><i class="ri-instagram-line"></i></div>
@@ -64,7 +65,12 @@
             <% } else { %>
                 <h1><%= titulo %></h1>
                 <p class="sub"><%= texto %></p>
-                <a class="btn" href="/dashboard">Voltar ao painel</a>
+                <% if (typeof ajuda !== 'undefined' && ajuda) { %>
+                    <a class="btn" href="<%= ajuda %>"><i class="ri-list-check-2"></i> Ver o passo a passo</a>
+                    <p class="rodape"><a href="/dashboard">Voltar ao painel</a></p>
+                <% } else { %>
+                    <a class="btn" href="/dashboard">Voltar ao painel</a>
+                <% } %>
             <% } %>
         </div>
     </main>

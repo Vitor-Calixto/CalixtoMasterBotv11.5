@@ -155,8 +155,9 @@ router.post('/webhook', async (req, res) => {
 //    /setup e /auth/login exigem login e dono do bot (middlewares no index.js).
 // ============================================================================
 
-function paginaAviso(res, titulo, texto, status = 200) {
-    return res.status(status).render('instagram-conectar', { modo: 'aviso', titulo, texto, contas: [], cliente: null });
+function paginaAviso(res, titulo, texto, status = 200, ajudaClienteId = null) {
+    const ajuda = ajudaClienteId === null ? null : '/instagram/ajuda' + (ajudaClienteId ? '?clienteId=' + encodeURIComponent(ajudaClienteId) : '');
+    return res.status(status).render('instagram-conectar', { modo: 'aviso', titulo, texto, contas: [], cliente: null, ajuda });
 }
 
 // Inicia o login na Meta guardando, na sessão, para qual bot é a conexão
@@ -167,6 +168,12 @@ function iniciarOAuth(req, res, clienteId, appId, plataforma) {
         `&redirect_uri=${encodeURIComponent(urlCallback(req))}&scope=${ESCOPOS}&response_type=code&state=${state}`;
     req.session.save(() => res.redirect(url));
 }
+
+// Passo a passo para o cliente deixar a conta pronta (página pública)
+router.get('/ajuda', (req, res) => {
+    const clienteId = /^[\w-]{1,64}$/.test(String(req.query.clienteId || '')) ? String(req.query.clienteId) : null;
+    res.render('instagram-ajuda', { clienteId });
+});
 
 router.get('/setup', async (req, res) => {
     const clienteId = String(req.query.clienteId || '');
@@ -231,7 +238,7 @@ router.get('/auth/callback', async (req, res) => {
     const pendente = req.session && req.session.igOauth;
     if (req.query.error) {
         delete req.session.igOauth;
-        return paginaAviso(res, 'Conexão cancelada', 'Você não autorizou o acesso ao Instagram. Pode tentar de novo quando quiser.');
+        return paginaAviso(res, 'Conexão cancelada', 'Você não autorizou o acesso ao Instagram. Pode tentar de novo quando quiser.', 200, pendente ? pendente.clienteId : '');
     }
     // Confere que a volta da Meta é desta mesma sessão (impede conexões forjadas)
     if (!pendente || !req.query.state || req.query.state !== pendente.state || Date.now() - pendente.criadoEm > 15 * 60 * 1000) {
@@ -266,7 +273,7 @@ router.get('/auth/callback', async (req, res) => {
 
         if (contas.length === 0) {
             return paginaAviso(res, 'Nenhum Instagram encontrado',
-                'Não encontramos uma conta do Instagram profissional ligada a uma Página do Facebook que você administra. No app do Instagram, mude a conta para Profissional e ligue-a a uma Página; depois tente de novo.');
+                'Não encontramos uma conta do Instagram profissional ligada a uma Página do Facebook que você administra. Siga o passo a passo para deixar a conta pronta e tente de novo.', 200, clienteId);
         }
         if (contas.length === 1) {
             await concluirConexao(clienteId, contas[0], plataforma);
@@ -280,7 +287,7 @@ router.get('/auth/callback', async (req, res) => {
         }));
     } catch (error) {
         console.error('❌ [OAUTH] Falha na conexão:', error.response?.data || error.message);
-        return paginaAviso(res, 'Não foi possível conectar', 'A Meta recusou a conexão. Tente de novo; se continuar, fale com o suporte.', 502);
+        return paginaAviso(res, 'Não foi possível conectar', 'A Meta recusou a conexão. Confira o passo a passo e tente de novo; se continuar, fale com o suporte.', 502, clienteId);
     }
 });
 

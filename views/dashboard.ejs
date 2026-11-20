@@ -273,6 +273,7 @@
                                     <button onclick="window.location.href='/instagram/setup?clienteId=<%= c.id %>'" style="background: var(--primary-purple); border: none; color: #fff; font-size: 10px; padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: 0.2s;">
                                         CONECTAR
                                     </button>
+                                    <a href="/instagram/ajuda?clienteId=<%= encodeURIComponent(c.id) %>" title="Como conectar o Instagram" aria-label="Como conectar o Instagram" style="color: #888; font-size: 15px; margin-left: 6px; vertical-align: middle; text-decoration: none;"><i class="ri-question-line"></i></a>
                                 <% } %>
                             </div>
                         </div>

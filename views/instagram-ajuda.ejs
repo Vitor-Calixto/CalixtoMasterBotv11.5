@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Como conectar seu Instagram - Calixto OmniSystem</title>
+    <meta name="description" content="Passo a passo para deixar seu Instagram pronto e conectá-lo ao robô de atendimento.">
+    <%- include('partials/auth-estilo') %>
+    <style>
+        main { display: block; padding: 8px 20px 72px; }
+        .guia { max-width: 720px; margin: 0 auto; }
+        .cabeca { display: flex; gap: 18px; align-items: center; margin: 12px 0 10px; }
+        .ig-marca { width: 56px; height: 56px; flex: none; border-radius: 16px; display: grid; place-items: center; color: #fff; font-size: 30px;
+            background: radial-gradient(circle at 30% 107%, #fdf497 0%, #fd5949 45%, #d6249f 60%, #285AEB 90%); }
+        h1 { font-size: 36px; }
+        .intro { color: var(--tinta-2); font-size: 17px; max-width: 60ch; margin-bottom: 30px; }
+        .intro b { color: var(--tinta); }
+
+        .passos { list-style: none; counter-reset: passo; display: grid; gap: 14px; }
+        .passo { counter-increment: passo; position: relative; background: var(--papel); border: 1px solid var(--linha); border-radius: 18px; padding: 24px 24px 22px 76px; }
+        .passo::before { content: counter(passo); position: absolute; left: 22px; top: 22px; width: 36px; height: 36px; border-radius: 50%; background: var(--menta); color: var(--floresta);
+            display: grid; place-items: center; font: 800 17px 'Bricolage Grotesque', sans-serif; }
+        .passo h2 { font: 700 20px/1.25 'Bricolage Grotesque', sans-serif; letter-spacing: -.3px; margin-bottom: 6px; }
+        .passo p { color: var(--tinta-2); max-width: 62ch; }
+        .caminho { display: flex; flex-wrap: wrap; align-items: center; row-gap: 4px; margin: 12px 0 4px; padding: 12px 14px; background: var(--fundo); border-radius: 12px; font-size: 14.5px; color: var(--tinta); }
+        .caminho span { overflow-wrap: anywhere; }
+        .caminho i { color: var(--tinta-3); margin: 0 4px; vertical-align: -2px; }
+        .pular { font-size: 14px; color: var(--tinta-3); margin-top: 8px; }
+        .links { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; font-size: 14.5px; font-weight: 600; }
+        .links a { display: inline-flex; gap: 6px; align-items: center; text-decoration: none; }
+        .links a:hover { text-decoration: underline; }
+
+        .final { background: var(--floresta); color: #fff; border-color: var(--floresta); }
+        .final::before { background: #fff; color: var(--floresta); }
+        .final p { color: #cfe3da; }
+        .final .btn { width: auto; padding: 13px 26px; margin-top: 16px; background: #fff; color: var(--floresta); }
+        .final .btn:hover { background: var(--menta); }
+
+        .duvidas { margin-top: 44px; }
+        .duvidas h2 { font: 800 24px 'Bricolage Grotesque', sans-serif; letter-spacing: -.4px; margin-bottom: 12px; }
+        details { border-top: 1px solid var(--linha); }
+        details:last-of-type { border-bottom: 1px solid var(--linha); }
+        summary { cursor: pointer; list-style: none; padding: 16px 32px 16px 0; font-weight: 600; position: relative; }
+        summary::-webkit-details-marker { display: none; }
+        summary::after { content: '\ea4e'; font-family: remixicon; position: absolute; right: 4px; top: 15px; color: var(--tinta-3); font-size: 20px; font-weight: 400; transition: transform .2s; }
+        details[open] summary::after { transform: rotate(180deg); }
+        details p { color: var(--tinta-2); padding: 0 0 18px; max-width: 64ch; }
+        .seguranca { display: flex; gap: 12px; margin-top: 30px; padding: 16px 18px; border-radius: 14px; background: var(--menta); color: var(--floresta); font-size: 15px; }
+        .seguranca i { font-size: 22px; line-height: 1.2; }
+        @media (prefers-reduced-motion: reduce) { summary::after { transition: none; } }
+        @media (max-width: 560px) {
+            h1 { font-size: 28px; }
+            .passo { padding: 70px 18px 20px; }
+            .passo::before { left: 18px; top: 20px; }
+            .cabeca { align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <header class="topo"><a class="marca" href="/dashboard"><span class="marca-icone" aria-hidden="true"><i class="ri-chat-smile-3-fill"></i></span>Calixto</a></header>
+    <main>
+        <div class="guia">
+            <div class="cabeca">
+                <div class="ig-marca" aria-hidden="true"><i class="ri-instagram-line"></i></div>
+                <h1>Como conectar seu Instagram</h1>
+            </div>
+            <p class="intro">Leva uns 5 minutos. Tenha em mãos <b>o celular com o Instagram</b> e <b>o login do Facebook</b> de quem administra o negócio. Se sua conta já é profissional e ligada a uma Página, pule direto para o passo 4.</p>
+
+            <ol class="passos">
+                <li class="passo">
+                    <h2>Transforme o Instagram em conta profissional</h2>
+                    <p>O robô só consegue responder o Direct de contas profissionais. É grátis e você não perde seguidores nem publicações.</p>
+                    <div class="caminho">
+                        <span>Seu perfil</span><i class="ri-arrow-right-s-line"></i><span>Menu ☰</span><i class="ri-arrow-right-s-line"></i><span>Configurações</span><i class="ri-arrow-right-s-line"></i><span>Tipo de conta e ferramentas</span><i class="ri-arrow-right-s-line"></i><span>Mudar para conta profissional</span>
+                    </div>
+                    <p class="pular">Escolha <b>Empresa</b> (recomendado) ou Criador de conteúdo.</p>
+                    <div class="links">
+                        <a href="https://help.instagram.com/502981923235522" target="_blank" rel="noopener"><i class="ri-external-link-line"></i> Instruções oficiais do Instagram</a>
+                    </div>
+                </li>
+
+                <li class="passo">
+                    <h2>Tenha uma Página no Facebook</h2>
+                    <p>A Meta exige uma Página do Facebook ligada ao Instagram para liberar as mensagens. Ela não precisa ter publicações: basta existir. Se você já administra a Página da sua empresa, pule este passo.</p>
+                    <div class="links">
+                        <a href="https://www.facebook.com/pages/create" target="_blank" rel="noopener"><i class="ri-external-link-line"></i> Criar uma Página no Facebook</a>
+                    </div>
+                </li>
+
+                <li class="passo">
+                    <h2>Ligue o Instagram à Página</h2>
+                    <p>Pelo app do Instagram:</p>
+                    <div class="caminho">
+                        <span>Seu perfil</span><i class="ri-arrow-right-s-line"></i><span>Editar perfil</span><i class="ri-arrow-right-s-line"></i><span>Página</span><i class="ri-arrow-right-s-line"></i><span>Conectar uma Página existente</span>
+                    </div>
+                    <p class="pular">Entre com o Facebook que administra a Página e escolha a Página da sua empresa.</p>
+                    <div class="links">
+                        <a href="https://help.instagram.com/399237934150902" target="_blank" rel="noopener"><i class="ri-external-link-line"></i> Como ligar ou trocar a Página</a>
+                        <a href="https://help.instagram.com/790156881117411" target="_blank" rel="noopener"><i class="ri-external-link-line"></i> Sobre a ligação com o Facebook</a>
+                    </div>
+                </li>
+
+                <li class="passo">
+                    <h2>Libere o acesso às mensagens</h2>
+                    <p>Este é o passo que mais gente esquece: sem ele, a conta conecta, mas o robô não recebe as mensagens.</p>
+                    <div class="caminho">
+                        <span>Configurações</span><i class="ri-arrow-right-s-line"></i><span>Mensagens e respostas ao story</span><i class="ri-arrow-right-s-line"></i><span>Ferramentas conectadas</span><i class="ri-arrow-right-s-line"></i><span>Ligar "Permitir acesso às mensagens"</span>
+                    </div>
+                    <p class="pular">Os nomes do menu podem mudar um pouco conforme a versão do app.</p>
+                    <div class="links">
+                        <a href="https://help.instagram.com/791161338412168" target="_blank" rel="noopener"><i class="ri-external-link-line"></i> Instruções oficiais do Instagram</a>
+                    </div>
+                </li>
+
+                <li class="passo final">
+                    <h2>Conecte no painel</h2>
+                    <p>No painel, no bot do Instagram, clique em <b>Conectar</b> e depois em <b>Conectar com o Facebook</b>. Entre com o mesmo Facebook do passo 3 e, quando a Meta perguntar, <b>marque sua Página e sua conta do Instagram</b> e autorize todas as permissões.</p>
+                    <% if (clienteId) { %>
+                        <a class="btn" href="/instagram/setup?clienteId=<%= encodeURIComponent(clienteId) %>"><i class="ri-facebook-circle-fill"></i> Conectar agora</a>
+                    <% } else { %>
+                        <a class="btn" href="/dashboard"><i class="ri-dashboard-line"></i> Ir para o painel</a>
+                    <% } %>
+                </li>
+            </ol>
+
+            <section class="duvidas" aria-labelledby="t-duvidas">
+                <h2 id="t-duvidas">Deu algum problema?</h2>
+                <details>
+                    <summary>Apareceu "Nenhum Instagram encontrado"</summary>
+                    <p>A conta ainda está como pessoal, não está ligada à Página, ou a Página ficou desmarcada na tela do Facebook. Confira os passos 1 a 3 e conecte de novo. Na tela da Meta, clique em <b>Editar acesso</b> e marque a Página e o Instagram certos.</p>
+                </details>
+                <details>
+                    <summary>Conectou, mas o robô não responde</summary>
+                    <p>Confira o passo 4 (Permitir acesso às mensagens). Veja também se o bot aparece como <b>ATIVO</b> no painel e se ele tem um fluxo salvo. Para testar, mande a mensagem de <b>outra conta</b>: mensagens da própria conta não chegam ao robô.</p>
+                </details>
+                <details>
+                    <summary>Tenho mais de um Instagram. Qual será usado?</summary>
+                    <p>Se o seu Facebook administrar várias contas, o sistema mostra uma lista para você escolher qual delas o bot vai atender. Cada conta só pode estar em um bot.</p>
+                </details>
+                <details>
+                    <summary>Como troco a conta ou desconecto?</summary>
+                    <p>Para trocar, conecte de novo e escolha a outra conta: a anterior é substituída. Para desligar o robô, use <b>Sair</b> no painel. Para remover o acesso de vez, no Facebook vá em Configurações, Integrações comerciais, e remova o aplicativo.</p>
+                </details>
+                <details>
+                    <summary>Apareceu um erro da Meta dizendo que o app não está disponível</summary>
+                    <p>Fale com o nosso suporte e informe o e-mail do seu Facebook. Liberamos o acesso para a sua conta.</p>
+                </details>
+            </section>
+
+            <div class="seguranca"><i class="ri-shield-check-line" aria-hidden="true"></i><span>Você entra direto no site do Facebook. Nós nunca vemos nem pedimos a sua senha, e o acesso serve só para ler e responder as mensagens do Direct.</span></div>
+        </div>
+    </main>
+</body>
+</html>
