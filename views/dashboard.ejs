@@ -272,6 +272,8 @@
                                     <button onclick="toggleBot('<%= c.id %>', 'OFFLINE')" style="background: transparent; border: 1px solid var(--danger); color: var(--danger); font-size: 10px; padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: 0.2s;">
                                         SAIR
                                     </button>
+                                <% } else if (!locals.instagramLiberado && !locals.ehAdminUser) { %>
+                                    <span style="font-size: 10px; color: #888; border: 1px solid #333; padding: 2px 6px; border-radius: 3px;">EM BREVE</span>
                                 <% } else { %>
                                     <span style="font-size: 10px; color: var(--warning); border: 1px solid var(--warning); padding: 2px 5px; border-radius: 3px; margin-right: 5px;">OFF</span>
                                     <button onclick="window.location.href='/instagram/setup?clienteId=<%= c.id %>'" style="background: var(--primary-purple); border: none; color: #fff; font-size: 10px; padding: 4px 8px; border-radius: 4px; cursor: pointer; transition: 0.2s;">
@@ -485,9 +487,9 @@
             </style>
             
             <div class="swal-custom-container">
-                <div class="platform-selector">
+                <div class="platform-selector"<%- (locals.instagramLiberado || locals.ehAdminUser) ? '' : ' style="display:none"' %>>
                     <div id="btn-wpp" class="platform-btn active-wpp"><i class="ri-whatsapp-line" style="font-size: 18px;"></i> WhatsApp</div>
-                    <div id="btn-insta" class="platform-btn"><i class="ri-instagram-line" style="font-size: 18px;"></i> Instagram</div>
+                    <div id="btn-insta" class="platform-btn"><i class="ri-instagram-line" style="font-size: 18px;"></i> Instagram<%- (!locals.instagramLiberado && locals.ehAdminUser) ? ' <small style="font-weight:400;opacity:.7">(só você vê)</small>' : '' %></div>
                 </div>
                 
                 <input type="hidden" id="plataforma" value="WHATSAPP">

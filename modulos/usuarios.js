@@ -449,7 +449,8 @@ function registrarRotas(app) {
             igAppId: ig.igAppId || '', temIgSecret: !!ig.igAppSecret,
             webhookUrl: `${base}/instagram/webhook`, callbackUrl: `${base}/instagram/auth/callback`,
             configurado: !!(ig.appId && ig.appSecret),
-            loginInstagram: !!(ig.igAppId && ig.igAppSecret)
+            loginInstagram: !!(ig.igAppId && ig.igAppSecret),
+            liberado: ig.liberado === true
         };
     }
 
@@ -682,8 +683,16 @@ function registrarRotas(app) {
             if (!igAppSecret) return res.status(400).json({ success: false, error: 'Cole a chave secreta do app do Instagram.' });
         }
         const verifyToken = (b.novoToken || !atual.verifyToken) ? crypto.randomBytes(24).toString('hex') : atual.verifyToken;
-        email.salvarConfig({ instagram: { appId, appSecret, verifyToken, igAppId, igAppSecret } });
+        email.salvarConfig({ instagram: { appId, appSecret, verifyToken, igAppId, igAppSecret, liberado: atual.liberado === true } });
         res.json({ success: true, verifyToken, tokenNovo: verifyToken !== atual.verifyToken });
+    }));
+
+    // Mostrar ou ocultar o Instagram para os clientes (o admin sempre vê)
+    app.post('/api/admin/config-instagram/liberar', isAuth, soAdmin, seguro(async (req, res) => {
+        const atual = email.lerConfig().instagram || {};
+        const liberado = req.body && req.body.liberado === true;
+        email.salvarConfig({ instagram: { ...atual, liberado } });
+        res.json({ success: true, liberado });
     }));
 
     app.post('/api/admin/config-email/teste', isAuth, soAdmin, seguro(async (req, res) => {

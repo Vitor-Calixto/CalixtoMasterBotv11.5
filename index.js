@@ -312,7 +312,8 @@ app.get('/dashboard', isAuth, async (req, res) => {
         const permissoes = usuarios.permissoesDe(userFresh);
         res.render('dashboard', { 
             clientes: clientes.map(c => ({ ...c, status: c.status || 'OFFLINE' })), 
-            usuario: userFresh, permissoes, systemMaintenance: sysConfig.maintenance 
+            usuario: userFresh, permissoes, systemMaintenance: sysConfig.maintenance,
+            instagramLiberado: rotasInstagram.instagramLiberado(), ehAdminUser: usuarios.ehAdmin(userFresh)
         });
     } catch (error) { res.status(500).send("Erro dashboard"); }
 
@@ -481,6 +482,9 @@ app.post('/api/clientes', isAuth, async (req, res) => {
 
         // Pega os dados que o seu novo frontend lindo está enviando
         const { nome, numero, plataforma } = req.body;
+        if (plataforma === 'INSTAGRAM' && !rotasInstagram.instagramLiberado() && !usuarios.ehAdmin(user)) {
+            return res.status(403).json({ error: 'O Instagram ainda não está disponível. Crie o robô para WhatsApp.' });
+        }
 
         const novoBot = await prisma.cliente.create({ 
             data: { 

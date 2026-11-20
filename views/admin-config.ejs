@@ -20,6 +20,16 @@
         .atalho { display: flex; gap: 8px; flex-wrap: wrap; }
         .acoes { display: flex; gap: 10px; flex-wrap: wrap; }
         .aviso-falta { display: flex; gap: 8px; align-items: flex-start; background: #fff7e6; color: #8a5a00; border: 1px solid #f3d9a4; border-radius: 12px; padding: 12px 14px; margin-bottom: 16px; font-size: 14.5px; }
+        .liberar { border: 1px solid var(--linha); border-radius: 14px; padding: 14px 16px; margin-bottom: 18px; background: var(--fundo, #f5f7f4); }
+        .liberar-linha { display: flex; gap: 12px; align-items: flex-start; cursor: pointer; }
+        .liberar-linha small { color: var(--tinta-3); }
+        .chave-ig { position: relative; width: 40px; height: 24px; flex: none; margin-top: 2px; }
+        .chave-ig input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; z-index: 1; }
+        .chave-ig span { position: absolute; inset: 0; border-radius: 999px; background: #c5cec9; transition: background .15s; }
+        .chave-ig span::after { content: ''; position: absolute; left: 3px; top: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform .15s; }
+        .chave-ig input:checked + span { background: #128c6b; }
+        .chave-ig input:checked + span::after { transform: translateX(16px); }
+        .chave-ig input:focus-visible + span { outline: 3px solid #128c6b; outline-offset: 2px; }
         .cfg-h3 { font-size: 15px; font-weight: 700; margin-top: 4px; }
         .cfg-h3 .dica { font-weight: 400; }
         @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } .duas { grid-template-columns: 1fr; } }
@@ -90,6 +100,14 @@
                     <% } else if (instagram.configurado) { %><span class="estado on"><i class="ri-checkbox-circle-fill"></i> Ativo pelo Login do Facebook (exige Página). Preencha o Login do Instagram para ficar mais fácil.</span>
                     <% } else { %><span class="estado off"><i class="ri-error-warning-fill"></i> Ainda não configurado: cada cliente teria que criar o próprio app na Meta.</span><% } %>
                 </p>
+                <div class="liberar">
+                    <label class="liberar-linha">
+                        <span class="chave-ig"><input type="checkbox" id="igLiberado" <%= instagram.liberado ? 'checked' : '' %>><span></span></span>
+                        <span><b>Mostrar o Instagram para os clientes</b><br>
+                        <small id="igLiberadoTxt"><%= instagram.liberado ? 'Ligado: os clientes podem criar robôs de Instagram e conectar a conta.' : 'Desligado: os clientes veem "Em breve". Só você vê e testa o Instagram.' %></small></span>
+                    </label>
+                    <p class="dica">Ligue só depois que a Meta aprovar o acesso avançado e o app estiver Ao vivo. O passo a passo para retomar está em <b>docs/INSTAGRAM-RETOMAR.md</b> no GitHub.</p>
+                </div>
                 <% if (typeof falta !== 'undefined' && falta) { %><p class="aviso-falta" role="status"><i class="ri-information-line"></i> Para seus clientes conectarem o Instagram pela tela fácil, preencha e salve esta parte.</p><% } %>
                 <form class="form" id="form-ig">
                     <h3 class="cfg-h3">1. Dados do app <span class="dica">(Configurações &gt; Básico)</span></h3>
@@ -161,6 +179,13 @@
         });
         document.querySelectorAll('[data-copiar]').forEach(b => b.onclick = () => {
             copiar($(b.dataset.copiar).value);
+        });
+        $('igLiberado').addEventListener('change', async (e) => {
+            const liberado = e.target.checked;
+            const r = await api('/api/admin/config-instagram/liberar', 'POST', { liberado });
+            if (!r.ok) { e.target.checked = !liberado; return toast(r.dados.error || 'Não foi possível salvar.', true); }
+            $('igLiberadoTxt').textContent = liberado ? 'Ligado: os clientes podem criar robôs de Instagram e conectar a conta.' : 'Desligado: os clientes veem "Em breve". Só você vê e testa o Instagram.';
+            toast(liberado ? 'Instagram liberado para os clientes.' : 'Instagram oculto para os clientes.');
         });
         $('form-ig').addEventListener('submit', async (e) => {
             e.preventDefault();

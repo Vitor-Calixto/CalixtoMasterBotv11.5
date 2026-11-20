@@ -42,6 +42,11 @@ function appDaPlataforma() {
     };
 }
 
+// Instagram visível para os clientes? (chave em Administração > Configurações)
+// Enquanto a Meta não aprova o app, fica oculto: só o admin vê e testa.
+function instagramLiberado() { return (lerConfig().instagram || {}).liberado === true; }
+const avisoEmBreve = (res) => paginaAviso(res, 'Instagram em breve', 'A conexão com o Instagram ainda não está disponível. Por enquanto, use o robô no WhatsApp. Avisaremos quando liberar.', 200);
+
 // Token que a Meta usa para confirmar o webhook (gerado no painel do admin).
 // O valor antigo só é aceito enquanto nenhum outro for definido.
 function tokenVerificacao() {
@@ -194,6 +199,7 @@ router.get('/ajuda', (req, res) => {
 router.get('/setup', async (req, res) => {
     const clienteId = String(req.query.clienteId || '');
     if (!clienteId) return res.redirect('/dashboard');
+    if (!instagramLiberado() && req.session.role !== 'ADMIN') return avisoEmBreve(res);
     const app = appDaPlataforma();
     if (app.configurado) {
         const cliente = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { id: true, nome: true, instagramUser: true, status: true } });
@@ -209,6 +215,7 @@ router.get('/setup', async (req, res) => {
 
 // Conectar com o app da plataforma (um clique)
 router.post('/conectar', (req, res) => {
+    if (!instagramLiberado() && req.session.role !== 'ADMIN') return avisoEmBreve(res);
     const app = appDaPlataforma();
     if (!app.configurado) return res.redirect('/instagram/setup?clienteId=' + encodeURIComponent(req.body.clienteId || ''));
     if (app.loginInstagram) return iniciarLoginInstagram(req, res, req.body.clienteId, app);
@@ -411,4 +418,4 @@ router.post('/auth/escolher', async (req, res) => {
     return res.render('instagram-conectar', { modo: 'sucesso', cliente: { nome: clienteDb.nome, instagramUser: conta.usuario }, contas: [], titulo: null, texto: null });
 });
 
-module.exports = { router, enviarRespostaInstagram, appDaPlataforma, tokenVerificacao, renovarTokensInstagram };
+module.exports = { router, enviarRespostaInstagram, appDaPlataforma, tokenVerificacao, renovarTokensInstagram, instagramLiberado };
