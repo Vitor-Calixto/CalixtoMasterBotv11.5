@@ -351,7 +351,14 @@ async function concluirLoginInstagram(req, res, clienteDb, code) {
     const expira = new Date(Date.now() + (Number(longo.expires_in) || 60 * 24 * 3600) * 1000);
 
     // 3) qual conta entrou (user_id é o mesmo ID que chega nas mensagens)
-    const eu = dadoUnico((await axios.get(`${IG_GRAPH}/me`, { params: { fields: 'user_id,username', access_token: token }, timeout: 15000 })).data);
+    let eu;
+    try {
+        eu = dadoUnico((await axios.get(`${IG_GRAPH}/me`, { params: { fields: 'user_id,username', access_token: token }, timeout: 15000 })).data);
+    } catch (e) {
+        if (e.response?.data?.error?.code !== 100) throw e;
+        console.error('[OAUTH-IG] ⚠️ O Instagram recusou a consulta da conta:', e.response.data);
+        return paginaAviso(res, 'A conta precisa ser profissional', 'O Instagram recusou esta conta. No app, mude para conta Empresa ou Criador de conteúdo, ative "Permitir acesso às mensagens" e conecte de novo. Se ela já for profissional, fale com o suporte.', 200, clienteDb.id);
+    }
     const igId = String(eu.user_id || curto.user_id || '');
     if (!igId) throw new Error('A Meta não informou o ID da conta.');
 
@@ -400,7 +407,31 @@ async function renovarTokensInstagram() {
 setTimeout(renovarTokensInstagram, 60 * 1000).unref();
 setInterval(renovarTokensInstagram, 12 * 3600 * 1000).unref();
 
+// O código da Meta só vale uma vez. Se a mesma volta chegar repetida (recarregar, nova tentativa
+// do navegador ou do proxy), a repetição espera a primeira e mostra o mesmo resultado.
+const callbacksEmUso = new Map();
+function lembrarCallback(res, chave, janela, clienteId) {
+    let concluir;
+    const resultado = new Promise((ok) => { concluir = ok; });
+    const render = res.render.bind(res);
+    res.render = (view, dados, ...resto) => {
+        concluir({ status: res.statusCode, dados });
+        return render(view, dados, ...resto);
+    };
+    callbacksEmUso.set(chave, { janela, clienteId, resultado });
+    setTimeout(() => concluir(null), 60 * 1000).unref();
+    setTimeout(() => callbacksEmUso.delete(chave), 2 * 60 * 1000).unref();
+}
+
 router.get('/auth/callback', async (req, res) => {
+    const chaveCallback = `${req.sessionID}:${req.query.state}`;
+    const anterior = callbacksEmUso.get(chaveCallback);
+    if (anterior) {
+        res.locals.janela = anterior.janela;
+        const r = await anterior.resultado;
+        if (r) return res.status(r.status).render('instagram-conectar', r.dados);
+        return paginaAviso(res, 'Não foi possível conectar', 'Volte ao painel e tente de novo.', 200, anterior.clienteId);
+    }
     const pendente = req.session && req.session.igOauth;
     // Veio da janela separada: a página de resultado avisa a tela da automação e se fecha
     res.locals.janela = !!(pendente && pendente.janela);
@@ -415,6 +446,7 @@ router.get('/auth/callback', async (req, res) => {
     if (!req.session.userId) return res.redirect('/login');
     const { clienteId, plataforma } = pendente;
     delete req.session.igOauth;
+    lembrarCallback(res, chaveCallback, res.locals.janela, clienteId);
 
     try {
         const clienteDb = await prisma.cliente.findUnique({ where: { id: clienteId } });
@@ -456,7 +488,7 @@ router.get('/auth/callback', async (req, res) => {
         }));
     } catch (error) {
         console.error('❌ [OAUTH] Falha na conexão:', error.response?.data || error.message);
-        return paginaAviso(res, 'Não foi possível conectar', 'A Meta recusou a conexão. Confira o passo a passo e tente de novo; se continuar, fale com o suporte.', 502, clienteId);
+        return paginaAviso(res, 'Não foi possível conectar', 'A Meta recusou a conexão. Confira o passo a passo e tente de novo; se continuar, fale com o suporte.', 200, clienteId); // sem 502: proxies podem repetir a chamada e gastar o código de novo
     }
 });
 

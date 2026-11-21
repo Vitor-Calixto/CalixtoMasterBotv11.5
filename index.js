@@ -61,6 +61,8 @@ app.use(express.json({
     verify: (req, res, buf) => { if (req.originalUrl.startsWith('/instagram/webhook')) req.rawBody = buf; }
 })); 
 app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
+// No Express 5, requisição sem corpo chega com req.body undefined e derruba quem lê req.body.email
+app.use((req, res, next) => { if (req.body === undefined) req.body = {}; next(); });
 
 const rotasInstagram = require('./instagram'); // montado mais abaixo, depois da sessão
 // ============================================================================
@@ -73,7 +75,8 @@ const rotasInstagram = require('./instagram'); // montado mais abaixo, depois da
 app.set('trust proxy', 1); // Se estiver atrás de um proxy (ex: Heroku, VPS com proxy reverso)
 // --- SEGURANÇA 1: HELMET (Esconde que é Express) ---
 // contentSecurityPolicy: false é necessário para não bloquear os scripts do Quill/CDN que usamos
-app.use(helmet({ contentSecurityPolicy: false })); 
+// same-origin-allow-popups: mantém a ligação com a janela de login do Instagram, para ela avisar o app e se fechar
+app.use(helmet({ contentSecurityPolicy: false, crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' } }));
 
 // --- SEGURANÇA 2: RATE LIMIT (Anti-Força Bruta) ---
 // Limita cada IP a 100 requisições a cada 15 minutos
@@ -904,6 +907,8 @@ app.get('/exclusao-dados', (req, res) => {
 // ============================================================================
 server.listen(PORT, async () => {
     console.log(`🚀 CALIXTO OMNISYSTEM V19.1 ONLINE NA PORTA ${PORT}`);
+    console.log(`🌐 Acesse: http://localhost:${PORT}`);
+    console.log(`🔐 Login:  http://localhost:${PORT}/login`);
     await usuarios.desligarBotsVencidos(); // assinaturas vencidas não religam
     await religarRobosAtivos(); // Restaura as conexões antes de liberar o sistema
     timeout.iniciar(); 

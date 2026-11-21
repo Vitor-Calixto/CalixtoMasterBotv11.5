@@ -1,0 +1,55 @@
+<%# Abertura estilo HUD: aparece uma vez por sessão do navegador. Clique ou tecla pula. %>
+<div id="abertura" hidden role="status" aria-label="Calixto iniciando">
+    <style>
+        #abertura { position: fixed; inset: 0; z-index: 99999; display: grid; place-items: center; overflow: hidden; cursor: pointer; color: #7fe9ff;
+            background: radial-gradient(circle at center, #08242f 0%, #03090f 62%, #010305 100%); font-family: 'Segoe UI', system-ui, sans-serif; transition: opacity .55s ease, transform .55s ease; }
+        #abertura[hidden] { display: none; }
+        #abertura.saindo { opacity: 0; transform: scale(1.06); pointer-events: none; }
+        #abertura .grade { position: absolute; inset: 0; opacity: .12; background-image: linear-gradient(#7fe9ff 1px, transparent 1px), linear-gradient(90deg, #7fe9ff 1px, transparent 1px); background-size: 44px 44px; -webkit-mask-image: radial-gradient(circle, #000 10%, transparent 68%); mask-image: radial-gradient(circle, #000 10%, transparent 68%); }
+        #abertura .centro { position: relative; width: min(82vw, 440px); aspect-ratio: 1; display: grid; place-items: center; }
+        #abertura svg { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 0 7px rgba(70, 215, 255, .75)); }
+        #abertura circle { fill: none; stroke: currentColor; transform-origin: 200px 200px; }
+        #abertura .a1 { stroke-width: 2; stroke-dasharray: 150 34 60 24; animation: ab-gira 7s linear infinite, ab-entra .8s ease-out both; }
+        #abertura .a2 { stroke-width: 7; stroke-dasharray: 5 13; opacity: .75; animation: ab-gira 11s linear infinite reverse, ab-entra .8s .12s ease-out both; }
+        #abertura .a3 { stroke-width: 1.5; stroke-dasharray: 230 40; animation: ab-gira 4.5s linear infinite, ab-entra .8s .24s ease-out both; }
+        #abertura .a4 { stroke-width: 12; stroke-dasharray: 52 26; opacity: .45; animation: ab-gira 6s linear infinite reverse, ab-entra .8s .36s ease-out both; }
+        #abertura .nome { position: relative; display: flex; padding-left: .34em; font-size: clamp(25px, 7vw, 42px); font-weight: 300; letter-spacing: .34em; color: #eafcff; text-shadow: 0 0 16px #38d4ff, 0 0 34px rgba(56, 212, 255, .6); }
+        #abertura .nome span { opacity: 0; animation: ab-letra .42s ease-out forwards; }
+        #abertura .estado { position: absolute; bottom: max(9vh, 40px); left: 16px; right: 16px; text-align: center; font-size: 12px; letter-spacing: .26em; opacity: .85; }
+        #abertura .barra { width: min(64vw, 260px); height: 2px; margin: 11px auto 0; background: rgba(127, 233, 255, .18); overflow: hidden; }
+        #abertura .barra i { display: block; height: 100%; background: #7fe9ff; box-shadow: 0 0 9px #7fe9ff; transform-origin: left; animation: ab-barra 2.7s ease-in-out both; }
+        @keyframes ab-gira { to { transform: rotate(360deg); } }
+        @keyframes ab-entra { from { opacity: 0; scale: .55; } }
+        @keyframes ab-letra { from { opacity: 0; transform: translateY(9px); filter: blur(7px); } to { opacity: 1; transform: none; filter: none; } }
+        @keyframes ab-barra { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+        @media (prefers-reduced-motion: reduce) { #abertura *, #abertura { animation-duration: .01ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition: none !important; } }
+    </style>
+    <div class="grade"></div>
+    <div class="centro">
+        <svg viewBox="0 0 400 400" aria-hidden="true">
+            <circle class="a1" cx="200" cy="200" r="188"/><circle class="a2" cx="200" cy="200" r="168"/>
+            <circle class="a3" cx="200" cy="200" r="145"/><circle class="a4" cx="200" cy="200" r="125"/>
+        </svg>
+        <div class="nome" aria-hidden="true"><% 'CALIXTO'.split('').forEach((l, i) => { %><span style="animation-delay:<%= 0.75 + i * 0.13 %>s"><%= l %></span><% }) %></div>
+    </div>
+    <div class="estado"><span id="abertura-texto">INICIALIZANDO SISTEMAS</span><div class="barra"><i></i></div></div>
+    <script>
+    (function () {
+        var el = document.getElementById('abertura'), chave = 'calixto-abertura', viu = false;
+        try { viu = sessionStorage.getItem(chave) === '1'; sessionStorage.setItem(chave, '1'); } catch (e) {}
+        if (viu) { el.remove(); return; }
+        el.hidden = false;
+        var fechou = false, reduzido = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        function fechar() {
+            if (fechou) return; fechou = true;
+            document.removeEventListener('keydown', fechar);
+            el.classList.add('saindo');
+            setTimeout(function () { el.remove(); }, 600);
+        }
+        setTimeout(function () { var t = document.getElementById('abertura-texto'); if (t) t.textContent = 'SISTEMA ONLINE'; }, reduzido ? 900 : 2300);
+        setTimeout(fechar, reduzido ? 1800 : 3200);
+        el.addEventListener('click', fechar);
+        document.addEventListener('keydown', fechar);
+    })();
+    </script>
+</div>

@@ -122,14 +122,16 @@
         var canal = ('BroadcastChannel' in window) ? new BroadcastChannel('calixto-instagram') : null;
 
         // ---- Resultado aberto na janela separada: avisa a tela da automação e fecha ----
-        if (janela && canal) {
-            if (modo === 'sucesso') canal.postMessage({ tipo: 'conectado' });
-            else if (modo === 'aviso') canal.postMessage({ tipo: 'erro', titulo: <%- JSON.stringify(typeof titulo !== 'undefined' && titulo ? titulo : '') %>, texto: <%- JSON.stringify(typeof texto !== 'undefined' && texto ? texto : '') %> });
+        if (janela) {
+            if (canal && modo === 'sucesso') canal.postMessage({ tipo: 'conectado' });
+            else if (canal && modo === 'aviso') canal.postMessage({ tipo: 'erro', titulo: <%- JSON.stringify(typeof titulo !== 'undefined' && titulo ? titulo : '') %>, texto: <%- JSON.stringify(typeof texto !== 'undefined' && texto ? texto : '') %> });
             setTimeout(function () { try { window.close(); } catch (e) {} }, 500);
+            // Se o navegador não deixar fechar, orienta em vez de abrir um segundo painel nesta janela
+            setTimeout(function () { var v = document.getElementById('volta-auto'); if (v) v.textContent = 'Pronto. Pode fechar esta janela.'; }, 1200);
         }
 
-        // ---- Sucesso: volta sozinho para o painel ----
-        if (modo === 'sucesso') {
+        // ---- Sucesso: volta sozinho para o painel (na janela separada, quem volta é a tela da automação) ----
+        if (modo === 'sucesso' && !janela) {
             var s = 4, el = document.getElementById('volta-seg');
             var t = setInterval(function () { s--; if (el) el.textContent = s; if (s <= 0) { clearInterval(t); location.href = '/dashboard'; } }, 1000);
         }
