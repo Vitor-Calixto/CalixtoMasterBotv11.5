@@ -194,13 +194,32 @@ function iniciarOAuth(req, res, clienteId, appId, plataforma) {
 }
 
 // Login do Instagram: o cliente entra com usuário e senha na própria tela do Instagram
-function iniciarLoginInstagram(req, res, clienteId, app) {
+// opcoes.forcar=false: não pede o login de novo (usado no "Continuar conexão", quando a pessoa
+//   acabou de entrar e o Instagram a deixou parada no feed em vez de voltar para cá)
+// opcoes.janela=true: a conexão roda numa janela separada; a tela da automação espera aberta
+function iniciarLoginInstagram(req, res, clienteId, app, opcoes = {}) {
+    const forcar = opcoes.forcar !== false;
     const state = crypto.randomBytes(24).toString('hex');
-    req.session.igOauth = { state, clienteId: String(clienteId), plataforma: true, modo: 'instagram', criadoEm: Date.now() };
+    req.session.igOauth = { state, clienteId: String(clienteId), plataforma: true, modo: 'instagram', janela: !!opcoes.janela, criadoEm: Date.now() };
     const url = `https://www.instagram.com/oauth/authorize?client_id=${encodeURIComponent(app.igAppId)}` +
-        `&redirect_uri=${encodeURIComponent(urlCallback(req))}&response_type=code&scope=${ESCOPOS_IG}&state=${state}&force_reauth=true`;
+        `&redirect_uri=${encodeURIComponent(urlCallback(req))}&response_type=code&scope=${ESCOPOS_IG}&state=${state}` +
+        (forcar ? '&force_reauth=true' : '');
     req.session.save(() => res.redirect(url));
 }
+
+// Bot do usuário logado (o admin acessa qualquer um)
+async function botDoUsuario(req, clienteId, select) {
+    if (!req.session || !req.session.userId || !clienteId) return null;
+    const c = await prisma.cliente.findUnique({ where: { id: String(clienteId) }, select: { ...select, id: true, donoId: true } });
+    if (!c || (c.donoId !== req.session.userId && req.session.role !== 'ADMIN')) return null;
+    return c;
+}
+
+// Impressão digital do token: a tela de espera sabe que a conexão terminou quando ela muda (o token em si nunca sai do servidor)
+const marcaDoToken = (t) => (t ? crypto.createHash('sha256').update(String(t)).digest('hex').slice(0, 16) : '');
+
+// Aberto pelo endereço local? O Instagram só volta para o endereço público (https) cadastrado no app da Meta.
+const enderecoLocal = (req) => !process.env.BASE_URL && /^(localhost|127\.|\[::1\]|0\.0\.0\.0)/i.test(String(req.get('host') || ''));
 
 // Passo a passo para o cliente deixar a conta pronta (página pública)
 router.get('/ajuda', (req, res) => {
@@ -214,9 +233,12 @@ router.get('/setup', async (req, res) => {
     if (!instagramLiberado() && req.session.role !== 'ADMIN') return avisoEmBreve(res);
     const app = appDaPlataforma();
     if (app.configurado) {
-        const cliente = await prisma.cliente.findUnique({ where: { id: clienteId }, select: { id: true, nome: true, instagramUser: true, status: true } });
-        if (!cliente) return res.redirect('/dashboard');
-        return res.render('instagram-conectar', { modo: 'inicio', cliente, contas: [], titulo: null, texto: null, jeito: app.modo });
+        if (!req.session.userId) return res.redirect('/login');
+        const bot = await botDoUsuario(req, clienteId, { nome: true, instagramUser: true, status: true, instagramToken: true });
+        if (!bot) return res.redirect('/dashboard');
+        const cliente = { id: bot.id, nome: bot.nome, instagramUser: bot.instagramUser, status: bot.status };
+        return res.render('instagram-conectar', { modo: 'inicio', cliente, contas: [], titulo: null, texto: null, jeito: app.modo,
+            marca: marcaDoToken(bot.instagramToken), avisoLocal: enderecoLocal(req) });
     }
     // Ainda sem o app da plataforma: o cliente nunca vê o tutorial antigo (criar o próprio app na Meta).
     // O admin vai direto para a configuração; o cliente recebe um aviso simples.
@@ -232,6 +254,33 @@ router.post('/conectar', (req, res) => {
     if (!app.configurado) return res.redirect('/instagram/setup?clienteId=' + encodeURIComponent(req.body.clienteId || ''));
     if (app.loginInstagram) return iniciarLoginInstagram(req, res, req.body.clienteId, app);
     return iniciarOAuth(req, res, req.body.clienteId, app.appId, true);
+});
+
+// Abre o login numa janela separada (a tela da automação fica esperando aberta)
+router.get('/conectar/ir', async (req, res) => {
+    if (!instagramLiberado() && req.session.role !== 'ADMIN') return avisoEmBreve(res);
+    if (!req.session.userId) return res.redirect('/login');
+    const app = appDaPlataforma();
+    const bot = await botDoUsuario(req, req.query.clienteId, {});
+    if (!bot) return paginaAviso(res, 'Acesso negado', 'Este bot não pertence à sua conta.', 403);
+    if (!app.configurado) return res.redirect('/instagram/setup?clienteId=' + encodeURIComponent(bot.id));
+    if (!app.loginInstagram) return iniciarOAuth(req, res, bot.id, app.appId, true);
+    return iniciarLoginInstagram(req, res, bot.id, app, { forcar: req.query.de_novo !== '1', janela: true });
+});
+
+// A tela de espera pergunta, de tempos em tempos, se a conta já foi conectada
+router.get('/conectar/estado', async (req, res) => {
+    const bot = await botDoUsuario(req, req.query.clienteId, { instagramToken: true, instagramUser: true });
+    if (!bot) return res.status(403).json({ erro: 'Acesso negado' });
+    res.set('Cache-Control', 'no-store');
+    res.json({ marca: marcaDoToken(bot.instagramToken), usuario: bot.instagramUser || null });
+});
+
+// Confirmação mostrada na tela da automação quando a conexão termina (volta sozinha ao painel)
+router.get('/conectado', async (req, res) => {
+    const bot = await botDoUsuario(req, req.query.clienteId, { nome: true, instagramUser: true });
+    if (!bot) return res.redirect('/dashboard');
+    return res.render('instagram-conectar', { modo: 'sucesso', cliente: { nome: bot.nome, instagramUser: bot.instagramUser || 'sua conta' }, contas: [], titulo: null, texto: null });
 });
 
 // Modo antigo: o cliente informa o próprio App ID/Secret
@@ -353,6 +402,8 @@ setInterval(renovarTokensInstagram, 12 * 3600 * 1000).unref();
 
 router.get('/auth/callback', async (req, res) => {
     const pendente = req.session && req.session.igOauth;
+    // Veio da janela separada: a página de resultado avisa a tela da automação e se fecha
+    res.locals.janela = !!(pendente && pendente.janela);
     if (req.query.error) {
         delete req.session.igOauth;
         return paginaAviso(res, 'Conexão cancelada', 'Você não autorizou o acesso ao Instagram. Pode tentar de novo quando quiser.', 200, pendente ? pendente.clienteId : '');

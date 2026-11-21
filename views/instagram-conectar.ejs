@@ -20,6 +20,16 @@
         .btn-ig:hover { filter: brightness(1.06); background: linear-gradient(90deg, #833ab4, #e1306c 55%, #f77737); }
         .seguro { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; color: var(--tinta-3); margin-top: 14px; }
         .seguro i { color: var(--acao); font-size: 17px; line-height: 1.2; }
+        [hidden] { display: none !important; }
+        .espera { text-align: left; }
+        .espera h2 { font-size: 20px; margin: 4px 0 6px; color: var(--tinta); }
+        .espera p { color: var(--tinta-2); font-size: 15px; }
+        .girando { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--linha); border-top-color: #e1306c; animation: gira 0.9s linear infinite; margin-bottom: 14px; }
+        @keyframes gira { to { transform: rotate(360deg); } }
+        @media (prefers-reduced-motion: reduce) { .girando { animation-duration: 3s; } }
+        .dica { background: #fff7e0; color: #6a5313; border-radius: 12px; padding: 12px 14px; font-size: 14.5px; margin: 16px 0 12px; }
+        .erro-ig { background: #fdecea; color: #8a1c12; border-radius: 12px; padding: 12px 14px; font-size: 14.5px; margin: 12px 0 0; }
+        .aviso-local { background: #fff7e0; color: #6a5313; border-radius: 12px; padding: 12px 14px; font-size: 14px; margin-bottom: 12px; }
         .atual { background: var(--menta); color: var(--floresta); border-radius: 12px; padding: 12px 14px; font-size: 14.5px; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
     </style>
 </head>
@@ -41,11 +51,23 @@
                     <li><i class="ri-check-line"></i><span>Em Configurações, Mensagens, Ferramentas conectadas, ligue <b>Permitir acesso às mensagens</b>.</span></li>
                     <li><i class="ri-check-line"></i><span>Na próxima tela, entre com o <b>usuário e a senha do Instagram</b> e toque em Permitir. Não precisa de Página do Facebook.</span></li>
                 </ul>
-                <form action="/instagram/conectar" method="POST">
+                <% if (typeof avisoLocal !== 'undefined' && avisoLocal) { %>
+                    <div class="aviso-local"><b>Você está no endereço local (localhost).</b> O Instagram só volta para o endereço público com https cadastrado no app da Meta. Para testar a conexão, use o site no ar.</div>
+                <% } %>
+                <form action="/instagram/conectar" method="POST" id="form-ig" data-cliente="<%= cliente.id %>" data-marca="<%= typeof marca !== 'undefined' ? marca : '' %>">
                     <input type="hidden" name="clienteId" value="<%= cliente.id %>">
                     <button class="btn btn-ig" type="submit"><i class="ri-instagram-line"></i> Entrar com o Instagram</button>
                 </form>
-                <p class="seguro"><i class="ri-shield-check-line" aria-hidden="true"></i> Você digita a senha no site do próprio Instagram. Ela nunca passa por aqui.</p>
+                <div class="espera" id="espera-ig" hidden aria-live="polite">
+                    <div class="girando" aria-hidden="true"></div>
+                    <h2>Entre no Instagram na janela que abriu</h2>
+                    <p>Assim que você tocar em <b>Permitir</b>, esta tela continua sozinha.</p>
+                    <div class="dica"><b>Entrou e ficou parado no Instagram?</b> Às vezes, depois do login, o Instagram não volta para cá. Toque em Continuar conexão: como você já entrou, ele vai direto para a tela de permitir.</div>
+                    <button class="btn btn-ig" type="button" id="ig-continuar"><i class="ri-arrow-right-line"></i> Continuar conexão</button>
+                    <p class="erro-ig" id="ig-erro" hidden></p>
+                    <p class="rodape"><a href="" id="ig-cancelar">Cancelar</a></p>
+                </div>
+                <p class="seguro" id="ig-seguro"><i class="ri-shield-check-line" aria-hidden="true"></i> Você digita a senha no site do próprio Instagram. Ela nunca passa por aqui.</p>
                 <% } else { %>
                 <ul class="lista">
                     <li><i class="ri-check-line"></i><span>A conta do Instagram precisa ser <b>Profissional</b> (Empresa ou Criador).</span></li>
@@ -79,6 +101,7 @@
                 <p class="sub">O bot <b><%= cliente.nome %></b> já está respondendo as mensagens de <b>@<%= cliente.instagramUser %></b>.</p>
                 <div class="atual"><i class="ri-checkbox-circle-fill"></i> Mande uma mensagem no Direct para testar.</div>
                 <a class="btn" href="/dashboard">Voltar ao painel</a>
+                <p class="rodape" id="volta-auto">Voltando ao painel em <span id="volta-seg">4</span> s…</p>
 
             <% } else { %>
                 <h1><%= titulo %></h1>
@@ -92,5 +115,77 @@
             <% } %>
         </div>
     </main>
+    <script>
+    (function () {
+        var janela = <%- (typeof janela !== 'undefined' && janela) ? 'true' : 'false' %>;
+        var modo = <%- JSON.stringify(modo) %>;
+        var canal = ('BroadcastChannel' in window) ? new BroadcastChannel('calixto-instagram') : null;
+
+        // ---- Resultado aberto na janela separada: avisa a tela da automação e fecha ----
+        if (janela && canal) {
+            if (modo === 'sucesso') canal.postMessage({ tipo: 'conectado' });
+            else if (modo === 'aviso') canal.postMessage({ tipo: 'erro', titulo: <%- JSON.stringify(typeof titulo !== 'undefined' && titulo ? titulo : '') %>, texto: <%- JSON.stringify(typeof texto !== 'undefined' && texto ? texto : '') %> });
+            setTimeout(function () { try { window.close(); } catch (e) {} }, 500);
+        }
+
+        // ---- Sucesso: volta sozinho para o painel ----
+        if (modo === 'sucesso') {
+            var s = 4, el = document.getElementById('volta-seg');
+            var t = setInterval(function () { s--; if (el) el.textContent = s; if (s <= 0) { clearInterval(t); location.href = '/dashboard'; } }, 1000);
+        }
+
+        // ---- Tela inicial: abre o Instagram numa janela e espera a conexão terminar ----
+        var form = document.getElementById('form-ig');
+        if (!form) return;
+        var id = form.dataset.cliente, marcaInicial = form.dataset.marca || '';
+        var espera = document.getElementById('espera-ig'), seguro = document.getElementById('ig-seguro');
+        var erro = document.getElementById('ig-erro');
+        var popup = null, timer = null, terminou = false;
+        var endereco = function (deNovo) { return '/instagram/conectar/ir?clienteId=' + encodeURIComponent(id) + (deNovo ? '&de_novo=1' : ''); };
+        var abrir = function (deNovo) { return window.open(endereco(deNovo), 'calixto-ig', 'popup,width=520,height=760'); };
+
+        function concluir() {
+            if (terminou) return; terminou = true; clearInterval(timer);
+            try { if (popup && !popup.closed) popup.close(); } catch (e) {}
+            location.href = '/instagram/conectado?clienteId=' + encodeURIComponent(id);
+        }
+        function falhar(titulo, texto) {
+            if (terminou) return;
+            erro.textContent = (titulo ? titulo + '. ' : '') + (texto || 'Tente de novo.');
+            erro.hidden = false;
+        }
+        function verificar() {
+            fetch('/instagram/conectar/estado?clienteId=' + encodeURIComponent(id), { credentials: 'same-origin', cache: 'no-store' })
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(function (d) { if (d && d.marca && d.marca !== marcaInicial) concluir(); })
+                .catch(function () {});
+        }
+        function esperar() {
+            var lista = document.querySelector('.lista'); if (lista) lista.hidden = true;
+            form.hidden = true; if (seguro) seguro.hidden = true; espera.hidden = false; erro.hidden = true;
+            if (!timer) timer = setInterval(verificar, 2000);
+        }
+
+        form.addEventListener('submit', function (e) {
+            popup = abrir(false);
+            if (!popup) return;            // janela bloqueada: segue na mesma aba, como antes
+            e.preventDefault();
+            esperar();
+        });
+        document.getElementById('ig-continuar').addEventListener('click', function () {
+            erro.hidden = true;
+            popup = abrir(true);
+            if (!popup) location.href = endereco(true);
+        });
+        document.getElementById('ig-cancelar').addEventListener('click', function (e) { e.preventDefault(); location.reload(); });
+        document.addEventListener('visibilitychange', function () { if (!document.hidden && timer) verificar(); });
+        window.addEventListener('focus', function () { if (timer) verificar(); });
+        if (canal) canal.onmessage = function (ev) {
+            var m = ev.data || {};
+            if (m.tipo === 'conectado') concluir();
+            else if (m.tipo === 'erro') falhar(m.titulo, m.texto);
+        };
+    })();
+    </script>
 </body>
 </html>
