@@ -52,6 +52,55 @@ function unwrapMessage(msg) {
     return msg;
 }
 
+// ----------------------------------------------------------------------------
+// Pasta da sessão do WhatsApp (as chaves da conta ficam aqui)
+// Fica FORA de "public": tudo em public é servido pela internet.
+// A pasta usa só o ID do robô (nome com "/" ou ".." nunca vira caminho) e a pasta
+// antiga (public/sessions/<nome>-<id>) é movida para cá sozinha, sem pedir novo pareamento.
+// ----------------------------------------------------------------------------
+const PASTA_SESSOES = path.join(__dirname, '..', 'storage', 'whatsapp');
+const PASTA_SESSOES_ANTIGA = path.join(__dirname, '..', 'public', 'sessions');
+const idSeguro = (id) => String(id).replace(/[^a-zA-Z0-9_-]/g, '');
+
+function pastaDaSessao(cliente) {
+    const destino = path.join(PASTA_SESSOES, idSeguro(cliente.id));
+    fs.mkdirSync(PASTA_SESSOES, { recursive: true, mode: 0o700 });
+    if (!fs.existsSync(destino)) {
+        try {
+            const antiga = fs.existsSync(PASTA_SESSOES_ANTIGA)
+                ? fs.readdirSync(PASTA_SESSOES_ANTIGA).find(n => n.endsWith('-' + cliente.id))
+                : null;
+            if (antiga) {
+                fs.cpSync(path.join(PASTA_SESSOES_ANTIGA, antiga), destino, { recursive: true });
+                fs.rmSync(path.join(PASTA_SESSOES_ANTIGA, antiga), { recursive: true, force: true });
+                console.log(`[WHATSAPP] 🔒 Sessão de "${cliente.nome}" movida para fora da pasta pública.`);
+            }
+        } catch (e) { console.error('[WHATSAPP] Não consegui mover a sessão antiga:', e.message); }
+    }
+    return destino;
+}
+
+function apagarPastaDaSessao(cliente) {
+    try { fs.rmSync(path.join(PASTA_SESSOES, idSeguro(cliente.id)), { recursive: true, force: true }); } catch (e) {}
+    try {   // sobra de versões antigas
+        if (fs.existsSync(PASTA_SESSOES_ANTIGA)) {
+            for (const n of fs.readdirSync(PASTA_SESSOES_ANTIGA)) {
+                if (n.endsWith('-' + cliente.id)) fs.rmSync(path.join(PASTA_SESSOES_ANTIGA, n), { recursive: true, force: true });
+            }
+        }
+    } catch (e) {}
+}
+
+// Mensagens já tratadas (a Meta/WhatsApp às vezes entrega a mesma duas vezes ao reconectar)
+const jaTratadas = new Set();
+function primeiraVez(id) {
+    if (!id) return true;
+    if (jaTratadas.has(id)) return false;
+    jaTratadas.add(id);
+    if (jaTratadas.size > 2000) jaTratadas.delete(jaTratadas.values().next().value);
+    return true;
+}
+
 
 // ============================================================================
 // 🚀 4. MOTOR PRINCIPAL (INICIALIZAÇÃO DO WHATSAPP)
@@ -87,10 +136,7 @@ async function iniciarWhatsApp(clienteDado, io) {
         }
 
         // --- C. GESTÃO DE CHAVES E SESSÃO ---
-        const sessionsDir = path.join(__dirname, '..', 'public', 'sessions');
-        if (!fs.existsSync(sessionsDir)) fs.mkdirSync(sessionsDir, { recursive: true });
-        
-        const pathAuth = path.join(sessionsDir, `${cliente.nome}-${cliente.id}`);
+        const pathAuth = pastaDaSessao(cliente);
         const { state, saveCreds } = await useMultiFileAuthState(pathAuth);
         const { version } = await fetchLatestBaileysVersion();
 
@@ -150,11 +196,18 @@ async function iniciarWhatsApp(clienteDado, io) {
               const statusCode = lastDisconnect?.error?.output?.statusCode;
               // Código 401 ou loggedOut significa que o usuário desconectou no celular
               const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401;
-              const shouldReconnect = !isLoggedOut;
+              // 440 = o mesmo número abriu em outro lugar: reconectar daria uma briga sem fim entre os dois
+              const substituida = statusCode === DisconnectReason.connectionReplaced || statusCode === 440;
+              const shouldReconnect = !isLoggedOut && !substituida;
               
               console.log(`[${cliente.nome}] 📉 Conexão perdida. Código: ${statusCode}. Reconectar? ${shouldReconnect}`);
 
-              if (isLoggedOut) {
+              if (substituida) {
+                  console.log(`[${cliente.nome}] ⚠️ Este WhatsApp foi aberto em outro lugar (conexão substituída). Não vou reconectar sozinho.`);
+                  sessoes.delete(cliente.id);
+                  try { await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'OFFLINE' } }); } catch (e) {}
+                  if (io) io.to(salasDoBot(cliente)).emit('status', { clienteId: cliente.id, status: 'OFFLINE' });
+              } else if (isLoggedOut) {
                   console.log(`[${cliente.nome}] 🚫 Sessão deslogada pelo aparelho.`);
                   await prisma.cliente.update({ where: { id: cliente.id }, data: { status: 'OFFLINE' } });
                   if(io) io.to(salasDoBot(cliente)).emit('status', { clienteId: cliente.id, status: 'OFFLINE' });
@@ -234,63 +287,48 @@ async function iniciarWhatsApp(clienteDado, io) {
         // 🛡️ G. ESCUTADOR DE MENSAGENS E ROTEAMENTO (GATEKEEPER)
         // ====================================================================
         sock.ev.on('messages.upsert', async ({ messages, type }) => {
-            try {
-                // 📡 O RADAR ABSOLUTO: Se o WhatsApp receber algo, vai gritar aqui.
-                console.log(`\n[BAILEYS RADAR] 🔔 Evento detectado. Tipo: ${type}`);
-
-                if (type !== 'notify') return; 
-                const msg = messages[0];
-                if (!msg.message) return;
-
-                const fromMe = msg.key.fromMe;
-                const realMessage = unwrapMessage(msg.message);
-                const texto = (realMessage?.conversation || realMessage?.extendedTextMessage?.text || realMessage?.imageMessage?.caption || "").trim();
-
-                // 💬 Conversas ao vivo: registra tudo que chegou (inclusive mídia) ou foi digitado no celular.
-                // Fica ANTES dos filtros do bot, mas nunca interfere neles.
+            if (type !== 'notify') return;
+            for (const msg of messages) {
                 try {
-                    const jidRegistro = msg.key.remoteJid;
-                    if (jidRegistro && !isJidBroadcast(jidRegistro) && !isJidGroup(jidRegistro)) {
-                        const desc = atendimento.descreverRecebida(realMessage);
-                        if (desc && desc.texto) {
-                            atendimento.registrarMensagem({
-                                clienteId: cliente.id, remoteJid: jidRegistro,
-                                nome: fromMe ? undefined : msg.pushName,
-                                fromMe: !!fromMe, origem: fromMe ? 'CELULAR' : 'CLIENTE',
-                                texto: desc.texto, tipo: desc.tipo, waId: msg.key.id
-                            });
+                    if (!msg.message) continue;
+                    if (!primeiraVez(`${cliente.id}:${msg.key.id}`)) continue;
+
+                    const fromMe = !!msg.key.fromMe;
+                    const realMessage = unwrapMessage(msg.message);
+                    const texto = (realMessage?.conversation || realMessage?.extendedTextMessage?.text || realMessage?.imageMessage?.caption || "").trim();
+
+                    // 💬 Conversas ao vivo: registra tudo que chegou (inclusive mídia) ou foi digitado no celular.
+                    // Fica ANTES dos filtros do bot, mas nunca interfere neles.
+                    try {
+                        const jidRegistro = msg.key.remoteJid;
+                        if (jidRegistro && !isJidBroadcast(jidRegistro) && !isJidGroup(jidRegistro)) {
+                            const desc = atendimento.descreverRecebida(realMessage);
+                            if (desc && desc.texto) {
+                                atendimento.registrarMensagem({
+                                    clienteId: cliente.id, remoteJid: jidRegistro,
+                                    nome: fromMe ? undefined : msg.pushName,
+                                    fromMe, origem: fromMe ? 'CELULAR' : 'CLIENTE',
+                                    texto: desc.texto, tipo: desc.tipo, waId: msg.key.id
+                                });
+                            }
                         }
-                    }
-                } catch (e) { /* o registro nunca pode derrubar o bot */ }
+                    } catch (e) { /* o registro nunca pode derrubar o bot */ }
 
-                // 🚨 O ASSASSINO SILENCIOSO (TRAVA TEMPORAL) FOI NEUTRALIZADO AQUI 🚨
-                // Comentamos isso para evitar que o fuso horário do Windows apague a mensagem.
-                // const msgTimestamp = msg.messageTimestamp * 1000;
-                // if (msgTimestamp < uptimeStart || (Date.now() - msgTimestamp) > 30000) return;
+                    // --- 🚀 FILTRO DE SEGURANÇA ---
+                    if (fromMe && !texto.startsWith('#')) continue; // Gestor só passa se usar #
+                    if (!fromMe && !texto) continue;                // Mensagem vazia de cliente é ignorada
 
-                // --- 🚀 FILTRO DE SEGURANÇA ---
-                if (fromMe && !texto.startsWith('#')) return; // Gestor só passa se usar #
-                if (!fromMe && !texto) return; // Mensagem vazia de cliente é ignorada
+                    const remoteJid = msg.key.remoteJid;
+                    if (!remoteJid || isJidBroadcast(remoteJid) || isJidGroup(remoteJid)) continue;
 
-                const remoteJid = msg.key.remoteJid;
-                if (isJidBroadcast(remoteJid) || isJidGroup(remoteJid)) return;
+                    console.log(`[WPP RECEBIDO] De: ${remoteJid.split('@')[0]} | Gestor? ${fromMe} | Msg: "${texto.slice(0, 80)}"`);
 
-                // 🎉 SE CHEGOU AQUI, O BOT VAI PROCESSAR!
-                console.log(`[WPP RECEBIDO] De: ${remoteJid.split('@')[0]} | Gestor? ${fromMe} | Msg: "${texto}"`);
+                    // 🚀 DESPACHANTE FINAL: Joga para o Cérebro V12 (Engine)
+                    await engine.processarMensagem(cliente.id, remoteJid, texto, sock, prisma, msg.pushName || "Cliente", 'WHATSAPP', null, { fromMe });
 
-                // ATALHO: Cancelamento direto
-                if (texto.toUpperCase() === 'SIM' && !fromMe) {
-                    console.log(`[ATALHO] Cliente digitou SIM.`);
-                    // ... seu código de deleteMany original ...
-                    return; 
+                } catch (error) {
+                    console.error(`[ERRO CRÍTICO WHATSAPP]:`, error.message);
                 }
-
-                // 🚀 DESPACHANTE FINAL: Joga para o Cérebro V12 (Engine)
-                console.log(`[ENGINE] 🧠 Enviando para processarMensagem...`);
-                await engine.processarMensagem(cliente.id, remoteJid, texto, sock, prisma, msg.pushName || "Cliente");
-
-            } catch (error) { 
-                console.error(`[ERRO CRÍTICO WHATSAPP]:`, error.message); 
             }
         });
 
@@ -302,4 +340,4 @@ async function iniciarWhatsApp(clienteDado, io) {
 }
 
 // 📦 5. EXPORTAÇÃO
-module.exports = { iniciarWhatsApp, sessoes };
+module.exports = { iniciarWhatsApp, sessoes, pastaDaSessao, apagarPastaDaSessao };

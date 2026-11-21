@@ -249,13 +249,15 @@ function telaLogin(req, res) {
     return renderLogin(res, { aviso: a || null, erro: flash && flash.length ? flash[0] : null });
 }
 
+const HASH_FALSO = bcrypt.hashSync('sem-conta', 10);
 async function fazerLogin(req, res) {
     const emailDigitado = normalizarEmail(req.body.email);
     const senha = String(req.body.senha || '');
     try {
         const user = await buscarPorEmail(emailDigitado);
-        const confere = (s) => { try { return !!s && bcrypt.compareSync(s, user.senha); } catch (e) { return false; } };
-        const senhaOk = !!user && (confere(senha) || (senha.trim() !== senha && confere(senha.trim())));
+        // Mesmo sem conta com esse e-mail, gasta o mesmo tempo: não dá para descobrir e-mails cadastrados pelo tempo da resposta
+        const confere = (s) => { try { return !!s && bcrypt.compareSync(s, user ? user.senha : HASH_FALSO); } catch (e) { return false; } };
+        const senhaOk = (confere(senha) || (senha.trim() !== senha && confere(senha.trim()))) && !!user;
         if (!senhaOk) return renderLogin(res, { erro: 'E-mail ou senha incorretos.', email: emailDigitado });
 
         const admin = ehAdmin(user);
@@ -629,6 +631,7 @@ function registrarRotas(app) {
                 try { whatsapp.sessoes.get(b.id).end(undefined); } catch (e) {}
                 whatsapp.sessoes.delete(b.id);
             }
+            if (whatsapp && whatsapp.apagarPastaDaSessao) whatsapp.apagarPastaDaSessao(b);
         }
         const ids = bots.map(b => b.id);
         await prisma.$transaction([

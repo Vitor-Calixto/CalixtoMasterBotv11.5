@@ -36,6 +36,7 @@ function iniciarMonitorDeLembretes(prisma, sessoes) {
 
             // Se não houver nada agendado, morre em silêncio poupando memória RAM
             if (lembretes.length === 0) return;
+            const clientes = new Map(); // cada robô é lido uma vez por rodada
 
             // ================================================================
             // PASSO 2: PROCESSAMENTO DO FLUXO DO CLIENTE
@@ -45,14 +46,14 @@ function iniciarMonitorDeLembretes(prisma, sessoes) {
                 // Puxa a conexão de WhatsApp vinculada à clínica/gestor dono da agenda
                 const sock = sessoes.get(item.clienteId); 
                 if (!sock) {
-                    console.log(`⚠️ [CRON] Bot do cliente ${item.clienteId} offline. Lembrete ignorado nesta rodada.`);
-                    continue; 
+                    continue; // bot offline: tenta de novo na próxima rodada (sem poluir o log a cada minuto)
                 }
 
                 // Carrega a configuração feita no painel (Front-end) pelo Gestor
-                const cliente = await prisma.cliente.findUnique({
-                    where: { id: item.clienteId }
-                });
+                if (!clientes.has(item.clienteId)) {
+                    clientes.set(item.clienteId, await prisma.cliente.findUnique({ where: { id: item.clienteId } }));
+                }
+                const cliente = clientes.get(item.clienteId);
 
                 if (!cliente) continue;
                 
@@ -62,11 +63,6 @@ function iniciarMonitorDeLembretes(prisma, sessoes) {
 
                 // Calcula a distância entre AGORA e a hora da CONSULTA em minutos
                 const diffMinutos = Math.round((item.dataAgendada.getTime() - agora.getTime()) / 60000);
-
-                // DEBUG LOG: Mantido para você acompanhar o monitoramento via terminal
-                console.log(`\n⏰ [CRON DEBUG] Analisando: ${item.nome}`);
-                console.log(`   ⏱️ Faltam: ${diffMinutos} minutos para a consulta.`);
-                console.log(`   🎯 Alvo do Painel: ${t1} minutos.`);
 
                 let enviarAgora = false;
                 let proximoStatus = item.status;
@@ -129,7 +125,7 @@ function iniciarMonitorDeLembretes(prisma, sessoes) {
                     const horaF = item.dataAgendada.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
 
                     const textoMensagem = `🔔 *LEMBRETE DE CONSULTA*\n\n` +
-                        `Olá, *${item.nome}*! Passando para lembrar que sua consulta está agendada para ${mensagemTempo}.\n\n` +
+                        `Olá, *${item.nome || 'tudo bem'}*! Passando para lembrar que sua consulta está agendada para ${mensagemTempo}.\n\n` +
                         `📅 *Data:* ${dataF}\n` +
                         `🕒 *Hora:* ${horaF}\n\n` +
                         `Caso precise desmarcar, por favor nos avise.`;

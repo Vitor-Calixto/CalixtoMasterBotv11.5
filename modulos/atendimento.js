@@ -177,11 +177,11 @@ async function registrarSistema(contato, texto) {
 }
 
 // Disparado pelo sessions.setPausado quando o estado muda (dashboard, #PAUSE, #BOT, bloco "transferir"...)
-async function aoMudarPausa(userNum, humano) {
+async function aoMudarPausa(userNum, humano, clienteId) {
     if (!prisma) return;
     try {
         const candidatos = [...new Set([userNum, userNum.replace('@s.whatsapp.net', '@lid')])];
-        const contatos = await prisma.contato.findMany({ where: { remoteJid: { in: candidatos } } });
+        const contatos = await prisma.contato.findMany({ where: { remoteJid: { in: candidatos }, ...(clienteId ? { clienteId } : {}) } });
         for (const c of contatos) {
             await registrarSistema(c, humano
                 ? '🙋 Atendimento humano ativado. O bot está pausado nesta conversa.'
@@ -298,7 +298,7 @@ function registrarRotas(app, { isAuth, getSock }) {
         const contatos = await prisma.contato.findMany({
             where: { clienteId: ctx.cliente.id }, orderBy: { ultimaEm: 'desc' }, take: LIMITE_LISTA
         });
-        const pausados = await sessions.pausadosEm(contatos.map(c => userNumDe(c.remoteJid)));
+        const pausados = await sessions.dentroDoBot(ctx.cliente.id, () => sessions.pausadosEm(contatos.map(c => userNumDe(c.remoteJid))));
         res.json({
             success: true,
             status: ctx.cliente.status,
@@ -317,7 +317,7 @@ function registrarRotas(app, { isAuth, getSock }) {
         const mensagens = lote.slice(0, LIMITE_MENSAGENS).reverse().map(paraMensagem);
         res.json({
             success: true, temMais, mensagens,
-            humano: await sessions.isPausado(userNumDe(ctx.contato.remoteJid))
+            humano: await sessions.dentroDoBot(ctx.cliente.id, () => sessions.isPausado(userNumDe(ctx.contato.remoteJid)))
         });
     }));
 
@@ -325,7 +325,7 @@ function registrarRotas(app, { isAuth, getSock }) {
     app.post('/api/conversas/:clienteId/:contatoId/assumir', isAuth, seguro(async (req, res) => {
         const ctx = await carregar(req, res); if (!ctx) return;
         const ativo = req.body && req.body.ativo === true;
-        await sessions.setPausado(userNumDe(ctx.contato.remoteJid), ativo);
+        await sessions.dentroDoBot(ctx.cliente.id, () => sessions.setPausado(userNumDe(ctx.contato.remoteJid), ativo));
         res.json({ success: true, humano: ativo });
     }));
 
@@ -336,7 +336,7 @@ function registrarRotas(app, { isAuth, getSock }) {
         if (!texto) return res.status(400).json({ success: false, error: 'Digite uma mensagem.' });
         if (texto.length > MAX_TEXTO) return res.status(400).json({ success: false, error: `A mensagem passa de ${MAX_TEXTO} caracteres.` });
 
-        if (!(await sessions.isPausado(userNumDe(ctx.contato.remoteJid)))) {
+        if (!(await sessions.dentroDoBot(ctx.cliente.id, () => sessions.isPausado(userNumDe(ctx.contato.remoteJid))))) {
             return res.status(409).json({ success: false, error: 'Ative "Assumir conversa" antes de responder, para o bot não responder junto.' });
         }
         const sock = ctx.cliente.status === 'ONLINE' ? getSock(ctx.cliente.id) : null;

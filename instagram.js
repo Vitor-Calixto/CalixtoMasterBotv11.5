@@ -82,6 +82,14 @@ async function enviarRespostaInstagram(igidDestino, texto, token) {
 // 📡 3. ROTEADOR DE WEBHOOKS
 // ============================================================================
 
+const igJaTratadas = new Set();
+function primeiraVezIg(mid) {
+    if (igJaTratadas.has(mid)) return false;
+    igJaTratadas.add(mid);
+    if (igJaTratadas.size > 2000) igJaTratadas.delete(igJaTratadas.values().next().value);
+    return true;
+}
+
 router.get('/webhook', (req, res) => {
     let mode = req.query['hub.mode'];
     let token = req.query['hub.verify_token'];
@@ -97,15 +105,18 @@ router.get('/webhook', (req, res) => {
 router.post('/webhook', async (req, res) => {
     res.status(200).send('EVENT_RECEIVED'); 
     
-    let body = req.body;
+    let body = req.body || {};
     
-    if (body.object === 'instagram') {
+    if (body.object === 'instagram' && Array.isArray(body.entry)) {
         for (const entry of body.entry) {
-            if (entry.messaging) {
+            if (Array.isArray(entry.messaging)) {
                 for (const event of entry.messaging) {
                     let senderId = event.sender?.id;   
                     let recipientId = event.recipient?.id; 
                     let texto = event.message?.text;
+
+                    // A Meta repete o envio quando demora a receber resposta: cada mensagem é tratada uma vez só
+                    if (event.message?.mid && !primeiraVezIg(event.message.mid)) continue;
 
                     if (texto && !event.message?.is_echo) {
                         console.log(`\n📸 [INSTA-IN] Direct recebido de ${senderId}: "${texto}"`);
@@ -144,7 +155,8 @@ router.post('/webhook', async (req, res) => {
                                 prisma, 
                                 "Visitante Instagram", 
                                 'INSTAGRAM', 
-                                clienteDb.instagramToken
+                                clienteDb.instagramToken,
+                                { fromMe: false }
                             );
                         } catch (error) {
                             console.error("❌ Erro ao processar webhook:", error);

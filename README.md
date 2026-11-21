@@ -54,7 +54,7 @@ sequenceDiagram
 O `whatsapp.js` opera como um **Padrão de Projeto Adapter (Wrapper)**. Ele isola a complexidade da biblioteca `@whiskeysockets/baileys` do resto do **Calixto OmniSystem**, garantindo que, se o WhatsApp mudar sua API amanhã, apenas este arquivo precisará ser atualizado, preservando a inteligência do negócio (`engine.js`).
 
 ### 1.1 Responsabilidades Principais
-- **Gerenciamento de Estado (RAM vs Disco):** Mantém a conexão ativa na memória RAM (`sessoes.set()`) enquanto sincroniza as chaves criptográficas Noise Protocol em disco rígido (`/public/sessions/`).
+- **Gerenciamento de Estado (RAM vs Disco):** Mantém a conexão ativa na memória RAM (`sessoes.set()`) enquanto sincroniza as chaves criptográficas Noise Protocol em disco rígido (`storage/whatsapp/`, fora da pasta pública).
 - **Limpeza de Zumbis (Zombie Sockets):** Impede o efeito "bot duplicado". Se a função for chamada duas vezes, ela desliga a conexão antiga e limpa os `listeners` antes de iniciar a nova.
 - **Pareamento Dinâmico (Pairing Code API):** Elimina a necessidade de câmera/QR Code, gerando códigos de 8 dígitos para uma experiência fluida de SaaS.
 

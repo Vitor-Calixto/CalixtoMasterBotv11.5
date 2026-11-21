@@ -25,13 +25,15 @@ async function verificarTimeouts() {
        const processados = new Set(); 
 
        for (const chave of chaves) {
-           const userNum = chave.split(':')[1];
-           
-           if (processados.has(userNum)) continue;
-           processados.add(userNum);
+           // Cada conversa pertence a um robô: "sessao:<robo>:<numero>"
+           const { clienteId: roboDaChave, userNum } = sessions.lerChaveDeSessao(chave);
+           if (processados.has(chave)) continue;
+           processados.add(chave);
 
+           // Tudo abaixo roda no espaço do robô dono da conversa
+           await sessions.dentroDoBot(roboDaChave, async () => {
            const sessao = await sessions.getSessaoCompleta(userNum);
-           if (!sessao) continue; // Prevenção contra sessões corrompidas
+           if (!sessao) return; // Prevenção contra sessões corrompidas
            
            // ========================================================
            // 🛡️ TRAVA DE OURO: BLINDAGEM DO MODO #PAUSE
@@ -45,7 +47,7 @@ async function verificarTimeouts() {
                 if (tempoAtual !== 'DESATIVADO') {
                     await sessions.desativarTimeout(userNum);
                 }
-                continue; // Pula o cliente pausado e mantém silêncio no terminal
+                return; // Pula o cliente pausado e mantém silêncio no terminal
             }
 
            // ========================================================
@@ -55,7 +57,7 @@ async function verificarTimeouts() {
            if (tempoAtual && tempoAtual !== 'DESATIVADO' && tempoAtual !== 'null') {
                
                const tempoLimite = Number(tempoAtual);
-               if (isNaN(tempoLimite)) continue; // Segurança extra
+               if (isNaN(tempoLimite)) return; // Segurança extra
 
                // 4. BINGO! O relógio virou.
                if (agora > tempoLimite) {
@@ -65,7 +67,7 @@ async function verificarTimeouts() {
                    if (tempoEstourado > 600000) { // 600.000 ms = 10 minutos
                        console.log(`[CRON TIMEOUT] 👻 Sessão fantasma de ${userNum} ignorada silenciosamente.`);
                        await sessions.limparSessao(userNum);
-                       continue;
+                       return;
                    }
 
                     // TRAVA 2: ANTI-LOOP (Finaliza a conversa e bloqueia repetição)
@@ -89,6 +91,7 @@ async function verificarTimeouts() {
                    }
                }
            }
+           });
        }
    } catch (e) {
        console.error("[CRON TIMEOUT] ❌ Erro ao varrer sessões:", e.message);

@@ -178,7 +178,7 @@ async function enviarMensagemOmni(sock, remoteJid, texto, origem, igToken) {
  * Ponto de entrada de todas as mensagens. Analisa o estado do usuário,
  * verifica regras de negócio, salva variáveis e decide o próximo passo.
  */
-async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, pushName, origem = 'WHATSAPP', igToken = null) {
+async function processarMensagemDoBot(clienteId, remoteJid, textoMsg, sock, prisma, pushName, origem = 'WHATSAPP', igToken = null, opcoes = {}) {
     try {
         // 3.1 Sanitização do Número
         const userNum = String(remoteJid).replace(/:[0-9]+/g, '').replace(/@lid/g, '@s.whatsapp.net');
@@ -186,23 +186,27 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
 
         const msgLimpa = String(textoMsg).toUpperCase().trim();
 
-         // 3.2 Comandos Globais (Override)
+        // 3.2 Comandos Globais (Override)
+        // Só o gestor (mensagem enviada pelo próprio celular do robô) manda comandos com #.
+        // Se o cliente final digitar "#BOT", é uma mensagem comum: ele não consegue religar o robô
+        // numa conversa que o atendente pausou.
+        const ehComandoDeGestor = opcoes.fromMe !== false;
         
         // COMANDO: REATIVAR (#BOT ou #DESPAUSAR)
-        if (msgLimpa.includes('#BOT') || msgLimpa.includes('3BOT') || msgLimpa.includes('#DESPAUSAR') || msgLimpa.includes('#RESUME')) {
+        if (ehComandoDeGestor && (msgLimpa.includes('#BOT') || msgLimpa.includes('3BOT') || msgLimpa.includes('#DESPAUSAR') || msgLimpa.includes('#RESUME'))) {
             await sessions.setPausado(userNum, false);
             return await enviarMensagemOmni(sock, remoteJid, "▶️ *Robô Reativado!*", origem, igToken);
         }
 
         // COMANDO: RESETAR
-        if (msgLimpa.includes('#RESET')) {
+        if (ehComandoDeGestor && msgLimpa.includes('#RESET')) {
             await sessions.limparSessao(userNum);
             await sessions.setPausado(userNum, false);
             return await enviarMensagemOmni(sock, remoteJid, "🔄 *Sessão reiniciada!*", origem, igToken);
         }
 
         // COMANDO: PAUSAR (#PAUSE ou #PAUSAR)
-        if (msgLimpa.includes('#PAUSE') || msgLimpa.includes('#PAUSAR')) {
+        if (ehComandoDeGestor && (msgLimpa.includes('#PAUSE') || msgLimpa.includes('#PAUSAR'))) {
             await sessions.setPausado(userNum, true);
             return await enviarMensagemOmni(sock, remoteJid, "⏸️ *Automação Pausada.*\nO bot não responderá mais este número até que você envie *#BOT* ou *#DESPAUSAR*.", origem, igToken);
         }
@@ -440,9 +444,13 @@ async function processarMensagem(clienteId, remoteJid, textoMsg, sock, prisma, p
                     key = `output_${chavesOpcoes[indexDigitado].replace('opcao', '')}`;
                 }
                 if (!key) {
-                    chavesOpcoes.forEach(k => {
-                        if (normalizar(noAtual.data[k]).includes(normalizar(entrada))) key = `output_${k.replace('opcao', '')}`;
-                    });
+                    // Texto digitado: primeiro igualdade exata; depois "contém" (mínimo 3 letras,
+                    // para um "a" solto não escolher uma opção ao acaso) e vale a primeira que bater.
+                    const buscado = normalizar(entrada);
+                    const exata = chavesOpcoes.find(k => normalizar(noAtual.data[k]) === buscado);
+                    const parcial = buscado.length >= 3 ? chavesOpcoes.find(k => normalizar(noAtual.data[k]).includes(buscado)) : null;
+                    const achada = exata || parcial;
+                    if (achada) key = `output_${achada.replace('opcao', '')}`;
                 }
                 
                 proximoId = getNextNodeId(noAtual, key);
@@ -937,9 +945,14 @@ async function executarTimeout(userNum, clienteId, remoteJid, nodeId, prisma, so
 // ============================================================================
 // 6. EXPORTAÇÕES GLOBAIS
 // ============================================================================
+// Todas as entradas públicas rodam dentro do "espaço" do robô (ver sessions.dentroDoBot)
+const noEscopo = (clienteId, fn) => sessions.dentroDoBot(clienteId, fn);
 module.exports = { 
-    processarMensagem, 
-    executarNo, 
-    executarTimeout,
+    processarMensagem: (clienteId, remoteJid, textoMsg, sock, prisma, pushName, origem, igToken, opcoes) =>
+        noEscopo(clienteId, () => processarMensagemDoBot(clienteId, remoteJid, textoMsg, sock, prisma, pushName, origem, igToken, opcoes || {})),
+    executarNo: (nodeId, fluxo, sock, remoteJid, userNum, clienteId, ...resto) =>
+        noEscopo(clienteId, () => executarNo(nodeId, fluxo, sock, remoteJid, userNum, clienteId, ...resto)),
+    executarTimeout: (userNum, clienteId, ...resto) =>
+        noEscopo(clienteId, () => executarTimeout(userNum, clienteId, ...resto)),
     enviarMensagemOmni
 };

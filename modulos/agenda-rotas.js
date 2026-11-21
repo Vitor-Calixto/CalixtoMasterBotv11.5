@@ -181,7 +181,7 @@ function registrarRotas(app, deps) {
         const c = await lerConvite(req.params.token);
         res.set('Cache-Control', 'no-store');
         if (c.estado !== 'ok') return res.status(c.estado === 'expirado' ? 410 : 404).render('agendar', { estado: c.estado, negocio: null, token: null, nome: '', voltar: null, resumo: '' });
-        const dadosSessao = (sessions && await sessions.getDadosUsuario(c.dados.u).catch(() => ({}))) || {};
+        const dadosSessao = (sessions && await sessions.dentroDoBot(c.cliente.id, () => sessions.getDadosUsuario(c.dados.u)).catch(() => ({}))) || {};
         const numeroBot = String(c.cliente.numero || '').replace(/\D/g, '');
         res.render('agendar', {
             estado: 'ok', negocio: c.cliente.nome, token: req.params.token,
@@ -206,6 +206,12 @@ function registrarRotas(app, deps) {
     app.post('/api/agendar/:token', seguro(async (req, res) => {
         const c = await lerConvite(req.params.token);
         if (c.estado !== 'ok') return res.status(410).json({ success: false, error: 'Este link expirou. Peça um novo na conversa.' });
+        const { dados, cliente } = c;
+        // A conversa pertence a este robô: tudo que lê ou grava na sessão fica no espaço dele
+        return sessions.dentroDoBot(cliente.id, () => reservarPeloLink(req, res, c));
+    }));
+
+    async function reservarPeloLink(req, res, c) {
         const { dados, cliente } = c;
         const nome = String((req.body && req.body.nome) || '').trim().slice(0, 80);
         if (nome.length < 2) return res.status(400).json({ success: false, error: 'Digite seu nome.' });
@@ -243,7 +249,7 @@ function registrarRotas(app, deps) {
         } catch (e) { console.error('[AGENDA] Reserva feita, mas a confirmação na conversa falhou:', e.message); }
 
         res.json({ success: true, quando: agenda.textoCompleto(inicio) });
-    }));
+    }
 }
 
 module.exports = { registrarRotas, CORES };

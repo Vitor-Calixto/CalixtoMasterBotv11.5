@@ -56,10 +56,11 @@ const PORT = process.env.PORT || 3000;
 // ============================================================================
 // 🚨 CRÍTICO: Sem essa linha, os Webhooks da Meta chegam vazios (undefined)
 app.use(express.json({
+    limit: '10mb', // fluxos grandes do editor passam de 100kb (o padrão)
     // Guarda o corpo original do webhook do Instagram para conferir a assinatura da Meta
     verify: (req, res, buf) => { if (req.originalUrl.startsWith('/instagram/webhook')) req.rawBody = buf; }
 })); 
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.urlencoded({ extended: true, limit: '1mb' }));
 
 const rotasInstagram = require('./instagram'); // montado mais abaixo, depois da sessão
 // ============================================================================
@@ -93,6 +94,11 @@ const loginLimiter = rateLimit({
 // ==========================================
 // FUNÇÃO DE SEGURANÇA (ANTI-HACKER) 🛡️
 // ==========================================
+// Nome de robô: sem tags, sem quebras de linha, até 60 letras
+function limparNome(texto) {
+    return String(texto == null ? '' : texto).replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60);
+}
+
 function limparTexto(texto) {
     if (!texto) return "";
     
@@ -128,10 +134,9 @@ function setSystemConfig(newConfig) {
 }
 
 // --- CONFIGURAÇÕES DO EXPRESS ---
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ extended: true, limit: '50mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
+// Chaves do WhatsApp nunca saem pela internet (hoje ficam em storage/whatsapp; este bloqueio cobre sobras antigas)
+app.use('/sessions', (req, res) => res.sendStatus(404));
+app.use(express.static(path.join(__dirname, 'public'), { dotfiles: 'ignore' }));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -405,12 +410,22 @@ app.put('/api/contratos/:id', isAuth, usuarios.exigirPermissao('contratos'), asy
              return res.status(403).json({ error: 'Acesso negado' });
         }
 
+        // Mudar o contrato de robô só vale para um robô que também é do usuário
+        let novoClienteId = contrato.clienteId;
+        if (clienteId && clienteId !== contrato.clienteId) {
+            const destino = await prisma.cliente.findUnique({ where: { id: String(clienteId) } });
+            if (!destino || (destino.donoId !== req.session.userId && req.session.role !== 'ADMIN')) {
+                return res.status(403).json({ error: 'Acesso negado a este cliente' });
+            }
+            novoClienteId = destino.id;
+        }
+
         await prisma.contratoTemplate.update({
             where: { id: id },
             data: {
                 nome,
                 conteudo,
-                clienteId
+                clienteId: novoClienteId
             }
         });
 
@@ -445,7 +460,9 @@ app.delete('/api/contratos/:id', isAuth, usuarios.exigirPermissao('contratos'), 
 
 app.put('/api/clientes/:id', isAuth, exigirDonoDoBot(req => req.params.id), async (req, res) => {
     try {
-        const { nome, numero, instagramUser } = req.body;
+        const { numero, instagramUser } = req.body;
+        const nome = req.body.nome === undefined ? undefined : limparNome(req.body.nome);
+        if (nome !== undefined && nome.length < 2) return res.status(400).json({ success: false, error: 'Digite o nome do robô.' });
         
         // 🚨 Segurança: Garantir que o cliente pertence ao usuário logado
         const clienteDb = await prisma.cliente.findUnique({ where: { id: req.params.id } });
@@ -457,8 +474,8 @@ app.put('/api/clientes/:id', isAuth, exigirDonoDoBot(req => req.params.id), asyn
             where: { id: req.params.id },
             data: { 
                 nome, 
-                numero,
-                instagramUser // 🚀 Aqui o dado do modal entra no banco!
+                numero: numero === undefined ? undefined : String(numero).trim().slice(0, 30),
+                instagramUser: instagramUser === undefined || instagramUser === null ? instagramUser : String(instagramUser).trim().slice(0, 60) // 🚀 Aqui o dado do modal entra no banco!
             }
         });
         res.json({ success: true });
@@ -481,7 +498,13 @@ app.post('/api/clientes', isAuth, async (req, res) => {
         }
 
         // Pega os dados que o seu novo frontend lindo está enviando
-        const { nome, numero, plataforma } = req.body;
+        const nome = limparNome(req.body.nome);
+        const { numero } = req.body;
+        const plataforma = req.body.plataforma === 'INSTAGRAM' ? 'INSTAGRAM' : 'WHATSAPP';
+        if (nome.length < 2) return res.status(400).json({ error: 'Digite o nome do robô.' });
+        if (plataforma === 'WHATSAPP' && !/^\d{10,15}$/.test(String(numero || '').replace(/\D/g, ''))) {
+            return res.status(400).json({ error: 'Digite o número do WhatsApp com DDD (só números).' });
+        }
         if (plataforma === 'INSTAGRAM' && !rotasInstagram.instagramLiberado() && !usuarios.ehAdmin(user)) {
             return res.status(403).json({ error: 'O Instagram ainda não está disponível. Crie o robô para WhatsApp.' });
         }
@@ -489,8 +512,8 @@ app.post('/api/clientes', isAuth, async (req, res) => {
         const novoBot = await prisma.cliente.create({ 
             data: { 
                 nome: nome, 
-                numero: String(numero), // Garante que o número não quebre se for nulo
-                plataforma: plataforma || 'WHATSAPP', // Salva WPP ou INSTA
+                numero: plataforma === 'WHATSAPP' ? String(numero).replace(/\D/g, '') : String(numero || '').trim().slice(0, 30),
+                plataforma, // Salva WPP ou INSTA
                 donoId: req.session.userId, 
                 status: 'OFFLINE' 
             } 
@@ -527,16 +550,8 @@ app.delete('/api/clientes/:id', isAuth, exigirDonoDoBot(req => req.params.id), a
 
         await new Promise(r => setTimeout(r, 1000));
 
-        // 2. Apaga arquivos da sessão física
-        const sessionsDir = path.join(__dirname, 'public', 'sessions', `${cliente.nome}-${cliente.id}`);
-        if (fs.existsSync(sessionsDir)) {
-            console.log(`[EXCLUSÃO] 📁 Apagando pasta de sessão física...`);
-            try { 
-                fs.rmSync(sessionsDir, { recursive: true, force: true }); 
-            } catch (fsErr) { 
-                console.warn(`[AVISO] Pasta em uso pelo Windows, ignorando por enquanto.`); 
-            }
-        }
+        // 2. Apaga arquivos da sessão física (chaves do WhatsApp)
+        whatsapp.apagarPastaDaSessao(cliente);
 
         // 3. Limpeza Hierárquica do Banco (Os filhos precisam morrer antes do pai)
         console.log(`[EXCLUSÃO] 🧹 Limpando dados atrelados no banco...`);
@@ -570,7 +585,8 @@ app.delete('/api/clientes/:id', isAuth, exigirDonoDoBot(req => req.params.id), a
 
 app.post('/api/status', isAuth, exigirDonoDoBot(req => req.body.clienteId), async (req, res) => {
     try {
-        const { clienteId, status } = req.body;
+        const { clienteId } = req.body;
+        const status = req.body.status === 'ONLINE' ? 'ONLINE' : 'OFFLINE';
         
         // 1. Busca quem é o cliente ANTES de ligar/desligar para saber a plataforma
         const cliente = await prisma.cliente.findUnique({ where: { id: clienteId } });
@@ -609,11 +625,11 @@ app.post('/api/status', isAuth, exigirDonoDoBot(req => req.body.clienteId), asyn
 // 🚀 ROTA NOVA: Liga e Desliga o "Cérebro" do Bot no Banco de Dados
 app.post('/api/bot/ativo', isAuth, exigirDonoDoBot(req => req.body.clienteId), async (req, res) => {
     try {
-        const { clienteId, ativo } = req.body;
+        const { clienteId } = req.body;
         // Atualiza o Prisma (verdadeiro ou falso)
         await prisma.cliente.update({ 
             where: { id: clienteId }, 
-            data: { ativo: ativo } 
+            data: { ativo: req.body.ativo === true || req.body.ativo === 'true' } 
         });
         res.json({ success: true });
     } catch (error) {
@@ -675,61 +691,8 @@ app.post('/api/admin/maintenance', isAuth, (req, res) => {
     res.json({ success: true, maintenance: newState });
 });
 
-app.get('/api/admin/usuarios', isAuth, async (req, res) => {
-    if (req.session.role !== 'ADMIN') return res.status(403).json({});
-    const usuarios = await prisma.usuario.findMany({ 
-        orderBy: { criadoEm: 'desc' }, 
-        select: { id: true, nome: true, email: true, plano: true, ativo: true, bloqueado: true, expiraEm: true, termsAccepted: true, termsAcceptedAt: true, signupIp: true, clientes: { select: { nome: true, status: true } } } 
-    });
-    res.json(usuarios);
-});
-
-app.post('/api/admin/aprovar', isAuth, async (req, res) => {
-    if (req.session.role !== 'ADMIN') return res.status(403).json({});
-    await prisma.usuario.update({ where: { id: req.body.idUsuario }, data: { ativo: true } });
-    res.json({ status: 'ok' });
-});
-
-app.post('/api/admin/usuarios/bloqueio', isAuth, async (req, res) => {
-    if (req.session.role !== 'ADMIN') return res.status(403).json({});
-    await prisma.usuario.update({ where: { id: req.body.idUsuario }, data: { bloqueado: req.body.bloquear } });
-    res.json({ success: true });
-});
-
-app.post('/api/admin/usuarios/definir-data', isAuth, async (req, res) => {
-    if (req.session.role !== 'ADMIN') return res.status(403).json({});
-    const dataAjustada = new Date(req.body.novaData); dataAjustada.setHours(23, 59, 59);
-    await prisma.usuario.update({ where: { id: req.body.idUsuario }, data: { expiraEm: dataAjustada, bloqueado: false } });
-    res.json({ success: true });
-});
-
-app.post('/api/admin/usuarios/renovar', isAuth, async (req, res) => {
-    if (req.session.role !== 'ADMIN') return res.status(403).json({});
-    const { idUsuario, diasAdicionais, vitalicio } = req.body;
-    let novaData = null;
-    if (!vitalicio) {
-        const user = await prisma.usuario.findUnique({ where: { id: idUsuario } });
-        const baseData = (user.expiraEm && new Date(user.expiraEm) > new Date()) ? new Date(user.expiraEm) : new Date();
-        baseData.setDate(baseData.getDate() + diasAdicionais);
-        novaData = baseData;
-    }
-    await prisma.usuario.update({ where: { id: idUsuario }, data: { expiraEm: novaData, bloqueado: false } });
-    res.json({ success: true });
-});
-
-app.delete('/api/admin/usuarios/:id', isAuth, async (req, res) => {
-    if (req.session.role !== 'ADMIN') return res.status(403).json({});
-    try {
-        const idUsuario = req.params.id;
-        const bots = await prisma.cliente.findMany({ where: { donoId: idUsuario } });
-        for (const bot of bots) {
-             if(whatsapp.sessoes.has(bot.id)) { try { whatsapp.sessoes.get(bot.id).end(undefined); } catch(e){} }
-        }
-        await prisma.cliente.deleteMany({ where: { donoId: idUsuario } });
-        await prisma.usuario.delete({ where: { id: idUsuario } });
-        res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: "Erro excluir" }); }
-});
+// (as rotas antigas de aprovar/bloquear/renovar/excluir usuário foram removidas:
+//  hoje tudo passa por /api/admin/contas em modulos/usuarios.js, com as proteções do administrador)
 
 app.get('/termos', (req, res) => res.render('termos', { usuario: req.session.usuario || null }));
 app.get('/privacidade', (req, res) => res.render('privacidade', { usuario: req.session.usuario || null }));
@@ -850,107 +813,12 @@ async function religarRobosAtivos() {
 // ==========================================
 
 // 1. A página da agenda e as novas rotas ficam em modulos/agenda-rotas.js
-// 2. Rota para salvar configurações da agenda (Notificação, Lembretes e Horário)
-app.post('/api/clientes/:id/config-notificacao', isAuth, exigirDonoDoBot(req => req.params.id), async (req, res) => {
-    try {
-        // 1. Puxa todas as variáveis enviadas pelo front-end
-        const { numeroDono, tempoLembrete1, tempoLembrete2, usarHorarioComercial } = req.body;
-        
-        // 2. Inteligência do DDI 55 para o número do gestor
-        let numeroLimpo = numeroDono.replace(/\D/g, '');
-        if (numeroLimpo.length === 10 || numeroLimpo.length === 11) {
-            numeroLimpo = '55' + numeroLimpo;
-        }
-        const jidGestor = numeroLimpo + '@s.whatsapp.net';
-        
-        // 3. Salva TUDO no banco de dados
-        await prisma.cliente.update({
-            where: { id: req.params.id },
-            data: { 
-                numeroNotificacao: jidGestor,
-                tempoLembrete1: parseInt(tempoLembrete1) || 24, // Padrão 24h
-                tempoLembrete2: parseInt(tempoLembrete2) || 0,  // Padrão 0 (desativado)
-                usarHorarioComercial: usarHorarioComercial !== undefined ? usarHorarioComercial : true
-            }
-        });
-        
-        console.log(`✅ [ config ] Configurações da Agenda salvas para o bot ${req.params.id}`);
-        res.json({ success: true });
-    } catch (e) {
-        console.error("❌ Erro ao salvar configurações:", e.message);
-        res.status(500).json({ error: e.message });
-    }
-});
-
-// 3. API: Busca eventos para o calendário (VERSÃO SINCRONIZADA V30.9)
-
-app.get('/api/agendamentos/usuario', isAuth, async (req, res) => {
-    try {
-        const meusRobos = await prisma.cliente.findMany({ where: { donoId: req.session.userId }, select: { id: true } });
-        const ids = meusRobos.map(r => r.id);
-        const agendamentos = await prisma.lembrete.findMany({ where: { clienteId: { in: ids } } });
-        
-        res.json(agendamentos.map(ag => ({
-            id: String(ag.id),
-            title: ag.status === 'BLOQUEADO' ? '🔒 RESTRITO' : (ag.nome || 'Agendamento'), 
-            start: ag.dataAgendada,
-            backgroundColor: ag.status === 'BLOQUEADO' ? '#1a1a1a' : 'rgba(0, 102, 255, 0.2)',
-            borderColor: ag.status === 'BLOQUEADO' ? '#ff3333' : '#0066ff',
-            extendedProps: { 
-                // 🚩 Garante que o Nome não vai como undefined
-                nome: ag.nome || 'Nome não registado', 
-                cpf: ag.cpf,
-                // 🚩 Garante que o número não vai como undefined
-                numero: ag.numero || 'Sem número',
-                mensagem: ag.mensagem,
-                clienteId: ag.clienteId
-            }
-        })));
-    } catch (e) { res.status(500).json([]); }
-});
-// 4. API: Bloqueio manual e 5. API: Excluir (Mantenha as que enviamos antes)
-app.post('/api/agendamentos/bloquear', isAuth, exigirDonoDoBot(req => req.body.clienteId), async (req, res) => {
-    try {
-        const { start, clienteId } = req.body;
-        await prisma.lembrete.create({
-            data: { numero: "SISTEMA", cpf: "BLOQUEIO", status: 'BLOQUEADO', mensagem: "🔒 HORÁRIO RESTRITO (MANUAL)", dataAgendada: new Date(start), clienteId: clienteId }
-        });
-        res.json({ success: true });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
+// (as configurações de horário e avisos da agenda ficam em modulos/agenda-rotas.js)
 app.delete('/api/agendamentos/:id', isAuth, exigirDonoDoLembrete(req => req.params.id), async (req, res) => {
     try {
         await prisma.lembrete.delete({ where: { id: req.params.id } });
         res.json({ success: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/agendamentos/manual', isAuth, exigirDonoDoBot(req => req.body.clienteId), async (req, res) => {
-    try {
-        const { nome, whatsapp, data, clienteId } = req.body;
-
-        // Limpa o número e garante o 55 (Brasil) para o Baileys não dar erro
-        let numLimpo = String(whatsapp).replace(/\D/g, '');
-        if (numLimpo.length === 10 || numLimpo.length === 11) {
-            numLimpo = '55' + numLimpo;
-        }
-
-        await prisma.lembrete.create({
-            data: {
-                nome: nome,
-                numero: numLimpo,
-                dataAgendada: new Date(data),
-                clienteId: clienteId, // Se o ID no Prisma for número, troque para parseInt(clienteId)
-                status: 'PENDENTE',
-                mensagem: 'Agendamento Manual'
-            }
-        });
-
-        res.json({ success: true });
-    } catch (e) { 
-        res.status(500).json({ error: e.message }); 
-    }
 });
 
 // Executa a verificação de novos lembretes a cada 2 minutos
@@ -1013,32 +881,7 @@ app.get('/api/testar-lembrete/:id', isAuth, exigirDonoDoLembrete(req => req.para
 // em: Meus Apps > Configurações do App > Básico.
 // ============================================================================
 
-// 🔗 LINK PARA A META (URL da Política de Privacidade): 
-// Copie e cole -> https://calixtosystem.com.br/privacidade
-app.get('/privacidade', (req, res) => {
-    res.send(`
-        <div style="font-family: Arial; padding: 40px; background: #000; color: #fff;">
-            <h1>Política de Privacidade - Calixto OmniSystem</h1>
-            <p>A sua privacidade é importante para nós. 
-            O Calixto OmniSystem utiliza a API oficial da Meta apenas para 
-            ler e responder mensagens autorizadas pelo usuário.</p>
-            <p>Não vendemos, não compartilhamos e não utilizamos os dados
-             das conversas para nenhum outro fim que não seja o funcionamento do bot de atendimento.</p>
-        </div>
-    `);
-});
-
-// 🔗 LINK PARA A META (URL dos Termos de Serviço): 
-// Copie e cole -> https://calixtosystem.com.br/termos
-app.get('/termos', (req, res) => {
-    res.send(`
-        <div style="font-family: Arial; padding: 40px; background: #000; color: #fff;">
-            <h1>Termos de Serviço</h1>
-            <p>Ao utilizar o Calixto OmniSystem, você concorda em usar a automação 
-            de forma ética e em conformidade com as diretrizes da Meta.</p>
-        </div>
-    `);
-});
+// 🔗 /privacidade e /termos usam as páginas completas (views/privacidade.ejs e views/termos.ejs), definidas acima.
 
 // 🔗 LINK PARA A META (Instruções de Exclusão de Dados do Usuário): 
 // Copie e cole -> https://calixtosystem.com.br/exclusao-dados
